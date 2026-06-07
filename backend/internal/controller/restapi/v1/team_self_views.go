@@ -17,13 +17,13 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, members, minTeamSize, meetsMinSize, err := h.team.SelfUC.GetMyTeam(r.Context(), user.ID)
+	team, err := h.team.SelfUC.GetMyTeam(r.Context(), user.ID)
 	if h.OnError(w, r, err, "GetTeamsMy", "GetMyTeam") {
 		return
 	}
 
-	resp := response.FromTeamWithMembers(team, members, minTeamSize, meetsMinSize)
-	if team.IsBanned {
+	resp := response.FromTeamMe(team)
+	if team.Team != nil && team.Team.IsBanned {
 		resp.InviteToken = nil
 	}
 

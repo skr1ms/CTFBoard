@@ -75,3 +75,12 @@ func (r *UserRepo) CountSearchByIP(ctx context.Context, ip string) (int64, error
 
 	return count, nil
 }
+
+func (r *UserRepo) CountActiveUsers(ctx context.Context) (int64, error) {
+	count, err := r.Q(ctx).CountActiveUsers(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("UserRepo - CountActiveUsers: %w", err)
+	}
+
+	return count, nil
+}

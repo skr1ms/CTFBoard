@@ -61,6 +61,7 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 			pub.Get("/brackets", wrapper.GetBrackets)
 			pub.Get("/pages", wrapper.GetPages)
 			pub.Get("/pages/{slug}", wrapper.GetPagesSlug)
+			pub.Get("/notifications/count", wrapper.GetNotificationsCount)
 			pub.Get("/notifications", wrapper.GetNotifications)
 			pub.Get("/challenges/types", wrapper.GetChallengesTypes)
 		})
@@ -71,6 +72,7 @@ func setupPublicRoutes(router chi.Router, wrapper openapi.ServerInterfaceWrapper
 		r.With(publicReadLimit).Get("/tos", wrapper.GetTos)
 		r.With(publicReadLimit).Get("/privacy", wrapper.GetPrivacy)
 		r.With(publicReadLimit).Get("/configs/public", wrapper.GetConfigsPublic)
+		r.With(publicReadLimit).Get("/shares/solve", wrapper.GetSharesSolve)
 	})
 }
 

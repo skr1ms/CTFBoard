@@ -181,20 +181,28 @@ func (uc *CleanupUseCase) CleanupOrphanedAvatars(ctx context.Context) (int, erro
 // CleanupOldTracking deletes page-view tracking records and challenge-open events
 // older than olderThan. Both tables are pruned in separate calls; no-ops when
 // TrackingRepo is not wired.
-func (uc *CleanupUseCase) CleanupOldTracking(ctx context.Context, olderThan time.Duration) error {
+func (uc *CleanupUseCase) CleanupOldTracking(ctx context.Context, olderThan time.Duration) (*usecase.TrackingCleanupResult, error) {
+	result := &usecase.TrackingCleanupResult{}
+
 	if uc.deps.TrackingRepo == nil {
-		return nil
+		return result, nil
 	}
 
 	cutoffDate := time.Now().Add(-olderThan)
 
-	if err := uc.deps.TrackingRepo.DeleteOlderThan(ctx, cutoffDate); err != nil {
-		return fmt.Errorf("CleanupUseCase - CleanupOldTracking - DeleteOlderThan: %w", err)
+	deletedTracking, err := uc.deps.TrackingRepo.DeleteOlderThan(ctx, cutoffDate)
+	if err != nil {
+		return result, fmt.Errorf("CleanupUseCase - CleanupOldTracking - DeleteOlderThan: %w", err)
 	}
 
-	if err := uc.deps.TrackingRepo.DeleteChallengeOpensOlderThan(ctx, cutoffDate); err != nil {
-		return fmt.Errorf("CleanupUseCase - CleanupOldTracking - DeleteChallengeOpensOlderThan: %w", err)
+	result.TrackingDeleted = deletedTracking
+
+	deletedChallengeOpens, err := uc.deps.TrackingRepo.DeleteChallengeOpensOlderThan(ctx, cutoffDate)
+	if err != nil {
+		return result, fmt.Errorf("CleanupUseCase - CleanupOldTracking - DeleteChallengeOpensOlderThan: %w", err)
 	}
 
-	return nil
+	result.ChallengeOpensDeleted = deletedChallengeOpens
+
+	return result, nil
 }

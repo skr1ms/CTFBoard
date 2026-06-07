@@ -23,21 +23,24 @@ func (q *Queries) CountChallengeOpensByChallenge(ctx context.Context, challengeI
 }
 
 const createChallengeOpen = `-- name: CreateChallengeOpen :exec
-INSERT INTO challenge_opens (id, user_id, challenge_id, ip)
-VALUES ($1, $2, $3, $4)
+INSERT INTO challenge_opens (id, user_id, team_id, challenge_id, ip)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (user_id, challenge_id) DO NOTHING
 `
 
 type CreateChallengeOpenParams struct {
-	ID          uuid.UUID `json:"id"`
-	UserID      uuid.UUID `json:"user_id"`
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	IP          *string   `json:"ip"`
+	ID          uuid.UUID  `json:"id"`
+	UserID      uuid.UUID  `json:"user_id"`
+	TeamID      *uuid.UUID `json:"team_id"`
+	ChallengeID uuid.UUID  `json:"challenge_id"`
+	IP          *string    `json:"ip"`
 }
 
 func (q *Queries) CreateChallengeOpen(ctx context.Context, arg CreateChallengeOpenParams) error {
 	_, err := q.db.Exec(ctx, createChallengeOpen,
 		arg.ID,
 		arg.UserID,
+		arg.TeamID,
 		arg.ChallengeID,
 		arg.IP,
 	)
@@ -45,7 +48,7 @@ func (q *Queries) CreateChallengeOpen(ctx context.Context, arg CreateChallengeOp
 }
 
 const getChallengeOpensByChallenge = `-- name: GetChallengeOpensByChallenge :many
-SELECT id, user_id, challenge_id, ip, opened_at
+SELECT id, user_id, team_id, challenge_id, ip, opened_at
 FROM challenge_opens
 WHERE challenge_id = $1
 ORDER BY opened_at DESC
@@ -70,6 +73,7 @@ func (q *Queries) GetChallengeOpensByChallenge(ctx context.Context, arg GetChall
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
+			&i.TeamID,
 			&i.ChallengeID,
 			&i.IP,
 			&i.OpenedAt,

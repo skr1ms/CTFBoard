@@ -19,9 +19,11 @@ type BackupUseCase struct {
 }
 
 type BackupDeps struct {
+	StopContext     context.Context
 	CompetitionRepo repo.CompetitionRepository
 	ChallengeRepo   repo.ChallengeRepository
 	TagRepo         repo.TagRepository
+	TopicRepo       repo.TopicRepository
 	HintRepo        repo.HintRepository
 	TeamRepo        repo.TeamRepository
 	UserRepo        repo.UserRepository
@@ -49,7 +51,10 @@ func NewBackupUseCase(deps BackupDeps) *BackupUseCase {
 		deps.Logger = logkit.Noop()
 	}
 
-	return &BackupUseCase{deps: deps}
+	uc := &BackupUseCase{deps: deps}
+	uc.failInterruptedImportJobs(deps.StopContext)
+
+	return uc
 }
 
 func (uc *BackupUseCase) Reset(ctx context.Context, opts domain.AdminResetOptions) error {

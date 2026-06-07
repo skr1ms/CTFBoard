@@ -48,14 +48,20 @@ schemas:
         type: string
       challenge_id:
         type: string
+        format: uuid
+      page_id:
+        type: string
+        format: uuid
       location:
         type: string
       filename:
         type: string
       size:
         type: integer
+        format: int64
       sha256:
         type: string
       created_at:
         type: string
+        format: date-time
     type: object

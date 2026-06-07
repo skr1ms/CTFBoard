@@ -12,8 +12,8 @@ LIMIT $2 OFFSET $3;
 -- name: CountTrackingByUser :one
 SELECT COUNT(*)::int FROM tracking WHERE user_id = $1;
 
--- name: DeleteTrackingOlderThan :exec
+-- name: DeleteTrackingOlderThan :execrows
 DELETE FROM tracking WHERE tracked_at < $1;
 
--- name: DeleteChallengeOpensOlderThan :exec
+-- name: DeleteChallengeOpensOlderThan :execrows
 DELETE FROM challenge_opens WHERE opened_at < $1;

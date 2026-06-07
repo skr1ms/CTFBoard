@@ -47,6 +47,7 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 	return &repo.ChallengeSolution{
 		ChallengeID: row.ChallengeID,
 		Content:     row.Content,
+		State:       domain.SolutionStateOrDefault(row.State),
 		Files:       entityFiles,
 	}, nil
 }
@@ -63,6 +64,7 @@ func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*domain.Solution
 			ID:          row.ID,
 			ChallengeID: row.ChallengeID,
 			Content:     row.Content,
+			State:       domain.SolutionStateOrDefault(row.State),
 		}
 	}
 
@@ -73,8 +75,8 @@ func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*domain.Solution
 // their associated writeup files. It first fetches solution rows, collects the
 // challenge IDs, then batches a second query for writeup files and merges them
 // into a challengeID->files map before assembling the final entries.
-func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeSolutionEntry, error) {
-	rows, err := r.Q(ctx).GetSolutionsByTeamID(ctx, teamID)
+func (r *ChallengeRepo) ListSolutions(ctx context.Context) ([]*repo.ChallengeSolutionEntry, error) {
+	rows, err := r.Q(ctx).GetCandidateSolutions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - ListSolutions: %w", err)
 	}
@@ -123,6 +125,7 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 			ChallengeTitle:    row.ChallengeTitle,
 			ChallengeCategory: row.ChallengeCategory,
 			Content:           row.Content,
+			State:             domain.SolutionStateOrDefault(row.State),
 			Files:             ef,
 		}
 	}
@@ -132,10 +135,11 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context, teamID uuid.UUID) ([]
 
 // UpsertSolution inserts or updates the solution text for a challenge, then
 // fetches the current writeup files to return the full ChallengeSolution.
-func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*repo.ChallengeSolution, error) {
+func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content, state string) (*repo.ChallengeSolution, error) {
 	row, err := r.Q(ctx).UpsertSolution(ctx, sqlc.UpsertSolutionParams{
 		ChallengeID: challengeID,
 		Content:     content,
+		State:       domain.SolutionStateOrDefault(state),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - UpsertSolution: %w", err)
@@ -166,6 +170,7 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 	return &repo.ChallengeSolution{
 		ChallengeID: row.ChallengeID,
 		Content:     row.Content,
+		State:       domain.SolutionStateOrDefault(row.State),
 		Files:       entityFiles,
 	}, nil
 }

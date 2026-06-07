@@ -44,6 +44,7 @@ type SolveDeps struct {
 	TM                 repo.TransactionManager
 	Cache              *cachekit.Cache
 	ScoreboardCache    cacheutil.ScoreboardCacheInvalidator
+	StatsCache         StatisticsCacheInvalidator
 	ChallengeListCache cacheutil.ChallengeListCacheInvalidator
 	Broadcaster        solveBroadcaster
 	Logger             logkit.Logger
@@ -131,6 +132,7 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *domain.Solve) error {
 	}
 
 	uc.invalidateScoreboardCache(ctx, solve.TeamID)
+	uc.invalidateStatisticsCache(ctx, "Create")
 
 	if uc.deps.ChallengeListCache != nil {
 		uc.deps.ChallengeListCache.InvalidateForTeam(ctx, solve.TeamID)

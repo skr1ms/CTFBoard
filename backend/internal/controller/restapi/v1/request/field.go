@@ -13,7 +13,7 @@ type CreateFieldParams = usecase.FieldCreateParams
 type UpdateFieldParams = usecase.FieldUpdateParams
 
 func FieldEntityTypeFromParams(entityType *openapi.GetFieldsParamsEntityType) domain.EntityType {
-	if entityType != nil && *entityType == openapi.Team {
+	if entityType != nil && *entityType == openapi.GetFieldsParamsEntityTypeTeam {
 		return domain.EntityTypeTeam
 	}
 
@@ -22,21 +22,27 @@ func FieldEntityTypeFromParams(entityType *openapi.GetFieldsParamsEntityType) do
 
 func CreateFieldRequestToParams(req *openapi.CreateFieldRequest) (CreateFieldParams, error) {
 	return CreateFieldParams{
-		Name:       req.Name,
-		FieldType:  domain.FieldType(req.FieldType),
-		EntityType: domain.EntityType(req.EntityType),
-		Required:   lo.FromPtrOr(req.Required, false),
-		Options:    lo.FromPtrOr(req.Options, nil),
-		OrderIndex: lo.FromPtrOr(req.OrderIndex, 0),
+		Name:        req.Name,
+		Description: lo.FromPtrOr(req.Description, ""),
+		FieldType:   domain.FieldType(req.FieldType),
+		EntityType:  domain.EntityType(req.EntityType),
+		Required:    lo.FromPtrOr(req.Required, false),
+		Public:      lo.FromPtrOr(req.Public, false),
+		Editable:    lo.FromPtrOr(req.Editable, false),
+		Options:     lo.FromPtrOr(req.Options, nil),
+		OrderIndex:  lo.FromPtrOr(req.OrderIndex, 0),
 	}, nil
 }
 
 func UpdateFieldRequestToParams(req *openapi.UpdateFieldRequest) (UpdateFieldParams, error) {
 	return UpdateFieldParams{
-		Name:       req.Name,
-		FieldType:  domain.FieldType(req.FieldType),
-		Required:   lo.FromPtrOr(req.Required, false),
-		Options:    lo.FromPtrOr(req.Options, nil),
-		OrderIndex: lo.FromPtrOr(req.OrderIndex, 0),
+		Name:        req.Name,
+		Description: lo.FromPtrOr(req.Description, ""),
+		FieldType:   domain.FieldType(req.FieldType),
+		Required:    lo.FromPtrOr(req.Required, false),
+		Public:      lo.FromPtrOr(req.Public, false),
+		Editable:    lo.FromPtrOr(req.Editable, false),
+		Options:     lo.FromPtrOr(req.Options, nil),
+		OrderIndex:  lo.FromPtrOr(req.OrderIndex, 0),
 	}, nil
 }

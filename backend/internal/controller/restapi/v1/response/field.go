@@ -25,6 +25,8 @@ func FromField(f *domain.Field) openapi.FieldResponse {
 		fieldType = openapi.FieldResponseFieldTypeSelect
 	case domain.FieldTypeBoolean:
 		fieldType = openapi.FieldResponseFieldTypeBoolean
+	case domain.FieldTypeJSON:
+		fieldType = openapi.FieldResponseFieldTypeJSON
 	default:
 		fieldType = openapi.FieldResponseFieldTypeText
 	}
@@ -41,14 +43,17 @@ func FromField(f *domain.Field) openapi.FieldResponse {
 	}
 
 	return openapi.FieldResponse{
-		ID:         new(f.ID.String()),
-		Name:       new(f.Name),
-		FieldType:  new(fieldType),
-		EntityType: new(entityType),
-		Required:   new(f.Required),
-		Options:    opts,
-		OrderIndex: new(f.OrderIndex),
-		CreatedAt:  new(f.CreatedAt),
+		ID:          new(f.ID.String()),
+		Name:        new(f.Name),
+		Description: new(f.Description),
+		FieldType:   new(fieldType),
+		EntityType:  new(entityType),
+		Required:    new(f.Required),
+		Public:      new(f.Public),
+		Editable:    new(f.Editable),
+		Options:     opts,
+		OrderIndex:  new(f.OrderIndex),
+		CreatedAt:   new(f.CreatedAt),
 	}
 }
 

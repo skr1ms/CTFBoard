@@ -34,10 +34,10 @@ type (
 		Create(ctx context.Context, entry *domain.TrackingEntry) error
 		GetByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.TrackingEntry, error)
 		CountByUser(ctx context.Context, userID uuid.UUID) (int, error)
-		DeleteOlderThan(ctx context.Context, cutoffDate time.Time) error
+		DeleteOlderThan(ctx context.Context, cutoffDate time.Time) (int64, error)
 		CreateChallengeOpen(ctx context.Context, entry *domain.ChallengeOpen) error
 		GetChallengeOpensByChallenge(ctx context.Context, challengeID uuid.UUID, limit, offset int) ([]*domain.ChallengeOpen, error)
-		DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) error
+		DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) (int64, error)
 		CountChallengeOpensByChallenge(ctx context.Context, challengeID uuid.UUID) (int, error)
 	}
 )
@@ -79,6 +79,7 @@ type (
 		GetByEntityID(ctx context.Context, entityID uuid.UUID) ([]*domain.FieldValue, error)
 		GetAll(ctx context.Context) ([]*domain.FieldValue, error)
 		SetValues(ctx context.Context, entityID uuid.UUID, values map[string]string) error
+		UpsertValues(ctx context.Context, entityID uuid.UUID, values map[string]string) error
 		DeleteByEntityID(ctx context.Context, entityID uuid.UUID) error
 	}
 )

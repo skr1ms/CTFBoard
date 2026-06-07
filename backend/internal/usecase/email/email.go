@@ -26,6 +26,7 @@ const (
 	defaultVerificationBody     = "Follow the link to verify: " + emailPlaceholderURL
 	defaultPasswordResetSubject = "Password reset - " + emailPlaceholderCTFName
 	defaultPasswordResetBody    = "Follow the link to reset password: " + emailPlaceholderURL
+	defaultPasswordMinLength    = 8
 )
 
 func substitute(s string, m map[string]string) string {
@@ -42,6 +43,7 @@ type EmailUseCase struct {
 
 type ConfigGetter interface {
 	GetString(ctx context.Context, key, defaultVal string) string
+	GetInt(ctx context.Context, key string, defaultVal int) int
 }
 
 type EmailDeps struct {

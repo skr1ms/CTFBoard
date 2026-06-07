@@ -2,6 +2,7 @@ package challenge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -55,11 +56,47 @@ func validateFlagFormatRegex(flagFormatRegex *string) error {
 	return nil
 }
 
+func (uc *ChallengeUseCase) ensureNextChallengeExists(ctx context.Context, nextID *uuid.UUID) error {
+	if nextID == nil {
+		return nil
+	}
+
+	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, *nextID); err != nil {
+		if errors.Is(err, apperr.ErrChallengeNotFound) {
+			return apperr.NewValidationErrorf("next_id references unknown challenge")
+		}
+
+		return fmt.Errorf("ChallengeUseCase - ensureNextChallengeExists - ChallengeRepo.GetByID: %w", err)
+	}
+
+	return nil
+}
+
+func (uc *ChallengeUseCase) validateNextChallengeReference(ctx context.Context, currentID uuid.UUID, params usecase.ChallengeUpdateParams) error {
+	if !params.NextChallengeSet {
+		return nil
+	}
+
+	if params.NextChallengeID == nil {
+		return nil
+	}
+
+	if *params.NextChallengeID == currentID {
+		return apperr.NewValidationErrorf("next_id cannot reference the same challenge")
+	}
+
+	return uc.ensureNextChallengeExists(ctx, params.NextChallengeID)
+}
+
 // Create creates a new challenge, hashing or AES-encrypting the flag, persisting it with tags,
 // and invalidating the challenge list cache.
 func (uc *ChallengeUseCase) Create(ctx context.Context, params usecase.ChallengeCreateParams) (*domain.Challenge, error) {
 	if err := validateDynamicScoringRange(params.InitialValue, params.MinValue); err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - Create - validateDynamicScoringRange: %w", err)
+	}
+
+	if err := uc.ensureNextChallengeExists(ctx, params.NextChallengeID); err != nil {
+		return nil, fmt.Errorf("ChallengeUseCase - Create - ensureNextChallengeExists: %w", err)
 	}
 
 	flagHash, flagRegex, err := uc.challengeCreateComputeFlagHash(params.Flag, params.IsRegex, params.IsCaseInsensitive)
@@ -83,10 +120,12 @@ func (uc *ChallengeUseCase) Create(ctx context.Context, params usecase.Challenge
 		Decay:             params.Decay,
 		SolveCount:        0,
 		FlagHash:          flagHash,
+		Attribution:       params.Attribution,
 		ConnectionInfo:    params.ConnectionInfo,
 		MaxAttempts:       params.MaxAttempts,
 		MaxAttemptsWindow: params.MaxAttemptsWindow,
 		Position:          params.Position,
+		NextChallengeID:   params.NextChallengeID,
 		State:             domain.ChallengeStateOrDefault(params.State),
 		IsRegex:           params.IsRegex,
 		IsCaseInsensitive: params.IsCaseInsensitive,
@@ -102,6 +141,7 @@ func (uc *ChallengeUseCase) Create(ctx context.Context, params usecase.Challenge
 	}
 
 	uc.InvalidateChallengeListCache(ctx)
+	uc.invalidateStatisticsCache(ctx, "Create")
 
 	return challenge, nil
 }
@@ -175,6 +215,7 @@ func (uc *ChallengeUseCase) Update(ctx context.Context, ID uuid.UUID, params use
 	}
 
 	uc.InvalidateChallengeListCache(ctx)
+	uc.invalidateStatisticsCache(ctx, "Update")
 
 	return challenge, nil
 }
@@ -210,6 +251,10 @@ func (uc *ChallengeUseCase) challengeUpdatePersist(ctx context.Context, ID uuid.
 
 		if errTx = validateDynamicScoringRange(effectiveIV, effectiveMV); errTx != nil {
 			return fmt.Errorf("ChallengeUseCase - Update - validateDynamicScoringRange: %w", errTx)
+		}
+
+		if errTx = uc.validateNextChallengeReference(ctx, ID, params); errTx != nil {
+			return fmt.Errorf("ChallengeUseCase - Update - validateNextChallengeReference: %w", errTx)
 		}
 
 		uc.challengeUpdateApplyBasic(challenge, params)
@@ -253,6 +298,10 @@ func (uc *ChallengeUseCase) challengeUpdateApplyBasic(c *domain.Challenge, param
 	c.Category = params.Category
 	c.Points = params.Points
 
+	if params.Attribution != nil {
+		c.Attribution = *params.Attribution
+	}
+
 	if params.ConnectionInfo != nil {
 		c.ConnectionInfo = *params.ConnectionInfo
 	}
@@ -267,6 +316,10 @@ func (uc *ChallengeUseCase) challengeUpdateApplyBasic(c *domain.Challenge, param
 
 	if params.Position != nil {
 		c.Position = *params.Position
+	}
+
+	if params.NextChallengeSet {
+		c.NextChallengeID = params.NextChallengeID
 	}
 
 	if params.State != "" {
@@ -394,6 +447,7 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, ID, actorID uuid.UUID, c
 	}
 
 	uc.InvalidateChallengeListCache(ctx)
+	uc.invalidateStatisticsCache(ctx, "Delete")
 
 	return nil
 }

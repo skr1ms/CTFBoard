@@ -174,6 +174,8 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, params usecase.Chall
 			return false, fmt.Errorf("ChallengeUseCase - SubmitFlag - submitLogIncorrectAndEnforceMaxAttempts: %w", err)
 		}
 
+		uc.invalidateStatisticsCache(ctx, "SubmitFlag incorrect")
+
 		return false, nil
 	}
 
@@ -199,6 +201,7 @@ func (uc *ChallengeUseCase) SubmitFlag(ctx context.Context, params usecase.Chall
 	}
 
 	uc.submitInvalidateCacheWithFrozenStatus(ctx, sc.teamID, wasFrozen)
+	uc.invalidateStatisticsCache(ctx, "SubmitFlag correct")
 	uc.submitNotifySolve(sc, solvedChallenge, solveCount == 1, wasFrozen)
 
 	return true, nil

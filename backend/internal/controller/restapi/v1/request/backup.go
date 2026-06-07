@@ -92,7 +92,7 @@ func ImportOptionsFromMultipart(body *openapi.PostAdminImportMultipartBody, admi
 
 	if body.ConflictMode != nil {
 		if !body.ConflictMode.Valid() {
-			return domain.ImportOptions{}, apperr.NewValidationErrorf("conflict_mode must be one of: merge, overwrite, skip")
+			return domain.ImportOptions{}, apperr.NewValidationErrorf("conflict_mode must be one of: overwrite, skip")
 		}
 
 		cm = domain.ConflictMode(*body.ConflictMode)

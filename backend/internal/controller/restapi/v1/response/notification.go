@@ -5,6 +5,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func FromNotification(n *domain.Notification) openapi.NotificationResponse {
@@ -22,6 +23,10 @@ func FromNotificationList(ns []*domain.Notification) []openapi.NotificationRespo
 	return lo.Map(ns, func(n *domain.Notification, _ int) openapi.NotificationResponse { return FromNotification(n) })
 }
 
+func FromNotificationCount(count int) openapi.NotificationCountResponse {
+	return openapi.NotificationCountResponse{Count: &count}
+}
+
 func FromUserNotification(un *domain.UserNotification) openapi.UserNotificationResponse {
 	return openapi.UserNotificationResponse{
 		ID:        new(un.ID.String()),
@@ -37,4 +42,18 @@ func FromUserNotificationList(uns []*domain.UserNotification) []openapi.UserNoti
 	return lo.Map(uns, func(un *domain.UserNotification, _ int) openapi.UserNotificationResponse {
 		return FromUserNotification(un)
 	})
+}
+
+func FromNotificationUnreadCount(count int) openapi.NotificationUnreadCountResponse {
+	return openapi.NotificationUnreadCountResponse{UnreadCount: &count}
+}
+
+func FromNotificationDelivery(result *usecase.NotificationDeliveryResult) openapi.NotificationDeliveryResponse {
+	targetID := result.TargetID.String()
+
+	return openapi.NotificationDeliveryResponse{
+		TargetType:   &result.TargetType,
+		TargetID:     &targetID,
+		CreatedCount: &result.CreatedCount,
+	}
 }

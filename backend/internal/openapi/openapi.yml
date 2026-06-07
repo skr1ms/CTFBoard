@@ -170,6 +170,8 @@ paths:
     $ref: './routes/user.yml#/~1admin~1users~1{ID}~1ban'
   /user/notifications:
     $ref: './routes/notification.yml#/~1user~1notifications'
+  /user/notifications/unread-count:
+    $ref: './routes/notification.yml#/~1user~1notifications~1unread-count'
   /user/notifications/{ID}/read:
     $ref: './routes/notification.yml#/~1user~1notifications~1{ID}~1read'
 
@@ -253,6 +255,12 @@ paths:
   /challenges/{challengeID}/ratings:
     $ref: './routes/challenge.yml#/~1challenges~1{challengeID}~1ratings'
 
+  # Shares (share.go)
+  /shares:
+    $ref: './routes/share.yml#/~1shares'
+  /shares/solve:
+    $ref: './routes/share.yml#/~1shares~1solve'
+
   # Comment (comment.go)
   /comments/{ID}:
     $ref: './routes/comment.yml#/~1comments~1{ID}'
@@ -292,6 +300,8 @@ paths:
     $ref: './routes/statistics.yml#/~1statistics~1scoreboard'
   /admin/statistics/solve-matrix:
     $ref: './routes/statistics.yml#/~1admin~1statistics~1solve-matrix'
+  /admin/statistics/funnel:
+    $ref: './routes/statistics.yml#/~1admin~1statistics~1funnel'
 
   # Competition (competition.go)
   /competition/status:
@@ -318,6 +328,8 @@ paths:
   # Notification (notification.go)
   /notifications:
     $ref: './routes/notification.yml#/~1notifications'
+  /notifications/count:
+    $ref: './routes/notification.yml#/~1notifications~1count'
 
   # WebSocket / SSE (websocket.go)
   /ws:
@@ -354,6 +366,8 @@ paths:
     $ref: './routes/backup.yml#/~1admin~1export~1zip'
   /admin/import:
     $ref: './routes/backup.yml#/~1admin~1import'
+  /admin/import/jobs/{ID}:
+    $ref: './routes/backup.yml#/~1admin~1import~1jobs~1{ID}'
   /admin/export/csv:
     $ref: './routes/backup.yml#/~1admin~1export~1csv'
   /admin/import/csv:
@@ -390,6 +404,12 @@ paths:
     $ref: './routes/tag.yml#/~1admin~1tags'
   /admin/tags/{ID}:
     $ref: './routes/tag.yml#/~1admin~1tags~1{ID}'
+  /admin/topics:
+    $ref: './routes/topic.yml#/~1admin~1topics'
+  /admin/topics/{ID}:
+    $ref: './routes/topic.yml#/~1admin~1topics~1{ID}'
+  /admin/challenges/{challengeID}/topics:
+    $ref: './routes/topic.yml#/~1admin~1challenges~1{challengeID}~1topics'
 
   # Field (field.go) admin
   /admin/fields:
@@ -434,6 +454,8 @@ paths:
     $ref: './routes/notification.yml#/~1admin~1notifications'
   /admin/notifications/user/{userID}:
     $ref: './routes/notification.yml#/~1admin~1notifications~1user~1{userID}'
+  /admin/notifications/team/{teamID}:
+    $ref: './routes/notification.yml#/~1admin~1notifications~1team~1{teamID}'
   /admin/notifications/{ID}:
     $ref: './routes/notification.yml#/~1admin~1notifications~1{ID}'
 

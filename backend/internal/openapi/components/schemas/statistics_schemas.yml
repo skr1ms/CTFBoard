@@ -128,3 +128,124 @@ schemas:
         format: date-time
         nullable: true
     type: object
+  FunnelChallengeRow:
+    properties:
+      challenge_id:
+        type: string
+        format: uuid
+      challenge_title:
+        type: string
+      challenge_category:
+        type: string
+      opened_count:
+        type: integer
+      attempted_count:
+        type: integer
+      solved_count:
+        type: integer
+    type: object
+  FunnelTeamRow:
+    properties:
+      team_id:
+        type: string
+        format: uuid
+      team_name:
+        type: string
+      opened_count:
+        type: integer
+      attempted_count:
+        type: integer
+      solved_count:
+        type: integer
+    type: object
+  FunnelTeamCell:
+    properties:
+      team_id:
+        type: string
+        format: uuid
+      challenge_id:
+        type: string
+        format: uuid
+      opened:
+        type: boolean
+      attempted:
+        type: boolean
+      solved:
+        type: boolean
+      first_opened_at:
+        type: string
+        format: date-time
+        nullable: true
+      first_attempted_at:
+        type: string
+        format: date-time
+        nullable: true
+      solved_at:
+        type: string
+        format: date-time
+        nullable: true
+    type: object
+  FunnelUserRow:
+    properties:
+      user_id:
+        type: string
+        format: uuid
+      username:
+        type: string
+      opened_count:
+        type: integer
+      attempted_count:
+        type: integer
+      solved_count:
+        type: integer
+    type: object
+  FunnelUserCell:
+    properties:
+      user_id:
+        type: string
+        format: uuid
+      challenge_id:
+        type: string
+        format: uuid
+      opened:
+        type: boolean
+      attempted:
+        type: boolean
+      solved:
+        type: boolean
+      first_opened_at:
+        type: string
+        format: date-time
+        nullable: true
+      first_attempted_at:
+        type: string
+        format: date-time
+        nullable: true
+      solved_at:
+        type: string
+        format: date-time
+        nullable: true
+    type: object
+  AdminStatisticsFunnel:
+    properties:
+      challenges:
+        type: array
+        items:
+          $ref: "#/schemas/FunnelChallengeRow"
+      teams:
+        type: array
+        items:
+          $ref: "#/schemas/FunnelTeamRow"
+      team_cells:
+        type: array
+        items:
+          $ref: "#/schemas/FunnelTeamCell"
+      users:
+        type: array
+        items:
+          $ref: "#/schemas/FunnelUserRow"
+      user_cells:
+        type: array
+        items:
+          $ref: "#/schemas/FunnelUserCell"
+    type: object

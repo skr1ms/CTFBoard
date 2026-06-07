@@ -24,6 +24,10 @@ import (
 // usecase from the competition usecase package.
 type SolveRecordFn func(ctx context.Context, solve *domain.Solve, challenge *domain.Challenge, challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, decayFn ...scoring.DecayFunction) (int, error)
 
+type StatisticsCacheInvalidator interface {
+	InvalidateStatistics(ctx context.Context) error
+}
+
 const (
 	// challengeListCachePrefix is kept only for backward-compatible invalidation of old keys.
 	challengeListCachePrefix = "challenges:list:"
@@ -60,11 +64,13 @@ type ChallengeDeps struct {
 	HintUC          usecase.HintUseCase
 	TM              repo.TransactionManager
 	CompRepo        repo.CompetitionRepository
+	SettingsRepo    repo.SettingsRepository
 	CompUC          usecase.CompetitionUseCase
 	CompParamUC     usecase.CompetitionParamUseCase
 	TeamRepo        repo.TeamRepository
 	UserRepo        repo.UserRepository
 	ScoreboardCache cacheutil.ScoreboardCacheInvalidator
+	StatsCache      StatisticsCacheInvalidator
 	ListCache       *cachekit.Cache
 	Broadcaster     solveBroadcaster
 	AuditLogRepo    repo.AuditLogRepository

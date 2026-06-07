@@ -59,6 +59,8 @@ func (uc *SubmissionUseCase) Update(ctx context.Context, ID uuid.UUID, isCorrect
 		}
 	}
 
+	uc.invalidateStatisticsCache(ctx, "Update")
+
 	sub, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("SubmissionUseCase - Update - SubmissionRepo.GetByID: %w", err)
@@ -102,6 +104,8 @@ func (uc *SubmissionUseCase) Discard(ctx context.Context, ID uuid.UUID) (*domain
 	if uc.deps.CacheInvalidator != nil && teamIDToInvalidate != nil {
 		uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *teamIDToInvalidate)
 	}
+
+	uc.invalidateStatisticsCache(ctx, "Discard")
 
 	result, err := uc.deps.SubmissionRepo.GetByID(ctx, ID)
 	if err != nil {
@@ -148,6 +152,8 @@ func (uc *SubmissionUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	if uc.deps.CacheInvalidator != nil && teamIDToInvalidate != nil {
 		uc.deps.CacheInvalidator.InvalidateScoreboardCacheForTeam(ctx, *teamIDToInvalidate)
 	}
+
+	uc.invalidateStatisticsCache(ctx, "Delete")
 
 	return nil
 }

@@ -37,6 +37,32 @@ func FromTeamWithoutToken(t *domain.Team) openapi.TeamResponse {
 	}
 }
 
+func FromTeamProfile(profile *usecase.TeamProfile) openapi.TeamResponse {
+	if profile == nil {
+		return openapi.TeamResponse{}
+	}
+
+	resp := FromTeam(profile.Team)
+	if len(profile.CustomFields) > 0 {
+		resp.CustomFields = &profile.CustomFields
+	}
+
+	return resp
+}
+
+func FromPublicTeamProfile(profile *usecase.TeamProfile) openapi.TeamResponse {
+	if profile == nil {
+		return openapi.TeamResponse{}
+	}
+
+	resp := FromTeamWithoutToken(profile.Team)
+	if len(profile.CustomFields) > 0 {
+		resp.CustomFields = &profile.CustomFields
+	}
+
+	return resp
+}
+
 func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int, meetsMinSize bool) openapi.TeamWithMembersResponse {
 	if t == nil {
 		return openapi.TeamWithMembersResponse{}
@@ -72,6 +98,19 @@ func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int
 	}
 
 	return res
+}
+
+func FromTeamMe(me *usecase.TeamMe) openapi.TeamWithMembersResponse {
+	if me == nil {
+		return openapi.TeamWithMembersResponse{}
+	}
+
+	resp := FromTeamWithMembers(me.Team, me.Members, me.MinTeamSize, me.MeetsMinSize)
+	if len(me.CustomFields) > 0 {
+		resp.CustomFields = &me.CustomFields
+	}
+
+	return resp
 }
 
 func FromTeamList(teams []*domain.Team, total int64, page, perPage int) openapi.TeamListResponse {

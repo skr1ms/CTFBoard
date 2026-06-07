@@ -29,6 +29,7 @@ const (
 	statsTeamRegistrationKey     = "stats:team_registration"
 	statsUserRegistrationKey     = "stats:user_registration"
 	statsSolveMatrixKey          = "stats:solve_matrix"
+	statsFunnelFmt               = "stats:funnel:%d"
 
 	statsLongTTL   = 5 * time.Minute
 	statsShortTTL  = 30 * time.Second
@@ -338,6 +339,33 @@ func (uc *StatisticsUseCase) GetSolveMatrix(ctx context.Context, forceLive bool)
 			return statsReadOnlyLoad(uc, ctx, "GetSolveMatrix", "StatsRepo.GetSolveMatrix",
 				func(roCtx context.Context) ([]*domain.SolveMatrixRow, error) {
 					return uc.deps.StatsRepo.GetSolveMatrix(roCtx, ft)
+				},
+			)
+		},
+	)
+}
+
+// GetAdminStatisticsFunnel returns admin-only engagement funnel analytics for
+// challenge opens, attempts, and solves. Team/user cells are bounded by limit
+// while challenge aggregate rows include all visible and locked challenges.
+func (uc *StatisticsUseCase) GetAdminStatisticsFunnel(ctx context.Context, limit int, forceLive bool) (*domain.AdminStatisticsFunnel, error) {
+	if limit < 1 {
+		limit = usecase.DefaultScoreboardHistoryLimit
+	} else if limit > usecase.MaxScoreboardHistoryLimit {
+		limit = usecase.MaxScoreboardHistoryLimit
+	}
+
+	frozen, freezeTime := uc.isFrozen(ctx)
+
+	if forceLive {
+		frozen = false
+	}
+
+	return freezeAwareLoad(uc, ctx, fmt.Sprintf(statsFunnelFmt, limit), statsShortTTL, frozen, freezeTime,
+		func(ctx context.Context, ft *time.Time) (*domain.AdminStatisticsFunnel, error) {
+			return statsReadOnlyLoad(uc, ctx, "GetAdminStatisticsFunnel", "StatsRepo.GetAdminStatisticsFunnel",
+				func(roCtx context.Context) (*domain.AdminStatisticsFunnel, error) {
+					return uc.deps.StatsRepo.GetAdminStatisticsFunnel(roCtx, limit, ft)
 				},
 			)
 		},

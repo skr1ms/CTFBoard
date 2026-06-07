@@ -49,7 +49,7 @@ type (
 	// TrackingUseCase records user activity events such as logins and challenge page opens.
 	TrackingUseCase interface {
 		Track(ctx context.Context, userID uuid.UUID, ip, userAgent string) error
-		TrackChallengeOpen(ctx context.Context, userID, challengeID uuid.UUID, ip string) error
+		TrackChallengeOpen(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, ip string) error
 		GetByUser(ctx context.Context, userID uuid.UUID, page, perPage int) (*Paginated[*domain.TrackingEntry], error)
 	}
 )
@@ -58,10 +58,15 @@ type (
 // Cleanup
 // =============================================================================
 
+type TrackingCleanupResult struct {
+	TrackingDeleted       int64
+	ChallengeOpensDeleted int64
+}
+
 // Cleaner describes the cleanup use case used by the standalone cleanup command.
 type Cleaner interface {
 	CleanupDeletedTeams(ctx context.Context, olderThan time.Duration) error
 	CleanupOrphanedStorageFiles(ctx context.Context, prefix string) (int, error)
 	CleanupOrphanedAvatars(ctx context.Context) (int, error)
-	CleanupOldTracking(ctx context.Context, olderThan time.Duration) error
+	CleanupOldTracking(ctx context.Context, olderThan time.Duration) (*TrackingCleanupResult, error)
 }

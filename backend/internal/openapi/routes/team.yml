@@ -88,7 +88,7 @@
 /teams/{ID}:
   get:
     operationId: GetTeamsID
-    description: Returns team information by ID for authenticated users. account_visibility gates authenticated non-admin users.
+    description: Returns team information by ID for authenticated users, including public team custom fields. account_visibility gates authenticated non-admin users.
     parameters:
       - description: Team ID
         in: path
@@ -218,7 +218,7 @@
 /teams/my:
   get:
     operationId: GetTeamsMy
-    description: Returns information about current user's team. If no team, returns 404.
+    description: Returns information about current user's team, including public or editable team custom fields. If no team, returns 404.
     responses:
       "200":
         description: OK
@@ -248,7 +248,7 @@
 /teams/me:
   patch:
     operationId: PatchTeamsMe
-    description: Updates current user's team. Captain only.
+    description: Updates current user's team name and/or editable custom fields. Captain only. Name changes follow team-switch rules; custom-field-only updates do not.
     requestBody:
       content:
         application/json:

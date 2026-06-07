@@ -55,6 +55,7 @@ func toDomainAppSettings(s sqlc.AppSettings) *domain.Settings {
 		RateLimitOAuthCallbackPerMinute:  int(s.RateLimitOAuthCallbackPerMinute),
 		RateLimitOAuthRedirectPerMinute:  int(s.RateLimitOAuthRedirectPerMinute),
 		RateLimitCommentPerMinute:        int(s.RateLimitCommentPerMinute),
+		MaxUsers:                         int(s.MaxUsers),
 		MaxTeams:                         int(s.MaxTeams),
 		WriteupEnabled:                   s.WriteupEnabled,
 		OAuthGithubEnabled:               s.OAuthGithubEnabled,
@@ -112,7 +113,7 @@ func (r *SettingsRepo) ReconcileStartupDefaults(
 }
 
 // settingsIntFields returns all int-typed Settings fields as an ordered slice for
-// batch narrowing via ConvertIntFieldsToInt32. The positional order (vals[0..19])
+// batch narrowing via ConvertIntFieldsToInt32. The positional order (vals[0..20])
 // must stay in sync with the index-based destructuring in Update.
 func settingsIntFields(s *domain.Settings) []IntField {
 	return []IntField{
@@ -135,12 +136,13 @@ func settingsIntFields(s *domain.Settings) []IntField {
 		{"RateLimitOAuthCallbackPerMinute", s.RateLimitOAuthCallbackPerMinute},
 		{"RateLimitOAuthRedirectPerMinute", s.RateLimitOAuthRedirectPerMinute},
 		{"RateLimitCommentPerMinute", s.RateLimitCommentPerMinute},
+		{"MaxUsers", s.MaxUsers},
 		{"MaxTeams", s.MaxTeams},
 	}
 }
 
 // Update writes all Settings fields to app_settings. Integer fields are narrowed from int to
-// int32 via settingsIntFields; vals are destructured positionally (vals[0..19] mapping must
+// int32 via settingsIntFields; vals are destructured positionally (vals[0..20] mapping must
 // match the settingsIntFields order).
 func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 	vals, err := ConvertIntFieldsToInt32(settingsIntFields(s))
@@ -153,7 +155,7 @@ func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 	rateLimitLogin, rateLimitRegister, rateLimitForgotPassword, rateLimitResetPassword := vals[7], vals[8], vals[9], vals[10]
 	rateLimitLogout, rateLimitRefresh, rateLimitScoreboard, rateLimitGeneralIP := vals[11], vals[12], vals[13], vals[14]
 	rateLimitVerifyEmail, rateLimitOAuthCallback, rateLimitOAuthRedirect, rateLimitComment := vals[15], vals[16], vals[17], vals[18]
-	maxTeams := vals[19]
+	maxUsers, maxTeams := vals[19], vals[20]
 	now := time.Now()
 
 	err = r.Q(ctx).UpdateAppSettings(ctx, sqlc.UpdateAppSettingsParams{
@@ -185,6 +187,7 @@ func (r *SettingsRepo) Update(ctx context.Context, s *domain.Settings) error {
 		RateLimitOAuthCallbackPerMinute:  rateLimitOAuthCallback,
 		RateLimitOAuthRedirectPerMinute:  rateLimitOAuthRedirect,
 		RateLimitCommentPerMinute:        rateLimitComment,
+		MaxUsers:                         maxUsers,
 		MaxTeams:                         maxTeams,
 		WriteupEnabled:                   s.WriteupEnabled,
 		OAuthGithubEnabled:               s.OAuthGithubEnabled,
@@ -212,7 +215,7 @@ func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) 
 	rateLimitLogin, rateLimitRegister, rateLimitForgotPassword, rateLimitResetPassword := vals[7], vals[8], vals[9], vals[10]
 	rateLimitLogout, rateLimitRefresh, rateLimitScoreboard, rateLimitGeneralIP := vals[11], vals[12], vals[13], vals[14]
 	rateLimitVerifyEmail, rateLimitOAuthCallback, rateLimitOAuthRedirect, rateLimitComment := vals[15], vals[16], vals[17], vals[18]
-	maxTeams := vals[19]
+	maxUsers, maxTeams := vals[19], vals[20]
 	now := time.Now()
 
 	_, err = r.Q(ctx).UpdateAppSettingsIfCurrent(ctx, sqlc.UpdateAppSettingsIfCurrentParams{
@@ -244,6 +247,7 @@ func (r *SettingsRepo) UpdateIfCurrent(ctx context.Context, s *domain.Settings) 
 		RateLimitOAuthCallbackPerMinute:  rateLimitOAuthCallback,
 		RateLimitOAuthRedirectPerMinute:  rateLimitOAuthRedirect,
 		RateLimitCommentPerMinute:        rateLimitComment,
+		MaxUsers:                         maxUsers,
 		MaxTeams:                         maxTeams,
 		WriteupEnabled:                   s.WriteupEnabled,
 		OAuthGithubEnabled:               s.OAuthGithubEnabled,

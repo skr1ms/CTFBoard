@@ -78,10 +78,20 @@ func (uc *HintUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	return nil
 }
 
-func (uc *HintUseCase) GetAllUnlocks(ctx context.Context, page, perPage int) (*usecase.Paginated[*domain.HintUnlockWithDetails], error) {
+func (uc *HintUseCase) GetAllUnlocks(ctx context.Context, page, perPage int) (*usecase.Paginated[*domain.UnlockWithDetails], error) {
 	result, err := usecase.FetchPage(ctx, page, perPage,
-		func(ctx context.Context, limit, offset int) ([]*domain.HintUnlockWithDetails, error) {
-			return uc.deps.HintRepo.GetAll(ctx, limit, offset)
+		func(ctx context.Context, limit, offset int) ([]*domain.UnlockWithDetails, error) {
+			unlocks, err := uc.deps.HintRepo.GetAll(ctx, limit, offset)
+			if err != nil {
+				return nil, err
+			}
+
+			out := make([]*domain.UnlockWithDetails, 0, len(unlocks))
+			for _, unlock := range unlocks {
+				out = append(out, hintUnlockToUnlock(unlock))
+			}
+
+			return out, nil
 		},
 		func(ctx context.Context) (int64, error) {
 			n, err := uc.deps.HintRepo.CountAll(ctx)
@@ -94,4 +104,17 @@ func (uc *HintUseCase) GetAllUnlocks(ctx context.Context, page, perPage int) (*u
 	}
 
 	return result, nil
+}
+
+func hintUnlockToUnlock(unlock *domain.HintUnlockWithDetails) *domain.UnlockWithDetails {
+	return &domain.UnlockWithDetails{
+		ID:          unlock.ID,
+		Type:        domain.UnlockTypeHint,
+		ResourceID:  unlock.HintID,
+		HintID:      unlock.HintID,
+		TeamID:      unlock.TeamID,
+		UnlockedAt:  unlock.UnlockedAt,
+		ChallengeID: unlock.ChallengeID,
+		HintCost:    unlock.HintCost,
+	}
 }

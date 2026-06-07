@@ -35,7 +35,9 @@ func anonymizedChallengeDetail(c *domain.Challenge) *usecase.ChallengeDetail {
 	masked := *c
 	masked.Title = hidden
 	masked.Description = hidden
+	masked.Attribution = ""
 	masked.ConnectionInfo = ""
+	masked.NextChallengeID = nil
 	masked.State = domain.ChallengeStateLocked
 
 	return &usecase.ChallengeDetail{

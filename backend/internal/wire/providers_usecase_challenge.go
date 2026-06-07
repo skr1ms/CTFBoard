@@ -21,6 +21,7 @@ func ProvideChallengeUseCase(
 	submissionRepo repo.SubmissionRepository,
 	TM repo.TransactionManager,
 	compRepo repo.CompetitionRepository,
+	settingsRepo repo.SettingsRepository,
 	compUC *competition.CompetitionUseCase,
 	compParamUC *competition.CompetitionParamUseCase,
 	teamRepo repo.TeamRepository,
@@ -35,6 +36,12 @@ func ProvideChallengeUseCase(
 	hintUC *challenge.HintUseCase,
 	l logkit.Logger,
 ) *challenge.ChallengeUseCase {
+	var statsInvalidator competition.StatisticsCacheInvalidator
+
+	if c != nil {
+		statsInvalidator = &competition.StatsCacheInvalidatorImpl{Cache: c}
+	}
+
 	return challenge.NewChallengeUseCase(challenge.ChallengeDeps{
 		ChallengeRepo:   challengeRepo,
 		TagRepo:         tagRepo,
@@ -42,11 +49,13 @@ func ProvideChallengeUseCase(
 		SubmissionRepo:  submissionRepo,
 		TM:              TM,
 		CompRepo:        compRepo,
+		SettingsRepo:    settingsRepo,
 		CompUC:          compUC,
 		CompParamUC:     compParamUC,
 		TeamRepo:        teamRepo,
 		UserRepo:        userRepo,
 		ScoreboardCache: scoreboardCache,
+		StatsCache:      statsInvalidator,
 		ListCache:       c,
 		Broadcaster:     broadcaster,
 		AuditLogRepo:    auditLogRepo,
@@ -91,6 +100,10 @@ func ProvideTagUseCase(tagRepo repo.TagRepository, challengeRepo repo.ChallengeR
 	return challenge.NewTagUseCase(challenge.TagDeps{TagRepo: tagRepo, ChallengeRepo: challengeRepo})
 }
 
+func ProvideTopicUseCase(topicRepo repo.TopicRepository, challengeRepo repo.ChallengeRepository, tm repo.TransactionManager) *challenge.TopicUseCase {
+	return challenge.NewTopicUseCase(challenge.TopicDeps{TopicRepo: topicRepo, ChallengeRepo: challengeRepo, TM: tm})
+}
+
 func ProvideCommentUseCase(commentRepo repo.CommentRepository, challengeRepo repo.ChallengeRepository, userRepo repo.UserRepository, teamRepo repo.TeamRepository, tm repo.TransactionManager) *challenge.CommentUseCase {
 	return challenge.NewCommentUseCase(challenge.CommentDeps{
 		CommentRepo:   commentRepo,
@@ -117,6 +130,8 @@ func ProvideFileUseCase(
 	challengeRepo repo.ChallengeRepository,
 	pageRepo challenge.PageReader,
 	solveRepo repo.SolveRepository,
+	compRepo repo.CompetitionRepository,
+	settingsRepo repo.SettingsRepository,
 	storageProvider storage.Provider,
 	cfg *config.Config,
 ) *challenge.FileUseCase {
@@ -125,6 +140,8 @@ func ProvideFileUseCase(
 		ChallengeRepo:  challengeRepo,
 		PageRepo:       pageRepo,
 		SolveRepo:      solveRepo,
+		CompRepo:       compRepo,
+		SettingsRepo:   settingsRepo,
 		Storage:        storageProvider,
 		Expiry:         cfg.PresignedExpiry,
 		DownloadSecret: cfg.DownloadSecret,

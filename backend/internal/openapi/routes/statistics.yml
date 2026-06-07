@@ -487,3 +487,54 @@
     summary: Get solve matrix
     tags:
       - Statistics
+
+/admin/statistics/funnel:
+  get:
+    operationId: GetAdminStatisticsFunnel
+    description: Returns admin-only engagement funnel analytics from challenge open to attempt to solve. When frozen, use live=true for live data.
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+        description: Number of top teams and users to include in matrix cells. Challenge summaries include all visible and locked challenges.
+      - name: live
+        in: query
+        description: If true, return live data during freeze (admin only).
+        required: false
+        schema:
+          type: boolean
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/AdminStatisticsFunnel'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "500":
+        description: Internal Server Error
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Get engagement funnel
+    tags:
+      - Statistics

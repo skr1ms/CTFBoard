@@ -11,6 +11,7 @@ func FromChallengeSolution(sol *domain.ChallengeSolution, downloadURLs map[strin
 	res := openapi.ChallengeSolutionResponse{
 		ChallengeID: new(sol.ChallengeID.String()),
 		Content:     new(sol.Content),
+		State:       (*openapi.ChallengeSolutionResponseState)(&sol.State),
 	}
 	if len(sol.Files) > 0 {
 		files := make([]openapi.FileItem, len(sol.Files))
@@ -51,6 +52,7 @@ func FromChallengeSolutionEntry(entry *domain.ChallengeSolutionEntry, downloadUR
 		ChallengeTitle:    new(entry.ChallengeTitle),
 		ChallengeCategory: new(entry.ChallengeCategory),
 		Content:           new(entry.Content),
+		State:             (*openapi.ChallengeSolutionEntryState)(&entry.State),
 	}
 	if len(entry.Files) > 0 {
 		files := make([]openapi.FileItem, len(entry.Files))

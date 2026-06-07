@@ -59,9 +59,11 @@ func (uc *BackupUseCase) fetchChallengesWithHints(ctx context.Context) ([]domain
 			State:          cws.Challenge.State,
 			FlagHash:       cws.Challenge.FlagHash,
 			FlagRegex:      flagRegex,
+			Attribution:    cws.Challenge.Attribution,
 			ConnectionInfo: cws.Challenge.ConnectionInfo,
 			MaxAttempts:    cws.Challenge.MaxAttempts,
 			Position:       cws.Challenge.Position,
+			NextID:         cws.Challenge.NextChallengeID,
 			Hints:          hintsCopy,
 		}
 	}

@@ -22,23 +22,76 @@ func (uc *TeamUseCase) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team,
 	return team, nil
 }
 
-// GetMyTeam returns the caller's team along with its members, active solve count, and captain flag.
-// Uses errgroup for concurrent fan-out: team, members, solves, and awards are fetched in parallel.
-func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain.Team, []*domain.User, int, bool, error) {
+func (uc *TeamUseCase) GetProfile(ctx context.Context, ID uuid.UUID) (*usecase.TeamProfile, error) {
+	var (
+		team        *domain.Team
+		fields      []*domain.Field
+		fieldValues []*domain.FieldValue
+	)
+
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+
+		team, err = uc.deps.TeamRepo.GetByID(gCtx, ID)
+		if err != nil {
+			return fmt.Errorf("TeamUseCase - GetProfile - TeamRepo.GetByID: %w", err)
+		}
+
+		return nil
+	})
+
+	if uc.deps.FieldRepo != nil && uc.deps.FieldValueRepo != nil {
+		g.Go(func() error {
+			var err error
+
+			fields, err = uc.deps.FieldRepo.GetByEntityType(gCtx, domain.EntityTypeTeam)
+			if err != nil {
+				return fmt.Errorf("TeamUseCase - GetProfile - FieldRepo.GetByEntityType: %w", err)
+			}
+
+			return nil
+		})
+		g.Go(func() error {
+			var err error
+
+			fieldValues, err = uc.deps.FieldValueRepo.GetByEntityID(gCtx, ID)
+			if err != nil {
+				return fmt.Errorf("TeamUseCase - GetProfile - FieldValueRepo.GetByEntityID: %w", err)
+			}
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, fmt.Errorf("TeamUseCase - GetProfile - errgroup.Wait: %w", err)
+	}
+
+	return &usecase.TeamProfile{
+		Team:         team,
+		CustomFields: visibleTeamFieldValuesToMap(fields, fieldValues, publicTeamField),
+	}, nil
+}
+
+// GetMyTeam returns the caller's team, members, eligibility metadata, and self-visible custom fields.
+func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*usecase.TeamMe, error) {
 	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, nil, 0, false, fmt.Errorf("TeamUseCase - GetMyTeam - UserRepo.GetByID: %w", err)
+		return nil, fmt.Errorf("TeamUseCase - GetMyTeam - UserRepo.GetByID: %w", err)
 	}
 
 	if user.TeamID == nil {
-		return nil, nil, 0, false, apperr.ErrUserNotInTeam
+		return nil, apperr.ErrUserNotInTeam
 	}
 
 	teamID := *user.TeamID
 
 	var (
-		team    *domain.Team
-		members []*domain.User
+		team        *domain.Team
+		members     []*domain.User
+		fields      []*domain.Field
+		fieldValues []*domain.FieldValue
 	)
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -63,8 +116,31 @@ func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain
 		return nil
 	})
 
+	if uc.deps.FieldRepo != nil && uc.deps.FieldValueRepo != nil {
+		g.Go(func() error {
+			var err error
+
+			fields, err = uc.deps.FieldRepo.GetByEntityType(gCtx, domain.EntityTypeTeam)
+			if err != nil {
+				return fmt.Errorf("TeamUseCase - GetMyTeam - FieldRepo.GetByEntityType: %w", err)
+			}
+
+			return nil
+		})
+		g.Go(func() error {
+			var err error
+
+			fieldValues, err = uc.deps.FieldValueRepo.GetByEntityID(gCtx, teamID)
+			if err != nil {
+				return fmt.Errorf("TeamUseCase - GetMyTeam - FieldValueRepo.GetByEntityID: %w", err)
+			}
+
+			return nil
+		})
+	}
+
 	if err := g.Wait(); err != nil {
-		return nil, nil, 0, false, fmt.Errorf("TeamUseCase - GetMyTeam - errgroup.Wait: %w", err)
+		return nil, fmt.Errorf("TeamUseCase - GetMyTeam - errgroup.Wait: %w", err)
 	}
 
 	minTeamSize := 0
@@ -78,7 +154,29 @@ func (uc *TeamUseCase) GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain
 		}
 	}
 
-	return team, members, minTeamSize, meetsMinSize, nil
+	return &usecase.TeamMe{
+		Team:         team,
+		Members:      members,
+		MinTeamSize:  minTeamSize,
+		MeetsMinSize: meetsMinSize,
+		CustomFields: visibleTeamFieldValuesToMap(fields, fieldValues, selfTeamField),
+	}, nil
+}
+
+func visibleTeamFieldValuesToMap(
+	fields []*domain.Field,
+	values []*domain.FieldValue,
+	include func(*domain.Field) bool,
+) usecase.CustomFieldValues {
+	return usecase.CustomFieldStorageValuesToMap(fields, values, include)
+}
+
+func publicTeamField(field *domain.Field) bool {
+	return field.Public
+}
+
+func selfTeamField(field *domain.Field) bool {
+	return field.Public || field.Editable
 }
 
 func (uc *TeamUseCase) GetTeamMembers(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error) {

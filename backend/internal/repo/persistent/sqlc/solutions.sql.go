@@ -21,7 +21,7 @@ func (q *Queries) DeleteSolution(ctx context.Context, challengeID uuid.UUID) err
 }
 
 const getAllSolutions = `-- name: GetAllSolutions :many
-SELECT id, challenge_id, content FROM solutions ORDER BY challenge_id
+SELECT id, challenge_id, content, state FROM solutions ORDER BY challenge_id
 `
 
 func (q *Queries) GetAllSolutions(ctx context.Context) ([]Solution, error) {
@@ -33,7 +33,12 @@ func (q *Queries) GetAllSolutions(ctx context.Context) ([]Solution, error) {
 	var items []Solution
 	for rows.Next() {
 		var i Solution
-		if err := rows.Scan(&i.ID, &i.ChallengeID, &i.Content); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChallengeID,
+			&i.Content,
+			&i.State,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -44,54 +49,40 @@ func (q *Queries) GetAllSolutions(ctx context.Context) ([]Solution, error) {
 	return items, nil
 }
 
-const getSolutionByChallengeID = `-- name: GetSolutionByChallengeID :one
-SELECT id, challenge_id, content FROM solutions WHERE challenge_id = $1
-`
-
-func (q *Queries) GetSolutionByChallengeID(ctx context.Context, challengeID uuid.UUID) (Solution, error) {
-	row := q.db.QueryRow(ctx, getSolutionByChallengeID, challengeID)
-	var i Solution
-	err := row.Scan(&i.ID, &i.ChallengeID, &i.Content)
-	return i, err
-}
-
-const getSolutionsByTeamID = `-- name: GetSolutionsByTeamID :many
+const getCandidateSolutions = `-- name: GetCandidateSolutions :many
 SELECT
     s.challenge_id,
     s.content,
+    s.state,
     c.title    AS challenge_title,
     c.category AS challenge_category
 FROM solutions s
 JOIN challenges c ON c.id = s.challenge_id
 WHERE c.state IN ('visible', 'locked')
-  AND EXISTS (
-    SELECT 1 FROM solves sv
-    WHERE sv.challenge_id = s.challenge_id
-      AND sv.team_id = $1
-      AND sv.banned_team_id IS NULL AND sv.banned_user_id IS NULL
-)
 ORDER BY c.category, c.title
 `
 
-type GetSolutionsByTeamIDRow struct {
+type GetCandidateSolutionsRow struct {
 	ChallengeID       uuid.UUID `json:"challenge_id"`
 	Content           string    `json:"content"`
+	State             string    `json:"state"`
 	ChallengeTitle    string    `json:"challenge_title"`
 	ChallengeCategory string    `json:"challenge_category"`
 }
 
-func (q *Queries) GetSolutionsByTeamID(ctx context.Context, teamID uuid.UUID) ([]GetSolutionsByTeamIDRow, error) {
-	rows, err := q.db.Query(ctx, getSolutionsByTeamID, teamID)
+func (q *Queries) GetCandidateSolutions(ctx context.Context) ([]GetCandidateSolutionsRow, error) {
+	rows, err := q.db.Query(ctx, getCandidateSolutions)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetSolutionsByTeamIDRow
+	var items []GetCandidateSolutionsRow
 	for rows.Next() {
-		var i GetSolutionsByTeamIDRow
+		var i GetCandidateSolutionsRow
 		if err := rows.Scan(
 			&i.ChallengeID,
 			&i.Content,
+			&i.State,
 			&i.ChallengeTitle,
 			&i.ChallengeCategory,
 		); err != nil {
@@ -105,21 +96,43 @@ func (q *Queries) GetSolutionsByTeamID(ctx context.Context, teamID uuid.UUID) ([
 	return items, nil
 }
 
+const getSolutionByChallengeID = `-- name: GetSolutionByChallengeID :one
+SELECT id, challenge_id, content, state FROM solutions WHERE challenge_id = $1
+`
+
+func (q *Queries) GetSolutionByChallengeID(ctx context.Context, challengeID uuid.UUID) (Solution, error) {
+	row := q.db.QueryRow(ctx, getSolutionByChallengeID, challengeID)
+	var i Solution
+	err := row.Scan(
+		&i.ID,
+		&i.ChallengeID,
+		&i.Content,
+		&i.State,
+	)
+	return i, err
+}
+
 const upsertSolution = `-- name: UpsertSolution :one
-INSERT INTO solutions (challenge_id, content)
-VALUES ($1, $2)
-ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content
-RETURNING id, challenge_id, content
+INSERT INTO solutions (challenge_id, content, state)
+VALUES ($1, $2, $3)
+ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content, state = EXCLUDED.state
+RETURNING id, challenge_id, content, state
 `
 
 type UpsertSolutionParams struct {
 	ChallengeID uuid.UUID `json:"challenge_id"`
 	Content     string    `json:"content"`
+	State       string    `json:"state"`
 }
 
 func (q *Queries) UpsertSolution(ctx context.Context, arg UpsertSolutionParams) (Solution, error) {
-	row := q.db.QueryRow(ctx, upsertSolution, arg.ChallengeID, arg.Content)
+	row := q.db.QueryRow(ctx, upsertSolution, arg.ChallengeID, arg.Content, arg.State)
 	var i Solution
-	err := row.Scan(&i.ID, &i.ChallengeID, &i.Content)
+	err := row.Scan(
+		&i.ID,
+		&i.ChallengeID,
+		&i.Content,
+		&i.State,
+	)
 	return i, err
 }

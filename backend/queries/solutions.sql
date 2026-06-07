@@ -1,31 +1,26 @@
 -- name: GetSolutionByChallengeID :one
-SELECT id, challenge_id, content FROM solutions WHERE challenge_id = $1;
+SELECT id, challenge_id, content, state FROM solutions WHERE challenge_id = $1;
 
 -- name: GetAllSolutions :many
-SELECT id, challenge_id, content FROM solutions ORDER BY challenge_id;
+SELECT id, challenge_id, content, state FROM solutions ORDER BY challenge_id;
 
 -- name: UpsertSolution :one
-INSERT INTO solutions (challenge_id, content)
-VALUES ($1, $2)
-ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content
-RETURNING id, challenge_id, content;
+INSERT INTO solutions (challenge_id, content, state)
+VALUES ($1, $2, $3)
+ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content, state = EXCLUDED.state
+RETURNING id, challenge_id, content, state;
 
 -- name: DeleteSolution :exec
 DELETE FROM solutions WHERE challenge_id = $1;
 
--- name: GetSolutionsByTeamID :many
+-- name: GetCandidateSolutions :many
 SELECT
     s.challenge_id,
     s.content,
+    s.state,
     c.title    AS challenge_title,
     c.category AS challenge_category
 FROM solutions s
 JOIN challenges c ON c.id = s.challenge_id
 WHERE c.state IN ('visible', 'locked')
-  AND EXISTS (
-    SELECT 1 FROM solves sv
-    WHERE sv.challenge_id = s.challenge_id
-      AND sv.team_id = $1
-      AND sv.banned_team_id IS NULL AND sv.banned_user_id IS NULL
-)
 ORDER BY c.category, c.title;

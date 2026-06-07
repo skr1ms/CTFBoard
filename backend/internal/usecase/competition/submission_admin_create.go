@@ -87,6 +87,8 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, params usecase.Adm
 		}
 	}
 
+	uc.invalidateStatisticsCache(ctx, "AdminCreate")
+
 	result, err := uc.deps.SubmissionRepo.GetByID(ctx, sub.ID)
 	if err != nil {
 		return nil, fmt.Errorf("SubmissionUseCase - AdminCreate - SubmissionRepo.GetByID: %w", err)

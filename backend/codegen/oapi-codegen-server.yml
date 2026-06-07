@@ -2,3 +2,5 @@ package: openapi
 generate:
   chi-server: true
 output: internal/openapi/server.gen.go
+output-options:
+  name-normalizer: ToCamelCaseWithInitialisms

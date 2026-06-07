@@ -1,0 +1,35 @@
+schemas:
+  request.CreateShareRequest:
+    type: object
+    required:
+      - type
+      - challenge_id
+    properties:
+      type:
+        type: string
+        enum:
+          - solve
+        x-oapi-codegen-extra-tags:
+          validate: "required,oneof=solve"
+      challenge_id:
+        type: string
+        format: uuid
+        x-oapi-codegen-extra-tags:
+          validate: "required,uuid"
+  response.ShareResponse:
+    type: object
+    required:
+      - type
+      - url
+      - solve_id
+    properties:
+      type:
+        type: string
+        enum:
+          - solve
+      url:
+        type: string
+        format: uri
+      solve_id:
+        type: string
+        format: uuid

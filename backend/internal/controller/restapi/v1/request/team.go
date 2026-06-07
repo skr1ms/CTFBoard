@@ -6,6 +6,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func CreateTeamRequestToParams(req *openapi.CreateTeamRequest) (name string, confirmReset bool) {
@@ -81,8 +82,19 @@ func AdminUpdateTeamRequestToParams(req *openapi.AdminUpdateTeamRequest) (name *
 	return name, captainID, bracketID, isHidden, err
 }
 
-func UpdateTeamRequestToParams(req *openapi.UpdateTeamRequest) string {
-	return req.Name
+func UpdateTeamRequestToParams(req *openapi.UpdateTeamRequest) (usecase.TeamUpdateParams, error) {
+	if req.Name == nil && req.CustomFields == nil {
+		return usecase.TeamUpdateParams{}, apperr.NewValidationErrorf("at least one team field must be provided")
+	}
+
+	if req.Name != nil && *req.Name == "" {
+		return usecase.TeamUpdateParams{}, apperr.NewValidationErrorf("name cannot be empty")
+	}
+
+	return usecase.TeamUpdateParams{
+		Name:         req.Name,
+		CustomFields: req.CustomFields,
+	}, nil
 }
 
 func AdminAddMemberRequestToParams(req *openapi.AdminAddMemberRequest) (uuid.UUID, error) {

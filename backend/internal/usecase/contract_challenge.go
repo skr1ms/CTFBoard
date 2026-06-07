@@ -43,10 +43,12 @@ type (
 		MinValue          int
 		Decay             int
 		Flag              string
+		Attribution       string
 		ConnectionInfo    string
 		MaxAttempts       int
 		MaxAttemptsWindow time.Duration
 		Position          int
+		NextChallengeID   *uuid.UUID
 		State             string
 		IsRegex           bool
 		IsCaseInsensitive bool
@@ -63,10 +65,13 @@ type (
 		MinValue          *int
 		Decay             *int
 		Flag              string
+		Attribution       *string
 		ConnectionInfo    *string
 		MaxAttempts       *int
 		MaxAttemptsWindow *time.Duration
 		Position          *int
+		NextChallengeID   *uuid.UUID
+		NextChallengeSet  bool
 		State             string
 		IsRegex           *bool
 		IsCaseInsensitive *bool
@@ -82,6 +87,11 @@ type (
 		ClientIP    string
 	}
 
+	ChallengeSolutionUpsertParams struct {
+		Content string
+		State   string
+	}
+
 	// ChallengeReadUseCase exposes participant-facing challenge reads.
 	ChallengeReadUseCase interface {
 		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*ChallengeWithTags, error)
@@ -90,8 +100,8 @@ type (
 		GetSolves(ctx context.Context, challengeID uuid.UUID) ([]*domain.SolveWithDetails, error)
 		GetTags(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error)
 		GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error)
-		GetSolution(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) (*domain.ChallengeSolution, error)
-		ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*domain.ChallengeSolutionEntry, error)
+		GetSolution(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID, isAdmin bool) (*domain.ChallengeSolution, error)
+		ListSolutions(ctx context.Context, teamID *uuid.UUID, isAdmin bool) ([]*domain.ChallengeSolutionEntry, error)
 		GetTypes(ctx context.Context) ([]string, error)
 	}
 
@@ -104,7 +114,7 @@ type (
 	ChallengeAdminUseCase interface {
 		GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error)
 		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
-		AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*domain.ChallengeSolution, error)
+		AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, params ChallengeSolutionUpsertParams) (*domain.ChallengeSolution, error)
 		AdminDeleteSolution(ctx context.Context, challengeID uuid.UUID) error
 		GetFlags(ctx context.Context, challengeID uuid.UUID) (*domain.ChallengeFlags, error)
 		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error)
@@ -145,6 +155,23 @@ type (
 )
 
 // =============================================================================
+// Topic
+// =============================================================================
+
+type (
+	// TopicUseCase manages organizer-facing challenge topics.
+	TopicUseCase interface {
+		Create(ctx context.Context, name string) (*domain.Topic, error)
+		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Topic, error)
+		GetAll(ctx context.Context) ([]*domain.Topic, error)
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Topic, error)
+		Update(ctx context.Context, ID uuid.UUID, name string) (*domain.Topic, error)
+		Delete(ctx context.Context, ID uuid.UUID) error
+		SetByChallengeID(ctx context.Context, challengeID uuid.UUID, topicIDs []uuid.UUID) error
+	}
+)
+
+// =============================================================================
 // Hint
 // =============================================================================
 
@@ -163,7 +190,7 @@ type (
 		Update(ctx context.Context, ID uuid.UUID, title, content string, cost, orderIndex int) (*domain.Hint, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 		UnlockHint(ctx context.Context, userID, teamID, challengeID, hintID uuid.UUID) (*domain.Hint, error)
-		GetAllUnlocks(ctx context.Context, page, perPage int) (*Paginated[*domain.HintUnlockWithDetails], error)
+		GetAllUnlocks(ctx context.Context, page, perPage int) (*Paginated[*domain.UnlockWithDetails], error)
 	}
 )
 

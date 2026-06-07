@@ -48,6 +48,13 @@ func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (Challe
 		return ChallengeParams{}, err
 	}
 
+	var nextChallengeID *uuid.UUID
+
+	if req.NextID != nil {
+		id := uuid.UUID(*req.NextID)
+		nextChallengeID = &id
+	}
+
 	initialValue := lo.FromPtrOr(req.InitialValue, staticScoringInitialValue)
 	minValue := lo.FromPtrOr(req.MinValue, staticScoringMinValue)
 
@@ -79,6 +86,8 @@ func CreateChallengeRequestToParams(req *openapi.CreateChallengeRequest) (Challe
 		Decay:             decay,
 		IsRegex:           lo.FromPtrOr(req.IsRegex, false),
 		IsCaseInsensitive: lo.FromPtrOr(req.IsCaseInsensitive, false),
+		Attribution:       lo.FromPtrOr(req.Attribution, ""),
+		NextChallengeID:   nextChallengeID,
 	}, nil
 }
 
@@ -138,8 +147,13 @@ func ChallengeSubmitParams(challengeID uuid.UUID, flag string, userID uuid.UUID,
 	}
 }
 
-func AdminUpsertSolutionRequestToParams(req *openapi.AdminUpsertSolutionRequest) string {
-	return req.Content
+func AdminUpsertSolutionRequestToParams(req *openapi.AdminUpsertSolutionRequest) usecase.ChallengeSolutionUpsertParams {
+	params := usecase.ChallengeSolutionUpsertParams{Content: req.Content}
+	if req.State != nil {
+		params.State = string(*req.State)
+	}
+
+	return params
 }
 
 func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (UpdateChallengeParams, error) {
@@ -147,6 +161,8 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 	if err != nil {
 		return UpdateChallengeParams{}, err
 	}
+
+	nextChallengeID, nextChallengeSet := updateRequestNextChallengeID(req)
 
 	iv, mv, dc := req.InitialValue, req.MinValue, req.Decay
 	if iv != nil && mv != nil && dc != nil {
@@ -179,12 +195,29 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 		FlagFormatRegex:   req.FlagFormatRegex,
 		TagIDs:            tagIDs,
 		Flag:              lo.FromPtrOr(req.Flag, ""),
+		Attribution:       req.Attribution,
 		ConnectionInfo:    req.ConnectionInfo,
 		MaxAttempts:       req.MaxAttempts,
 		MaxAttemptsWindow: maxAttemptsWindow,
 		Position:          req.Position,
+		NextChallengeID:   nextChallengeID,
+		NextChallengeSet:  nextChallengeSet,
 		State:             state,
 		IsRegex:           req.IsRegex,
 		IsCaseInsensitive: req.IsCaseInsensitive,
 	}, nil
+}
+
+func updateRequestNextChallengeID(req *openapi.UpdateChallengeRequest) (*uuid.UUID, bool) {
+	if !req.NextID.IsSpecified() {
+		return nil, false
+	}
+
+	if req.NextID.IsNull() {
+		return nil, true
+	}
+
+	id := uuid.UUID(req.NextID.MustGet())
+
+	return &id, true
 }

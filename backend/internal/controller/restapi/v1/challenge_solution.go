@@ -16,26 +16,18 @@ func (h *Server) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if !h.checkWriteupEnabled(w, r, "GetChallengesSolutions", "WriteupCheck") {
+	if !helper.CheckOptionalTeamBan(w, r, h.team.ReadUC, user.TeamID, h.OnError, "GetChallengesSolutions") {
 		return
 	}
 
-	if user.TeamID == nil {
-		httputil.RenderOK(w, r, response.EmptyChallengeSolutionEntryList())
+	isAdmin := helper.IsAdmin(user)
 
-		return
-	}
-
-	if _, ok := helper.RequireUnbannedTeam(w, r, h.team.ReadUC, *user.TeamID, h.OnError, "GetChallengesSolutions"); !ok {
-		return
-	}
-
-	entries, err := h.challenge.ReadUC.ListSolutions(r.Context(), *user.TeamID)
+	entries, err := h.challenge.ReadUC.ListSolutions(r.Context(), user.TeamID, isAdmin)
 	if h.OnError(w, r, err, "GetChallengesSolutions", "ListSolutions") {
 		return
 	}
 
-	urls, err := h.challenge.FileUC.BuildDownloadURLs(r.Context(), response.ChallengeSolutionEntryFiles(entries), user.TeamID, helper.IsAdmin(user))
+	urls, err := h.challenge.FileUC.BuildDownloadURLs(r.Context(), response.ChallengeSolutionEntryFiles(entries), user.TeamID, isAdmin)
 	if h.OnError(w, r, err, "GetChallengesSolutions", "BuildDownloadURLs") {
 		return
 	}
@@ -55,20 +47,18 @@ func (h *Server) GetChallengesChallengeIDSolution(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !h.checkWriteupEnabled(w, r, "GetChallengesChallengeIDSolution", "WriteupCheck") {
-		return
-	}
-
 	if !helper.CheckOptionalTeamBan(w, r, h.team.ReadUC, user.TeamID, h.OnError, "GetChallengesChallengeIDSolution") {
 		return
 	}
 
-	solution, err := h.challenge.ReadUC.GetSolution(r.Context(), challengeIDParsed, user.TeamID)
+	isAdmin := helper.IsAdmin(user)
+
+	solution, err := h.challenge.ReadUC.GetSolution(r.Context(), challengeIDParsed, user.TeamID, isAdmin)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDSolution", "GetSolution") {
 		return
 	}
 
-	urls, err := h.challenge.FileUC.BuildDownloadURLs(r.Context(), solution.Files, user.TeamID, helper.IsAdmin(user))
+	urls, err := h.challenge.FileUC.BuildDownloadURLs(r.Context(), solution.Files, user.TeamID, isAdmin)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDSolution", "BuildDownloadURLs") {
 		return
 	}

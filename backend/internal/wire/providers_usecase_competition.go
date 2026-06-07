@@ -6,6 +6,7 @@ import (
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
@@ -55,6 +56,12 @@ func ProvideSolveUseCase(
 	challengeListCache cacheutil.ChallengeListCacheInvalidator,
 	broadcaster *iws.Broadcaster,
 ) *competition.SolveUseCase {
+	var statsInvalidator competition.StatisticsCacheInvalidator
+
+	if c != nil {
+		statsInvalidator = &competition.StatsCacheInvalidatorImpl{Cache: c}
+	}
+
 	return competition.NewSolveUseCase(competition.SolveDeps{
 		SolveRepo:          solveRepo,
 		ChallengeRepo:      challengeRepo,
@@ -66,6 +73,7 @@ func ProvideSolveUseCase(
 		TM:                 TM,
 		Cache:              c,
 		ScoreboardCache:    scoreboardCache,
+		StatsCache:         statsInvalidator,
 		ChallengeListCache: challengeListCache,
 		Broadcaster:        broadcaster,
 	})
@@ -85,7 +93,13 @@ func ProvideStatisticsUseCase(
 	})
 }
 
-func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository, competitionUC *competition.CompetitionUseCase, TM repo.TransactionManager, challengeUC *challenge.ChallengeUseCase, userRepo repo.UserRepository, teamRepo repo.TeamRepository, l logkit.Logger) *competition.SubmissionUseCase {
+func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository, competitionUC *competition.CompetitionUseCase, TM repo.TransactionManager, challengeUC *challenge.ChallengeUseCase, userRepo repo.UserRepository, teamRepo repo.TeamRepository, c *cachekit.Cache, l logkit.Logger) *competition.SubmissionUseCase {
+	var statsInvalidator competition.StatisticsCacheInvalidator
+
+	if c != nil {
+		statsInvalidator = &competition.StatsCacheInvalidatorImpl{Cache: c}
+	}
+
 	return competition.NewSubmissionUseCase(competition.SubmissionDeps{
 		SubmissionRepo:   submissionRepo,
 		CompGetter:       competitionUC,
@@ -93,6 +107,7 @@ func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository, competit
 		SolveCreator:     challengeUC,
 		SolveDeleter:     challengeUC,
 		CacheInvalidator: challengeUC,
+		StatsCache:       statsInvalidator,
 		Logger:           l,
 		UserRepo:         userRepo,
 		TeamRepo:         teamRepo,
@@ -101,6 +116,26 @@ func ProvideSubmissionUseCase(submissionRepo repo.SubmissionRepository, competit
 
 func ProvideBracketUseCase(bracketRepo repo.BracketRepository, tm repo.TransactionManager) *competition.BracketUseCase {
 	return competition.NewBracketUseCase(competition.BracketDeps{BracketRepo: bracketRepo, TM: tm})
+}
+
+func ProvideShareUseCase(
+	cfg *config.Config,
+	solveRepo repo.SolveRepository,
+	challengeRepo repo.ChallengeRepository,
+	userRepo repo.UserRepository,
+	teamRepo repo.TeamRepository,
+	compParamUC *competition.CompetitionParamUseCase,
+) *competition.ShareUseCase {
+	return competition.NewShareUseCase(competition.ShareDeps{
+		SolveRepo:     solveRepo,
+		ChallengeRepo: challengeRepo,
+		UserRepo:      userRepo,
+		TeamRepo:      teamRepo,
+		CompParamUC:   compParamUC,
+		BaseURL:       cfg.BaseURL,
+		FrontendURL:   cfg.FrontendURL,
+		ShareSecret:   cfg.ShareSecret,
+	})
 }
 
 func ProvideCompetitionParamUseCase(

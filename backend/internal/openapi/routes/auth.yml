@@ -139,7 +139,7 @@
       - Authentication
   patch:
     operationId: PatchAuthMe
-    description: Updates current user profile (username, email, password)
+    description: Updates current user profile (username, email, password, editable custom fields)
     requestBody:
       content:
         application/json:
@@ -207,4 +207,3 @@
     summary: Logout
     tags:
       - Authentication
-

@@ -25,7 +25,7 @@ SELECT id, app_name, verify_emails, frontend_url, cors_origins,
        rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
        rate_limit_oauth_redirect_per_minute,
        rate_limit_comment_per_minute,
-       max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
+       max_users, max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
 FROM app_settings
 WHERE id = 1
 `
@@ -63,6 +63,7 @@ func (q *Queries) GetAppSettings(ctx context.Context) (AppSettings, error) {
 		&i.RateLimitOAuthCallbackPerMinute,
 		&i.RateLimitOAuthRedirectPerMinute,
 		&i.RateLimitCommentPerMinute,
+		&i.MaxUsers,
 		&i.MaxTeams,
 		&i.WriteupEnabled,
 		&i.OAuthGithubEnabled,
@@ -86,7 +87,7 @@ SELECT id, app_name, verify_emails, frontend_url, cors_origins,
        rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
        rate_limit_oauth_redirect_per_minute,
        rate_limit_comment_per_minute,
-       max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
+       max_users, max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
 FROM app_settings
 WHERE id = 1
 FOR UPDATE
@@ -125,6 +126,7 @@ func (q *Queries) GetAppSettingsForUpdate(ctx context.Context) (AppSettings, err
 		&i.RateLimitOAuthCallbackPerMinute,
 		&i.RateLimitOAuthRedirectPerMinute,
 		&i.RateLimitCommentPerMinute,
+		&i.MaxUsers,
 		&i.MaxTeams,
 		&i.WriteupEnabled,
 		&i.OAuthGithubEnabled,
@@ -199,11 +201,12 @@ UPDATE app_settings SET
     rate_limit_oauth_callback_per_minute = $26,
     rate_limit_oauth_redirect_per_minute = $27,
     rate_limit_comment_per_minute = $28,
-    max_teams = $29,
-    writeup_enabled = $30,
-    oauth_github_enabled = $31,
-    oauth_google_enabled = $32,
-    updated_at = $33
+    max_users = $29,
+    max_teams = $30,
+    writeup_enabled = $31,
+    oauth_github_enabled = $32,
+    oauth_google_enabled = $33,
+    updated_at = $34
 WHERE id = 1
 `
 
@@ -236,6 +239,7 @@ type UpdateAppSettingsParams struct {
 	RateLimitOAuthCallbackPerMinute  int32              `json:"rate_limit_oauth_callback_per_minute"`
 	RateLimitOAuthRedirectPerMinute  int32              `json:"rate_limit_oauth_redirect_per_minute"`
 	RateLimitCommentPerMinute        int32              `json:"rate_limit_comment_per_minute"`
+	MaxUsers                         int32              `json:"max_users"`
 	MaxTeams                         int32              `json:"max_teams"`
 	WriteupEnabled                   bool               `json:"writeup_enabled"`
 	OAuthGithubEnabled               bool               `json:"oauth_github_enabled"`
@@ -273,6 +277,7 @@ func (q *Queries) UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsPa
 		arg.RateLimitOAuthCallbackPerMinute,
 		arg.RateLimitOAuthRedirectPerMinute,
 		arg.RateLimitCommentPerMinute,
+		arg.MaxUsers,
 		arg.MaxTeams,
 		arg.WriteupEnabled,
 		arg.OAuthGithubEnabled,
@@ -312,12 +317,13 @@ UPDATE app_settings SET
     rate_limit_oauth_callback_per_minute = $26,
     rate_limit_oauth_redirect_per_minute = $27,
     rate_limit_comment_per_minute = $28,
-    max_teams = $29,
-    writeup_enabled = $30,
-    oauth_github_enabled = $31,
-    oauth_google_enabled = $32,
-    updated_at = $33
-WHERE id = 1 AND updated_at = $34
+    max_users = $29,
+    max_teams = $30,
+    writeup_enabled = $31,
+    oauth_github_enabled = $32,
+    oauth_google_enabled = $33,
+    updated_at = $34
+WHERE id = 1 AND updated_at = $35
 RETURNING id
 `
 
@@ -350,6 +356,7 @@ type UpdateAppSettingsIfCurrentParams struct {
 	RateLimitOAuthCallbackPerMinute  int32              `json:"rate_limit_oauth_callback_per_minute"`
 	RateLimitOAuthRedirectPerMinute  int32              `json:"rate_limit_oauth_redirect_per_minute"`
 	RateLimitCommentPerMinute        int32              `json:"rate_limit_comment_per_minute"`
+	MaxUsers                         int32              `json:"max_users"`
 	MaxTeams                         int32              `json:"max_teams"`
 	WriteupEnabled                   bool               `json:"writeup_enabled"`
 	OAuthGithubEnabled               bool               `json:"oauth_github_enabled"`
@@ -388,6 +395,7 @@ func (q *Queries) UpdateAppSettingsIfCurrent(ctx context.Context, arg UpdateAppS
 		arg.RateLimitOAuthCallbackPerMinute,
 		arg.RateLimitOAuthRedirectPerMinute,
 		arg.RateLimitCommentPerMinute,
+		arg.MaxUsers,
 		arg.MaxTeams,
 		arg.WriteupEnabled,
 		arg.OAuthGithubEnabled,

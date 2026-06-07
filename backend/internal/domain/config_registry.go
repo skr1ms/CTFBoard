@@ -126,6 +126,10 @@ var configRegistry = map[string]ConfigDef{
 		Key: "social_website", DefaultValue: "", ValueType: CompetitionParamTypeString,
 		Category: ConfigCategorySocial, Description: "Organizers website URL",
 	},
+	"social_shares_enabled": {
+		Key: "social_shares_enabled", DefaultValue: "true", ValueType: CompetitionParamTypeBool,
+		Category: ConfigCategorySocial, Description: "Enable public signed solve share links",
+	},
 	"tos_url": {
 		Key: "tos_url", DefaultValue: "", ValueType: CompetitionParamTypeString,
 		Category: ConfigCategoryLegal, Description: "Terms of service URL (external link)",

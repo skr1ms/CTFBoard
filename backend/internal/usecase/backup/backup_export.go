@@ -90,6 +90,41 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts domain.ExportOptions) 
 			mu.Unlock()
 		}
 
+		if uc.deps.TopicRepo != nil {
+			challengeIDs := make([]uuid.UUID, len(challenges))
+			for i, c := range challenges {
+				challengeIDs[i] = c.ID
+			}
+
+			topicsByChallenge, err := uc.deps.TopicRepo.GetByChallengeIDs(gCtx, challengeIDs)
+			if err != nil {
+				return fmt.Errorf("BackupUseCase - Export - TopicRepo.GetByChallengeIDs: %w", err)
+			}
+
+			seenTopics := make(map[uuid.UUID]domain.Topic)
+
+			for i := range challenges {
+				topics := topicsByChallenge[challenges[i].ID]
+
+				topicIDs := make([]uuid.UUID, 0, len(topics))
+				for _, t := range topics {
+					seenTopics[t.ID] = *t
+					topicIDs = append(topicIDs, t.ID)
+				}
+
+				challenges[i].TopicIDs = topicIDs
+			}
+
+			uniqueTopics := make([]domain.Topic, 0, len(seenTopics))
+			for _, t := range seenTopics {
+				uniqueTopics = append(uniqueTopics, t)
+			}
+
+			mu.Lock()
+			backup.Topics = uniqueTopics
+			mu.Unlock()
+		}
+
 		mu.Lock()
 		backup.Challenges = challenges
 		mu.Unlock()

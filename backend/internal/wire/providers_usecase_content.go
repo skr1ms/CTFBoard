@@ -6,6 +6,7 @@ import (
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page"
@@ -21,9 +22,19 @@ func ProvideFieldValidator(fieldRepo settings.FieldRepository) *settings.FieldVa
 	return settings.NewFieldValidator(fieldRepo)
 }
 
-func ProvideNotificationUseCase(notifRepo notification.NotificationRepository, broadcaster *iws.Broadcaster, l logkit.Logger) *notification.NotificationUseCase {
+func ProvideNotificationUseCase(
+	notifRepo notification.NotificationRepository,
+	teamRepo repo.TeamRepository,
+	userRepo repo.UserRepository,
+	TM repo.TransactionManager,
+	broadcaster *iws.Broadcaster,
+	l logkit.Logger,
+) *notification.NotificationUseCase {
 	return notification.NewNotificationUseCase(notification.NotificationDeps{
 		NotifRepo:   notifRepo,
+		TeamRepo:    teamRepo,
+		UserRepo:    userRepo,
+		TM:          TM,
 		Broadcaster: broadcaster,
 		Logger:      l,
 	})

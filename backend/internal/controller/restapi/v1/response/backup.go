@@ -20,12 +20,50 @@ func FromCSVImportResult(result *usecase.CSVImportResult) openapi.CSVImportResul
 }
 
 func FromImportResult(result *domain.ImportResult) openapi.ImportResult {
+	if result == nil {
+		return openapi.ImportResult{}
+	}
+
 	res := openapi.ImportResult{
 		Success:      new(result.Success),
 		SkippedCount: new(result.SkippedCount),
 	}
 	if len(result.Errors) > 0 {
 		res.Errors = &result.Errors
+	}
+
+	if len(result.Warnings) > 0 {
+		res.Warnings = &result.Warnings
+	}
+
+	return res
+}
+
+func FromImportJob(job *domain.ImportJob) openapi.ImportJobResponse {
+	status := openapi.ImportJobResponseStatus(job.Status)
+	phase := openapi.ImportJobResponsePhase(job.Phase)
+
+	res := openapi.ImportJobResponse{
+		ID:              &job.ID,
+		ArchiveFilename: &job.ArchiveFilename,
+		ArchiveSize:     &job.ArchiveSize,
+		Status:          &status,
+		Phase:           &phase,
+		CreatedAt:       &job.CreatedAt,
+		StartedAt:       job.StartedAt,
+		FinishedAt:      job.FinishedAt,
+		UpdatedAt:       &job.UpdatedAt,
+		Error:           job.Error,
+		RequestedBy:     job.RequestedBy,
+	}
+
+	if job.Result != nil {
+		result := FromImportResult(job.Result)
+		res.Result = &result
+	}
+
+	if job.ClientIP != "" {
+		res.ClientIP = &job.ClientIP
 	}
 
 	return res

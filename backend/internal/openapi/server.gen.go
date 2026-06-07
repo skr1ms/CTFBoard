@@ -78,6 +78,12 @@ type ServerInterface interface {
 	// Upsert challenge solution
 	// (POST /admin/challenges/{challengeID}/solution)
 	PostAdminChallengesChallengeIDSolution(w http.ResponseWriter, r *http.Request, challengeID string)
+	// Get challenge topics
+	// (GET /admin/challenges/{challengeID}/topics)
+	GetAdminChallengesChallengeIDTopics(w http.ResponseWriter, r *http.Request, challengeID string)
+	// Set challenge topics
+	// (PUT /admin/challenges/{challengeID}/topics)
+	PutAdminChallengesChallengeIDTopics(w http.ResponseWriter, r *http.Request, challengeID string)
 	// Get admin competition
 	// (GET /admin/competition)
 	GetAdminCompetition(w http.ResponseWriter, r *http.Request)
@@ -132,15 +138,21 @@ type ServerInterface interface {
 	// Update hint
 	// (PUT /admin/hints/{ID})
 	PutAdminHintsID(w http.ResponseWriter, r *http.Request, id string)
-	// Import competition backup
+	// Start backup import job
 	// (POST /admin/import)
 	PostAdminImport(w http.ResponseWriter, r *http.Request)
 	// Import CSV data
 	// (POST /admin/import/csv)
 	PostAdminImportCsv(w http.ResponseWriter, r *http.Request)
+	// Get backup import job
+	// (GET /admin/import/jobs/{ID})
+	GetAdminImportJobsID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
 	// Create global notification
 	// (POST /admin/notifications)
 	PostAdminNotifications(w http.ResponseWriter, r *http.Request)
+	// Create team notification
+	// (POST /admin/notifications/team/{teamID})
+	PostAdminNotificationsTeamTeamID(w http.ResponseWriter, r *http.Request, teamID string)
 	// Create personal notification
 	// (POST /admin/notifications/user/{userID})
 	PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http.Request, userID string)
@@ -174,6 +186,9 @@ type ServerInterface interface {
 	// Update admin settings
 	// (PUT /admin/settings)
 	PutAdminSettings(w http.ResponseWriter, r *http.Request)
+	// Get engagement funnel
+	// (GET /admin/statistics/funnel)
+	GetAdminStatisticsFunnel(w http.ResponseWriter, r *http.Request, params GetAdminStatisticsFunnelParams)
 	// Get solve matrix
 	// (GET /admin/statistics/solve-matrix)
 	GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request, params GetAdminStatisticsSolveMatrixParams)
@@ -258,7 +273,19 @@ type ServerInterface interface {
 	// Get team missing challenges (admin)
 	// (GET /admin/teams/{ID}/missing-challenges)
 	GetAdminTeamsIDMissingChallenges(w http.ResponseWriter, r *http.Request, id string)
-	// Get all hint unlocks
+	// List topics
+	// (GET /admin/topics)
+	GetAdminTopics(w http.ResponseWriter, r *http.Request)
+	// Create topic
+	// (POST /admin/topics)
+	PostAdminTopics(w http.ResponseWriter, r *http.Request)
+	// Delete topic
+	// (DELETE /admin/topics/{ID})
+	DeleteAdminTopicsID(w http.ResponseWriter, r *http.Request, id string)
+	// Update topic
+	// (PUT /admin/topics/{ID})
+	PutAdminTopicsID(w http.ResponseWriter, r *http.Request, id string)
+	// Get all unlocks
 	// (GET /admin/unlocks)
 	GetAdminUnlocks(w http.ResponseWriter, r *http.Request, params GetAdminUnlocksParams)
 	// List users (admin)
@@ -351,7 +378,7 @@ type ServerInterface interface {
 	// Get challenges list
 	// (GET /challenges)
 	GetChallenges(w http.ResponseWriter, r *http.Request, params GetChallengesParams)
-	// List all solutions for solved challenges
+	// List all visible challenge solutions
 	// (GET /challenges/solutions)
 	GetChallengesSolutions(w http.ResponseWriter, r *http.Request)
 	// Get challenge types
@@ -432,6 +459,9 @@ type ServerInterface interface {
 	// Get global notifications
 	// (GET /notifications)
 	GetNotifications(w http.ResponseWriter, r *http.Request, params GetNotificationsParams)
+	// Count global notifications
+	// (GET /notifications/count)
+	GetNotificationsCount(w http.ResponseWriter, r *http.Request, params GetNotificationsCountParams)
 	// OpenAPI specification
 	// (GET /openapi.json)
 	GetOpenAPI(w http.ResponseWriter, r *http.Request)
@@ -459,6 +489,12 @@ type ServerInterface interface {
 	// Get first-run setup status
 	// (GET /setup/status)
 	GetSetupStatus(w http.ResponseWriter, r *http.Request)
+	// Create a solve share link
+	// (POST /shares)
+	PostShares(w http.ResponseWriter, r *http.Request)
+	// Resolve a solve share link
+	// (GET /shares/solve)
+	GetSharesSolve(w http.ResponseWriter, r *http.Request, params GetSharesSolveParams)
 	// SSE connection
 	// (GET /sse)
 	GetSse(w http.ResponseWriter, r *http.Request)
@@ -567,6 +603,9 @@ type ServerInterface interface {
 	// Get user notifications
 	// (GET /user/notifications)
 	GetUserNotifications(w http.ResponseWriter, r *http.Request, params GetUserNotificationsParams)
+	// Count unread user notifications
+	// (GET /user/notifications/unread-count)
+	GetUserNotificationsUnreadCount(w http.ResponseWriter, r *http.Request)
 	// Mark notification as read
 	// (PATCH /user/notifications/{ID}/read)
 	PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Request, id string)
@@ -747,6 +786,18 @@ func (_ Unimplemented) PostAdminChallengesChallengeIDSolution(w http.ResponseWri
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get challenge topics
+// (GET /admin/challenges/{challengeID}/topics)
+func (_ Unimplemented) GetAdminChallengesChallengeIDTopics(w http.ResponseWriter, r *http.Request, challengeID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Set challenge topics
+// (PUT /admin/challenges/{challengeID}/topics)
+func (_ Unimplemented) PutAdminChallengesChallengeIDTopics(w http.ResponseWriter, r *http.Request, challengeID string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Get admin competition
 // (GET /admin/competition)
 func (_ Unimplemented) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
@@ -855,7 +906,7 @@ func (_ Unimplemented) PutAdminHintsID(w http.ResponseWriter, r *http.Request, i
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Import competition backup
+// Start backup import job
 // (POST /admin/import)
 func (_ Unimplemented) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -867,9 +918,21 @@ func (_ Unimplemented) PostAdminImportCsv(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Get backup import job
+// (GET /admin/import/jobs/{ID})
+func (_ Unimplemented) GetAdminImportJobsID(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Create global notification
 // (POST /admin/notifications)
 func (_ Unimplemented) PostAdminNotifications(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create team notification
+// (POST /admin/notifications/team/{teamID})
+func (_ Unimplemented) PostAdminNotificationsTeamTeamID(w http.ResponseWriter, r *http.Request, teamID string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -936,6 +999,12 @@ func (_ Unimplemented) GetAdminSettings(w http.ResponseWriter, r *http.Request) 
 // Update admin settings
 // (PUT /admin/settings)
 func (_ Unimplemented) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get engagement funnel
+// (GET /admin/statistics/funnel)
+func (_ Unimplemented) GetAdminStatisticsFunnel(w http.ResponseWriter, r *http.Request, params GetAdminStatisticsFunnelParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1107,7 +1176,31 @@ func (_ Unimplemented) GetAdminTeamsIDMissingChallenges(w http.ResponseWriter, r
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Get all hint unlocks
+// List topics
+// (GET /admin/topics)
+func (_ Unimplemented) GetAdminTopics(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create topic
+// (POST /admin/topics)
+func (_ Unimplemented) PostAdminTopics(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Delete topic
+// (DELETE /admin/topics/{ID})
+func (_ Unimplemented) DeleteAdminTopicsID(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update topic
+// (PUT /admin/topics/{ID})
+func (_ Unimplemented) PutAdminTopicsID(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Get all unlocks
 // (GET /admin/unlocks)
 func (_ Unimplemented) GetAdminUnlocks(w http.ResponseWriter, r *http.Request, params GetAdminUnlocksParams) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -1293,7 +1386,7 @@ func (_ Unimplemented) GetChallenges(w http.ResponseWriter, r *http.Request, par
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// List all solutions for solved challenges
+// List all visible challenge solutions
 // (GET /challenges/solutions)
 func (_ Unimplemented) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -1455,6 +1548,12 @@ func (_ Unimplemented) GetNotifications(w http.ResponseWriter, r *http.Request, 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Count global notifications
+// (GET /notifications/count)
+func (_ Unimplemented) GetNotificationsCount(w http.ResponseWriter, r *http.Request, params GetNotificationsCountParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // OpenAPI specification
 // (GET /openapi.json)
 func (_ Unimplemented) GetOpenAPI(w http.ResponseWriter, r *http.Request) {
@@ -1506,6 +1605,18 @@ func (_ Unimplemented) PostSetup(w http.ResponseWriter, r *http.Request, params 
 // Get first-run setup status
 // (GET /setup/status)
 func (_ Unimplemented) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Create a solve share link
+// (POST /shares)
+func (_ Unimplemented) PostShares(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Resolve a solve share link
+// (GET /shares/solve)
+func (_ Unimplemented) GetSharesSolve(w http.ResponseWriter, r *http.Request, params GetSharesSolveParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1722,6 +1833,12 @@ func (_ Unimplemented) GetTos(w http.ResponseWriter, r *http.Request) {
 // Get user notifications
 // (GET /user/notifications)
 func (_ Unimplemented) GetUserNotifications(w http.ResponseWriter, r *http.Request, params GetUserNotificationsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Count unread user notifications
+// (GET /user/notifications/unread-count)
+func (_ Unimplemented) GetUserNotificationsUnreadCount(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2499,6 +2616,72 @@ func (siw *ServerInterfaceWrapper) PostAdminChallengesChallengeIDSolution(w http
 	handler.ServeHTTP(w, r)
 }
 
+// GetAdminChallengesChallengeIDTopics operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminChallengesChallengeIDTopics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "challengeID" -------------
+	var challengeID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "challengeID", chi.URLParam(r, "challengeID"), &challengeID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "challengeID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminChallengesChallengeIDTopics(w, r, challengeID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminChallengesChallengeIDTopics operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminChallengesChallengeIDTopics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "challengeID" -------------
+	var challengeID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "challengeID", chi.URLParam(r, "challengeID"), &challengeID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "challengeID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminChallengesChallengeIDTopics(w, r, challengeID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAdminCompetition operation middleware
 func (siw *ServerInterfaceWrapper) GetAdminCompetition(w http.ResponseWriter, r *http.Request) {
 
@@ -3116,6 +3299,39 @@ func (siw *ServerInterfaceWrapper) PostAdminImportCsv(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// GetAdminImportJobsID operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminImportJobsID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminImportJobsID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PostAdminNotifications operation middleware
 func (siw *ServerInterfaceWrapper) PostAdminNotifications(w http.ResponseWriter, r *http.Request) {
 
@@ -3129,6 +3345,39 @@ func (siw *ServerInterfaceWrapper) PostAdminNotifications(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAdminNotifications(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminNotificationsTeamTeamID operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminNotificationsTeamTeamID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "teamID" -------------
+	var teamID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "teamID", chi.URLParam(r, "teamID"), &teamID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "teamID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminNotificationsTeamTeamID(w, r, teamID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3437,6 +3686,49 @@ func (siw *ServerInterfaceWrapper) PutAdminSettings(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutAdminSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminStatisticsFunnel operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminStatisticsFunnel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminStatisticsFunnelParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "live", r.URL.Query(), &params.Live, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminStatisticsFunnel(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4476,6 +4768,116 @@ func (siw *ServerInterfaceWrapper) GetAdminTeamsIDMissingChallenges(w http.Respo
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminTeamsIDMissingChallenges(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminTopics operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminTopics(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminTopics(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminTopics operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminTopics(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminTopics(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdminTopicsID operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminTopicsID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminTopicsID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAdminTopicsID operation middleware
+func (siw *ServerInterfaceWrapper) PutAdminTopicsID(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "ID" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ID", chi.URLParam(r, "ID"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ID", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAdminTopicsID(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6085,6 +6487,33 @@ func (siw *ServerInterfaceWrapper) GetNotifications(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// GetNotificationsCount operation middleware
+func (siw *ServerInterfaceWrapper) GetNotificationsCount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetNotificationsCountParams
+
+	// ------------- Optional query parameter "since_created_at" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since_created_at", r.URL.Query(), &params.SinceCreatedAt, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "since_created_at", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNotificationsCount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetOpenAPI operation middleware
 func (siw *ServerInterfaceWrapper) GetOpenAPI(w http.ResponseWriter, r *http.Request) {
 
@@ -6301,6 +6730,77 @@ func (siw *ServerInterfaceWrapper) GetSetupStatus(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSetupStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostShares operation middleware
+func (siw *ServerInterfaceWrapper) PostShares(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostShares(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSharesSolve operation middleware
+func (siw *ServerInterfaceWrapper) GetSharesSolve(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSharesSolveParams
+
+	// ------------- Required query parameter "solve_id" -------------
+
+	if paramValue := r.URL.Query().Get("solve_id"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "solve_id"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "solve_id", r.URL.Query(), &params.SolveID, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "solve_id", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "mac" -------------
+
+	if paramValue := r.URL.Query().Get("mac"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "mac"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "mac", r.URL.Query(), &params.Mac, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mac", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSharesSolve(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7353,6 +7853,28 @@ func (siw *ServerInterfaceWrapper) GetUserNotifications(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// GetUserNotificationsUnreadCount operation middleware
+func (siw *ServerInterfaceWrapper) GetUserNotificationsUnreadCount(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserNotificationsUnreadCount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PatchUserNotificationsIDRead operation middleware
 func (siw *ServerInterfaceWrapper) PatchUserNotificationsIDRead(w http.ResponseWriter, r *http.Request) {
 
@@ -8032,6 +8554,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/admin/challenges/{challengeID}/solution", wrapper.PostAdminChallengesChallengeIDSolution)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/challenges/{challengeID}/topics", wrapper.GetAdminChallengesChallengeIDTopics)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/challenges/{challengeID}/topics", wrapper.PutAdminChallengesChallengeIDTopics)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/competition", wrapper.GetAdminCompetition)
 	})
 	r.Group(func(r chi.Router) {
@@ -8092,7 +8620,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/admin/import/csv", wrapper.PostAdminImportCsv)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/import/jobs/{ID}", wrapper.GetAdminImportJobsID)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/admin/notifications", wrapper.PostAdminNotifications)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/notifications/team/{teamID}", wrapper.PostAdminNotificationsTeamTeamID)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/admin/notifications/user/{userID}", wrapper.PostAdminNotificationsUserUserID)
@@ -8126,6 +8660,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/admin/settings", wrapper.PutAdminSettings)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/statistics/funnel", wrapper.GetAdminStatisticsFunnel)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/statistics/solve-matrix", wrapper.GetAdminStatisticsSolveMatrix)
@@ -8210,6 +8747,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/teams/{ID}/missing-challenges", wrapper.GetAdminTeamsIDMissingChallenges)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/topics", wrapper.GetAdminTopics)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/topics", wrapper.PostAdminTopics)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/topics/{ID}", wrapper.DeleteAdminTopicsID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/topics/{ID}", wrapper.PutAdminTopicsID)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/unlocks", wrapper.GetAdminUnlocks)
@@ -8386,6 +8935,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/notifications", wrapper.GetNotifications)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/notifications/count", wrapper.GetNotificationsCount)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/openapi.json", wrapper.GetOpenAPI)
 	})
 	r.Group(func(r chi.Router) {
@@ -8411,6 +8963,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/setup/status", wrapper.GetSetupStatus)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/shares", wrapper.PostShares)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/shares/solve", wrapper.GetSharesSolve)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/sse", wrapper.GetSse)
@@ -8519,6 +9077,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/user/notifications", wrapper.GetUserNotifications)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/user/notifications/unread-count", wrapper.GetUserNotificationsUnreadCount)
 	})
 	r.Group(func(r chi.Router) {
 		r.Patch(options.BaseURL+"/user/notifications/{ID}/read", wrapper.PatchUserNotificationsIDRead)

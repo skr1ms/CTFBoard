@@ -29,6 +29,7 @@ func setupAdminRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, redi
 		setupAdminTeamRoutes(adm, wrapper)
 		setupAdminBracketRoutes(adm, wrapper)
 		setupAdminTagRoutes(adm, wrapper)
+		setupAdminTopicRoutes(adm, wrapper)
 		setupAdminFieldRoutes(adm, wrapper)
 		setupAdminPageRoutes(adm, wrapper)
 		setupAdminNotificationRoutes(adm, wrapper)
@@ -126,6 +127,15 @@ func setupAdminTagRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper)
 	adm.Delete("/admin/tags/{ID}", wrapper.DeleteAdminTagsID)
 }
 
+func setupAdminTopicRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
+	adm.Get("/admin/topics", wrapper.GetAdminTopics)
+	adm.Post("/admin/topics", wrapper.PostAdminTopics)
+	adm.Put("/admin/topics/{ID}", wrapper.PutAdminTopicsID)
+	adm.Delete("/admin/topics/{ID}", wrapper.DeleteAdminTopicsID)
+	adm.Get("/admin/challenges/{challengeID}/topics", wrapper.GetAdminChallengesChallengeIDTopics)
+	adm.Put("/admin/challenges/{challengeID}/topics", wrapper.PutAdminChallengesChallengeIDTopics)
+}
+
 func setupAdminFieldRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 	adm.Post("/admin/fields", wrapper.PostAdminFields)
 	adm.Put("/admin/fields/{ID}", wrapper.PutAdminFieldsID)
@@ -143,6 +153,7 @@ func setupAdminPageRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper
 func setupAdminNotificationRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 	adm.Post("/admin/notifications", wrapper.PostAdminNotifications)
 	adm.Post("/admin/notifications/user/{userID}", wrapper.PostAdminNotificationsUserUserID)
+	adm.Post("/admin/notifications/team/{teamID}", wrapper.PostAdminNotificationsTeamTeamID)
 	adm.Put("/admin/notifications/{ID}", wrapper.PutAdminNotificationsID)
 	adm.Delete("/admin/notifications/{ID}", wrapper.DeleteAdminNotificationsID)
 }
@@ -165,11 +176,13 @@ func setupAdminUtilityRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrap
 	adm.Delete("/admin/files/{ID}", wrapper.DeleteAdminFilesID)
 	adm.Get("/admin/unlocks", wrapper.GetAdminUnlocks)
 	adm.Get("/admin/statistics/solve-matrix", wrapper.GetAdminStatisticsSolveMatrix)
+	adm.Get("/admin/statistics/funnel", wrapper.GetAdminStatisticsFunnel)
 
 	destructiveLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminDestructive, adminDestructiveLimit, adminDestructiveWindow, userIDKeyFunc, log)
 	adm.With(destructiveLimit).Post("/admin/reset", wrapper.PostAdminReset)
 	adm.With(destructiveLimit).Post("/admin/import", wrapper.PostAdminImport)
 	adm.With(destructiveLimit).Post("/admin/import/csv", wrapper.PostAdminImportCsv)
+	adm.Get("/admin/import/jobs/{ID}", wrapper.GetAdminImportJobsID)
 	adm.Get("/admin/export", wrapper.GetAdminExport)
 
 	exportZipLimit := restapimiddleware.RateLimit(redisClient, rlKeyAdminExportZip, adminExportZipLimit, adminExportZipWindow, userIDKeyFunc, log)

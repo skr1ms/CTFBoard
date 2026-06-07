@@ -148,5 +148,6 @@ type (
 		GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
 		GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
 		GetSolveMatrix(ctx context.Context, freezeTime *time.Time) ([]*domain.SolveMatrixRow, error)
+		GetAdminStatisticsFunnel(ctx context.Context, limit int, freezeTime *time.Time) (*domain.AdminStatisticsFunnel, error)
 	}
 )

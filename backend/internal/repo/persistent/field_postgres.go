@@ -68,14 +68,17 @@ func (r *FieldRepo) Create(ctx context.Context, field *domain.Field) error {
 	}
 
 	if err := r.Q(ctx).CreateField(ctx, sqlc.CreateFieldParams{
-		ID:         field.ID,
-		Name:       field.Name,
-		FieldType:  string(field.FieldType),
-		EntityType: string(field.EntityType),
-		Required:   field.Required,
-		Options:    opts,
-		OrderIndex: orderIndex,
-		CreatedAt:  pgutil.TimeToTimestamptz(&createdAt),
+		ID:          field.ID,
+		Name:        field.Name,
+		Description: field.Description,
+		FieldType:   string(field.FieldType),
+		EntityType:  string(field.EntityType),
+		Required:    field.Required,
+		IsPublic:    field.Public,
+		Editable:    field.Editable,
+		Options:     opts,
+		OrderIndex:  orderIndex,
+		CreatedAt:   pgutil.TimeToTimestamptz(&createdAt),
 	}); err != nil {
 		return fmt.Errorf("FieldRepo - Create: %w", err)
 	}
@@ -99,14 +102,17 @@ func (r *FieldRepo) GetByID(ctx context.Context, ID uuid.UUID) (*domain.Field, e
 	}
 
 	return &domain.Field{
-		ID:         row.ID,
-		Name:       row.Name,
-		FieldType:  domain.FieldType(row.FieldType),
-		EntityType: domain.EntityType(row.EntityType),
-		Required:   row.Required,
-		Options:    opts,
-		OrderIndex: int(row.OrderIndex),
-		CreatedAt:  pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+		ID:          row.ID,
+		Name:        row.Name,
+		Description: row.Description,
+		FieldType:   domain.FieldType(row.FieldType),
+		EntityType:  domain.EntityType(row.EntityType),
+		Required:    row.Required,
+		Public:      row.IsPublic,
+		Editable:    row.Editable,
+		Options:     opts,
+		OrderIndex:  int(row.OrderIndex),
+		CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 	}, nil
 }
 
@@ -124,14 +130,17 @@ func (r *FieldRepo) GetByEntityType(ctx context.Context, entityType domain.Entit
 		}
 
 		out[i] = &domain.Field{
-			ID:         row.ID,
-			Name:       row.Name,
-			FieldType:  domain.FieldType(row.FieldType),
-			EntityType: domain.EntityType(row.EntityType),
-			Required:   row.Required,
-			Options:    opts,
-			OrderIndex: int(row.OrderIndex),
-			CreatedAt:  pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+			ID:          row.ID,
+			Name:        row.Name,
+			Description: row.Description,
+			FieldType:   domain.FieldType(row.FieldType),
+			EntityType:  domain.EntityType(row.EntityType),
+			Required:    row.Required,
+			Public:      row.IsPublic,
+			Editable:    row.Editable,
+			Options:     opts,
+			OrderIndex:  int(row.OrderIndex),
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		}
 	}
 
@@ -152,14 +161,17 @@ func (r *FieldRepo) GetAll(ctx context.Context) ([]*domain.Field, error) {
 		}
 
 		out[i] = &domain.Field{
-			ID:         row.ID,
-			Name:       row.Name,
-			FieldType:  domain.FieldType(row.FieldType),
-			EntityType: domain.EntityType(row.EntityType),
-			Required:   row.Required,
-			Options:    opts,
-			OrderIndex: int(row.OrderIndex),
-			CreatedAt:  pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+			ID:          row.ID,
+			Name:        row.Name,
+			Description: row.Description,
+			FieldType:   domain.FieldType(row.FieldType),
+			EntityType:  domain.EntityType(row.EntityType),
+			Required:    row.Required,
+			Public:      row.IsPublic,
+			Editable:    row.Editable,
+			Options:     opts,
+			OrderIndex:  int(row.OrderIndex),
+			CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
 		}
 	}
 
@@ -178,12 +190,15 @@ func (r *FieldRepo) Update(ctx context.Context, field *domain.Field) error {
 	}
 
 	if err := r.Q(ctx).UpdateField(ctx, sqlc.UpdateFieldParams{
-		ID:         field.ID,
-		Name:       field.Name,
-		FieldType:  string(field.FieldType),
-		Required:   field.Required,
-		Options:    opts,
-		OrderIndex: orderIndex,
+		ID:          field.ID,
+		Name:        field.Name,
+		Description: field.Description,
+		FieldType:   string(field.FieldType),
+		Required:    field.Required,
+		IsPublic:    field.Public,
+		Editable:    field.Editable,
+		Options:     opts,
+		OrderIndex:  orderIndex,
 	}); err != nil {
 		return fmt.Errorf("FieldRepo - Update: %w", err)
 	}
@@ -265,6 +280,14 @@ func (r *FieldValueRepo) SetValues(ctx context.Context, entityID uuid.UUID, valu
 	return r.setValuesInner(ctx, entityID, values)
 }
 
+func (r *FieldValueRepo) UpsertValues(ctx context.Context, entityID uuid.UUID, values map[string]string) error {
+	if err := requireTx(ctx, "FieldValueRepo - UpsertValues"); err != nil {
+		return err
+	}
+
+	return r.upsertValuesInner(ctx, entityID, values)
+}
+
 func (r *FieldValueRepo) DeleteByEntityID(ctx context.Context, entityID uuid.UUID) error {
 	err := r.Q(ctx).DeleteFieldValuesByEntityID(ctx, entityID)
 	if err != nil {
@@ -285,6 +308,14 @@ func (r *FieldValueRepo) setValuesInner(ctx context.Context, entityID uuid.UUID,
 		return fmt.Errorf("FieldValueRepo - SetValues - Delete: %w", err)
 	}
 
+	if len(values) == 0 {
+		return nil
+	}
+
+	return r.upsertValuesInner(ctx, entityID, values)
+}
+
+func (r *FieldValueRepo) upsertValuesInner(ctx context.Context, entityID uuid.UUID, values map[string]string) error {
 	if len(values) == 0 {
 		return nil
 	}

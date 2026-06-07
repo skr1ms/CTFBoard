@@ -45,22 +45,28 @@ func (q *Queries) CreateTracking(ctx context.Context, arg CreateTrackingParams) 
 	return err
 }
 
-const deleteChallengeOpensOlderThan = `-- name: DeleteChallengeOpensOlderThan :exec
+const deleteChallengeOpensOlderThan = `-- name: DeleteChallengeOpensOlderThan :execrows
 DELETE FROM challenge_opens WHERE opened_at < $1
 `
 
-func (q *Queries) DeleteChallengeOpensOlderThan(ctx context.Context, openedAt pgtype.Timestamptz) error {
-	_, err := q.db.Exec(ctx, deleteChallengeOpensOlderThan, openedAt)
-	return err
+func (q *Queries) DeleteChallengeOpensOlderThan(ctx context.Context, openedAt pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteChallengeOpensOlderThan, openedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const deleteTrackingOlderThan = `-- name: DeleteTrackingOlderThan :exec
+const deleteTrackingOlderThan = `-- name: DeleteTrackingOlderThan :execrows
 DELETE FROM tracking WHERE tracked_at < $1
 `
 
-func (q *Queries) DeleteTrackingOlderThan(ctx context.Context, trackedAt pgtype.Timestamptz) error {
-	_, err := q.db.Exec(ctx, deleteTrackingOlderThan, trackedAt)
-	return err
+func (q *Queries) DeleteTrackingOlderThan(ctx context.Context, trackedAt pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTrackingOlderThan, trackedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getTrackingByUser = `-- name: GetTrackingByUser :many

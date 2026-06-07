@@ -227,3 +227,294 @@ WHERE t.deleted_at IS NULL
     AND t.is_hidden = false
     AND c.state IN ('visible', 'locked')
 ORDER BY t.name, c.category, c.title;
+
+-- name: GetFunnelChallengeRows :many
+WITH active_challenges AS (
+    SELECT id, title, category
+    FROM challenges
+    WHERE state IN ('visible', 'locked')
+),
+active_teams AS (
+    SELECT id
+    FROM teams
+    WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+),
+open_counts AS (
+    SELECT co.challenge_id, COUNT(DISTINCT COALESCE(co.team_id, u.team_id))::int AS opened_count
+    FROM challenge_opens co
+    JOIN users u ON u.id = co.user_id AND u.is_banned = false
+    JOIN active_teams t ON t.id = COALESCE(co.team_id, u.team_id)
+    WHERE (sqlc.narg('freeze_time')::timestamptz IS NULL OR co.opened_at <= sqlc.narg('freeze_time'))
+    GROUP BY co.challenge_id
+),
+attempt_counts AS (
+    SELECT s.challenge_id, COUNT(DISTINCT s.team_id)::int AS attempted_count
+    FROM submissions s
+    JOIN active_teams t ON t.id = s.team_id
+    WHERE s.team_id IS NOT NULL
+      AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND s.submission_type IN ('correct', 'incorrect')
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.created_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.challenge_id
+),
+solve_counts AS (
+    SELECT s.challenge_id, COUNT(DISTINCT s.team_id)::int AS solved_count
+    FROM solves s
+    JOIN active_teams t ON t.id = s.team_id
+    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.challenge_id
+)
+SELECT c.id AS challenge_id,
+       c.title AS challenge_title,
+       c.category AS challenge_category,
+       COALESCE(oc.opened_count, 0)::int AS opened_count,
+       COALESCE(ac.attempted_count, 0)::int AS attempted_count,
+       COALESCE(sc.solved_count, 0)::int AS solved_count
+FROM active_challenges c
+LEFT JOIN open_counts oc ON oc.challenge_id = c.id
+LEFT JOIN attempt_counts ac ON ac.challenge_id = c.id
+LEFT JOIN solve_counts sc ON sc.challenge_id = c.id
+ORDER BY c.category, c.title, c.id;
+
+-- name: GetFunnelTeamRows :many
+WITH active_teams AS (
+    SELECT id, name
+    FROM teams
+    WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+),
+active_challenges AS (
+    SELECT id
+    FROM challenges
+    WHERE state IN ('visible', 'locked')
+),
+team_opens AS (
+    SELECT COALESCE(co.team_id, u.team_id) AS team_id, co.challenge_id, MIN(co.opened_at) AS first_opened_at
+    FROM challenge_opens co
+    JOIN users u ON u.id = co.user_id AND u.is_banned = false
+    JOIN active_teams t ON t.id = COALESCE(co.team_id, u.team_id)
+    JOIN active_challenges c ON c.id = co.challenge_id
+    WHERE (sqlc.narg('freeze_time')::timestamptz IS NULL OR co.opened_at <= sqlc.narg('freeze_time'))
+    GROUP BY COALESCE(co.team_id, u.team_id), co.challenge_id
+),
+team_attempts AS (
+    SELECT s.team_id, s.challenge_id, MIN(s.created_at) AS first_attempted_at
+    FROM submissions s
+    JOIN active_teams t ON t.id = s.team_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.team_id IS NOT NULL
+      AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND s.submission_type IN ('correct', 'incorrect')
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.created_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.team_id, s.challenge_id
+),
+team_solves AS (
+    SELECT s.team_id, s.challenge_id, MIN(s.solved_at) AS solved_at
+    FROM solves s
+    JOIN active_teams t ON t.id = s.team_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.team_id, s.challenge_id
+)
+SELECT t.id AS team_id,
+       t.name AS team_name,
+       COUNT(DISTINCT o.challenge_id)::int AS opened_count,
+       COUNT(DISTINCT a.challenge_id)::int AS attempted_count,
+       COUNT(DISTINCT sol.challenge_id)::int AS solved_count
+FROM active_teams t
+LEFT JOIN team_opens o ON o.team_id = t.id
+LEFT JOIN team_attempts a ON a.team_id = t.id
+LEFT JOIN team_solves sol ON sol.team_id = t.id
+GROUP BY t.id, t.name
+ORDER BY solved_count DESC, attempted_count DESC, opened_count DESC, t.name, t.id
+LIMIT $1;
+
+-- name: GetFunnelTeamCells :many
+WITH active_teams AS (
+    SELECT id, name
+    FROM teams
+    WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+),
+active_challenges AS (
+    SELECT id, category, title
+    FROM challenges
+    WHERE state IN ('visible', 'locked')
+),
+team_opens AS (
+    SELECT COALESCE(co.team_id, u.team_id) AS team_id, co.challenge_id, MIN(co.opened_at) AS first_opened_at
+    FROM challenge_opens co
+    JOIN users u ON u.id = co.user_id AND u.is_banned = false
+    JOIN active_teams t ON t.id = COALESCE(co.team_id, u.team_id)
+    JOIN active_challenges c ON c.id = co.challenge_id
+    WHERE (sqlc.narg('freeze_time')::timestamptz IS NULL OR co.opened_at <= sqlc.narg('freeze_time'))
+    GROUP BY COALESCE(co.team_id, u.team_id), co.challenge_id
+),
+team_attempts AS (
+    SELECT s.team_id, s.challenge_id, MIN(s.created_at) AS first_attempted_at
+    FROM submissions s
+    JOIN active_teams t ON t.id = s.team_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.team_id IS NOT NULL
+      AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND s.submission_type IN ('correct', 'incorrect')
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.created_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.team_id, s.challenge_id
+),
+team_solves AS (
+    SELECT s.team_id, s.challenge_id, MIN(s.solved_at) AS solved_at
+    FROM solves s
+    JOIN active_teams t ON t.id = s.team_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.team_id, s.challenge_id
+),
+top_teams AS (
+    SELECT t.id, t.name,
+           COUNT(DISTINCT o.challenge_id)::int AS opened_count,
+           COUNT(DISTINCT a.challenge_id)::int AS attempted_count,
+           COUNT(DISTINCT sol.challenge_id)::int AS solved_count
+    FROM active_teams t
+    LEFT JOIN team_opens o ON o.team_id = t.id
+    LEFT JOIN team_attempts a ON a.team_id = t.id
+    LEFT JOIN team_solves sol ON sol.team_id = t.id
+    GROUP BY t.id, t.name
+    ORDER BY solved_count DESC, attempted_count DESC, opened_count DESC, t.name, t.id
+    LIMIT $1
+)
+SELECT tt.id AS team_id,
+       c.id AS challenge_id,
+       (o.first_opened_at IS NOT NULL)::bool AS opened,
+       (a.first_attempted_at IS NOT NULL)::bool AS attempted,
+       (sol.solved_at IS NOT NULL)::bool AS solved,
+       o.first_opened_at::timestamptz AS first_opened_at,
+       a.first_attempted_at::timestamptz AS first_attempted_at,
+       sol.solved_at::timestamptz AS solved_at
+FROM top_teams tt
+CROSS JOIN active_challenges c
+LEFT JOIN team_opens o ON o.team_id = tt.id AND o.challenge_id = c.id
+LEFT JOIN team_attempts a ON a.team_id = tt.id AND a.challenge_id = c.id
+LEFT JOIN team_solves sol ON sol.team_id = tt.id AND sol.challenge_id = c.id
+ORDER BY tt.name, c.category, c.title, c.id;
+
+-- name: GetFunnelUserRows :many
+WITH active_users AS (
+    SELECT u.id, u.username
+    FROM users u
+    LEFT JOIN teams t ON t.id = u.team_id
+    WHERE u.is_banned = false
+      AND (u.team_id IS NULL OR (t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false))
+),
+active_challenges AS (
+    SELECT id
+    FROM challenges
+    WHERE state IN ('visible', 'locked')
+),
+user_opens AS (
+    SELECT co.user_id, co.challenge_id, MIN(co.opened_at) AS first_opened_at
+    FROM challenge_opens co
+    JOIN active_users u ON u.id = co.user_id
+    JOIN active_challenges c ON c.id = co.challenge_id
+    WHERE (sqlc.narg('freeze_time')::timestamptz IS NULL OR co.opened_at <= sqlc.narg('freeze_time'))
+    GROUP BY co.user_id, co.challenge_id
+),
+user_attempts AS (
+    SELECT s.user_id, s.challenge_id, MIN(s.created_at) AS first_attempted_at
+    FROM submissions s
+    JOIN active_users u ON u.id = s.user_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND s.submission_type IN ('correct', 'incorrect')
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.created_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.user_id, s.challenge_id
+),
+user_solves AS (
+    SELECT s.user_id, s.challenge_id, MIN(s.solved_at) AS solved_at
+    FROM solves s
+    JOIN active_users u ON u.id = s.user_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.user_id, s.challenge_id
+)
+SELECT u.id AS user_id,
+       u.username,
+       COUNT(DISTINCT o.challenge_id)::int AS opened_count,
+       COUNT(DISTINCT a.challenge_id)::int AS attempted_count,
+       COUNT(DISTINCT sol.challenge_id)::int AS solved_count
+FROM active_users u
+LEFT JOIN user_opens o ON o.user_id = u.id
+LEFT JOIN user_attempts a ON a.user_id = u.id
+LEFT JOIN user_solves sol ON sol.user_id = u.id
+GROUP BY u.id, u.username
+ORDER BY solved_count DESC, attempted_count DESC, opened_count DESC, u.username, u.id
+LIMIT $1;
+
+-- name: GetFunnelUserCells :many
+WITH active_users AS (
+    SELECT u.id, u.username
+    FROM users u
+    LEFT JOIN teams t ON t.id = u.team_id
+    WHERE u.is_banned = false
+      AND (u.team_id IS NULL OR (t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false))
+),
+active_challenges AS (
+    SELECT id, category, title
+    FROM challenges
+    WHERE state IN ('visible', 'locked')
+),
+user_opens AS (
+    SELECT co.user_id, co.challenge_id, MIN(co.opened_at) AS first_opened_at
+    FROM challenge_opens co
+    JOIN active_users u ON u.id = co.user_id
+    JOIN active_challenges c ON c.id = co.challenge_id
+    WHERE (sqlc.narg('freeze_time')::timestamptz IS NULL OR co.opened_at <= sqlc.narg('freeze_time'))
+    GROUP BY co.user_id, co.challenge_id
+),
+user_attempts AS (
+    SELECT s.user_id, s.challenge_id, MIN(s.created_at) AS first_attempted_at
+    FROM submissions s
+    JOIN active_users u ON u.id = s.user_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND s.submission_type IN ('correct', 'incorrect')
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.created_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.user_id, s.challenge_id
+),
+user_solves AS (
+    SELECT s.user_id, s.challenge_id, MIN(s.solved_at) AS solved_at
+    FROM solves s
+    JOIN active_users u ON u.id = s.user_id
+    JOIN active_challenges c ON c.id = s.challenge_id
+    WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
+    GROUP BY s.user_id, s.challenge_id
+),
+top_users AS (
+    SELECT u.id, u.username,
+           COUNT(DISTINCT o.challenge_id)::int AS opened_count,
+           COUNT(DISTINCT a.challenge_id)::int AS attempted_count,
+           COUNT(DISTINCT sol.challenge_id)::int AS solved_count
+    FROM active_users u
+    LEFT JOIN user_opens o ON o.user_id = u.id
+    LEFT JOIN user_attempts a ON a.user_id = u.id
+    LEFT JOIN user_solves sol ON sol.user_id = u.id
+    GROUP BY u.id, u.username
+    ORDER BY solved_count DESC, attempted_count DESC, opened_count DESC, u.username, u.id
+    LIMIT $1
+)
+SELECT tu.id AS user_id,
+       c.id AS challenge_id,
+       (o.first_opened_at IS NOT NULL)::bool AS opened,
+       (a.first_attempted_at IS NOT NULL)::bool AS attempted,
+       (sol.solved_at IS NOT NULL)::bool AS solved,
+       o.first_opened_at::timestamptz AS first_opened_at,
+       a.first_attempted_at::timestamptz AS first_attempted_at,
+       sol.solved_at::timestamptz AS solved_at
+FROM top_users tu
+CROSS JOIN active_challenges c
+LEFT JOIN user_opens o ON o.user_id = tu.id AND o.challenge_id = c.id
+LEFT JOIN user_attempts a ON a.user_id = tu.id AND a.challenge_id = c.id
+LEFT JOIN user_solves sol ON sol.user_id = tu.id AND sol.challenge_id = c.id
+ORDER BY tu.username, c.category, c.title, c.id;

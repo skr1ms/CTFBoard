@@ -52,8 +52,8 @@ type (
 		GetAllRequirementPairs(ctx context.Context) ([]*domain.ChallengeRequirementPair, error)
 		GetSolution(ctx context.Context, ID uuid.UUID) (*ChallengeSolution, error)
 		GetAllSolutions(ctx context.Context) ([]*domain.SolutionBackup, error)
-		ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*ChallengeSolutionEntry, error)
-		UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*ChallengeSolution, error)
+		ListSolutions(ctx context.Context) ([]*ChallengeSolutionEntry, error)
+		UpsertSolution(ctx context.Context, challengeID uuid.UUID, content, state string) (*ChallengeSolution, error)
 		DeleteSolution(ctx context.Context, challengeID uuid.UUID) error
 		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error)
 		GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Challenge, error)
@@ -76,6 +76,26 @@ type (
 		Delete(ctx context.Context, ID uuid.UUID) error
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error)
 		GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*domain.Tag, error)
+	}
+)
+
+// =============================================================================
+// Topic
+// =============================================================================
+
+type (
+	// TopicRepository provides persistence operations for organizer challenge topics.
+	TopicRepository interface {
+		Create(ctx context.Context, topic *domain.Topic) error
+		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Topic, error)
+		GetByName(ctx context.Context, name string) (*domain.Topic, error)
+		GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Topic, error)
+		GetAll(ctx context.Context) ([]*domain.Topic, error)
+		Update(ctx context.Context, topic *domain.Topic) error
+		Delete(ctx context.Context, ID uuid.UUID) error
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Topic, error)
+		GetByChallengeIDs(ctx context.Context, challengeIDs []uuid.UUID) (map[uuid.UUID][]*domain.Topic, error)
+		SetByChallengeID(ctx context.Context, challengeID uuid.UUID, topicIDs []uuid.UUID) error
 	}
 )
 

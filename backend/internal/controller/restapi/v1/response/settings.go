@@ -19,6 +19,7 @@ func FromAppSettings(s *domain.Settings) openapi.AppSettingsResponse {
 		DefaultPerPage:                   new(s.DefaultPerPage),
 		FrontendURL:                      new(s.FrontendURL),
 		MaxPerPage:                       new(s.MaxPerPage),
+		MaxUsers:                         new(s.MaxUsers),
 		MaxTeams:                         new(s.MaxTeams),
 		RateLimitForgotPasswordPerMinute: new(s.RateLimitForgotPasswordPerMinute),
 		RateLimitGeneralIPPerMinute:      new(s.RateLimitGeneralIPPerMinute),

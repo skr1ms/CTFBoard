@@ -65,6 +65,7 @@ CREATE TABLE app_settings (
     rate_limit_oauth_callback_per_minute INT NOT NULL DEFAULT 20,
     rate_limit_oauth_redirect_per_minute INT NOT NULL DEFAULT 20,
     rate_limit_comment_per_minute INT NOT NULL DEFAULT 30,
+    max_users INT NOT NULL DEFAULT 0,
     max_teams INT NOT NULL DEFAULT 0,
     writeup_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     oauth_github_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -189,10 +190,12 @@ CREATE TABLE challenges (
     category VARCHAR(50) NOT NULL DEFAULT '',
     points INT NOT NULL DEFAULT 0,
     flag_hash VARCHAR(255) NOT NULL,
+    attribution TEXT NOT NULL DEFAULT '',
     connection_info TEXT NOT NULL DEFAULT '',
     max_attempts INT NOT NULL DEFAULT 0,
     max_attempts_window BIGINT NOT NULL DEFAULT 0,
     position INT NOT NULL DEFAULT 0,
+    next_challenge_id uuid REFERENCES challenges(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
     state VARCHAR(20) NOT NULL DEFAULT 'visible' CONSTRAINT chk_challenges_state CHECK (state IN ('visible', 'hidden', 'locked')),
     initial_value INT NOT NULL DEFAULT 500,
     min_value INT NOT NULL DEFAULT 100,
@@ -216,6 +219,13 @@ CREATE TABLE tags (
     color VARCHAR(7) DEFAULT '#6b7280'
 );
 
+-- Topics (organizer taxonomy for challenge classification)
+CREATE TABLE topics (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Challenge–tag many-to-many
 CREATE TABLE challenge_tags (
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
@@ -224,6 +234,13 @@ CREATE TABLE challenge_tags (
 );
 
 CREATE INDEX idx_challenge_tags_tag_id ON challenge_tags (tag_id);
+
+-- Challenge–topic many-to-many
+CREATE TABLE challenge_topics (
+    challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
+    topic_id uuid NOT NULL REFERENCES topics (id) ON DELETE CASCADE,
+    PRIMARY KEY (challenge_id, topic_id)
+);
 
 -- Challenge prerequisites (challenge requires solving other challenges)
 CREATE TABLE challenge_requirements (
@@ -283,7 +300,8 @@ CREATE UNIQUE INDEX idx_files_location ON files (location);
 CREATE TABLE solutions (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     challenge_id uuid UNIQUE NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
-    content TEXT NOT NULL DEFAULT ''
+    content TEXT NOT NULL DEFAULT '',
+    state VARCHAR(20) NOT NULL DEFAULT 'solved_only' CONSTRAINT chk_solutions_state CHECK (state IN ('hidden', 'solved_only', 'after_event', 'admin_only'))
 );
 
 
@@ -409,6 +427,25 @@ CREATE INDEX idx_audit_logs_user_id ON audit_logs (user_id);
 CREATE INDEX idx_audit_logs_entity_type ON audit_logs (entity_type);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs (created_at);
 
+-- Asynchronous backup import jobs
+CREATE TABLE backup_import_jobs (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    requested_by uuid REFERENCES users (id) ON DELETE SET NULL,
+    client_ip VARCHAR(45),
+    archive_filename TEXT NOT NULL DEFAULT '',
+    archive_size BIGINT NOT NULL DEFAULT 0 CONSTRAINT chk_backup_import_jobs_archive_size CHECK (archive_size >= 0),
+    staging_location TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'queued' CONSTRAINT chk_backup_import_jobs_status CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+    phase VARCHAR(30) NOT NULL DEFAULT 'queued' CONSTRAINT chk_backup_import_jobs_phase CHECK (phase IN ('queued', 'validating', 'importing_db', 'restoring_files', 'cleanup', 'finished')),
+    options JSONB NOT NULL DEFAULT '{}'::jsonb,
+    result JSONB,
+    error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Ban appeals (user appeals against bans)
 CREATE TABLE ban_appeals (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -481,9 +518,12 @@ CREATE INDEX idx_files_page_id ON files (page_id);
 CREATE TABLE fields (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
-    field_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_field_type CHECK (field_type IN ('text', 'number', 'select', 'boolean')),
+    description TEXT NOT NULL DEFAULT '',
+    field_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_field_type CHECK (field_type IN ('text', 'number', 'select', 'boolean', 'json')),
     entity_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_entity_type CHECK (entity_type IN ('user', 'team')),
     required BOOLEAN NOT NULL DEFAULT FALSE,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
+    editable BOOLEAN NOT NULL DEFAULT FALSE,
     options JSONB,
     order_index INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -536,12 +576,14 @@ CREATE INDEX idx_tracking_ip_user_id ON tracking (ip, user_id);
 CREATE TABLE challenge_opens (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    team_id uuid REFERENCES teams (id) ON DELETE SET NULL,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     ip VARCHAR(45),
     opened_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_challenge_opens_user_id ON challenge_opens (user_id);
+CREATE INDEX idx_challenge_opens_team_id ON challenge_opens (team_id) WHERE team_id IS NOT NULL;
 CREATE INDEX idx_challenge_opens_challenge_id ON challenge_opens (challenge_id);
 CREATE INDEX idx_challenge_opens_opened_at ON challenge_opens (opened_at DESC);
 

@@ -13,28 +13,34 @@ import (
 )
 
 const createField = `-- name: CreateField :exec
-INSERT INTO fields (id, name, field_type, entity_type, required, options, order_index, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO fields (id, name, description, field_type, entity_type, required, is_public, editable, options, order_index, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
 type CreateFieldParams struct {
-	ID         uuid.UUID          `json:"id"`
-	Name       string             `json:"name"`
-	FieldType  string             `json:"field_type"`
-	EntityType string             `json:"entity_type"`
-	Required   bool               `json:"required"`
-	Options    []byte             `json:"options"`
-	OrderIndex int32              `json:"order_index"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	FieldType   string             `json:"field_type"`
+	EntityType  string             `json:"entity_type"`
+	Required    bool               `json:"required"`
+	IsPublic    bool               `json:"is_public"`
+	Editable    bool               `json:"editable"`
+	Options     []byte             `json:"options"`
+	OrderIndex  int32              `json:"order_index"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) CreateField(ctx context.Context, arg CreateFieldParams) error {
 	_, err := q.db.Exec(ctx, createField,
 		arg.ID,
 		arg.Name,
+		arg.Description,
 		arg.FieldType,
 		arg.EntityType,
 		arg.Required,
+		arg.IsPublic,
+		arg.Editable,
 		arg.Options,
 		arg.OrderIndex,
 		arg.CreatedAt,
@@ -92,7 +98,7 @@ func (q *Queries) GetAllFieldValues(ctx context.Context) ([]FieldValue, error) {
 }
 
 const getAllFields = `-- name: GetAllFields :many
-SELECT id, name, field_type, entity_type, required, options, order_index, created_at
+SELECT id, name, description, field_type, entity_type, required, is_public, editable, options, order_index, created_at
 FROM fields ORDER BY entity_type, order_index, name
 `
 
@@ -108,9 +114,12 @@ func (q *Queries) GetAllFields(ctx context.Context) ([]Field, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Description,
 			&i.FieldType,
 			&i.EntityType,
 			&i.Required,
+			&i.IsPublic,
+			&i.Editable,
 			&i.Options,
 			&i.OrderIndex,
 			&i.CreatedAt,
@@ -126,7 +135,7 @@ func (q *Queries) GetAllFields(ctx context.Context) ([]Field, error) {
 }
 
 const getFieldByID = `-- name: GetFieldByID :one
-SELECT id, name, field_type, entity_type, required, options, order_index, created_at
+SELECT id, name, description, field_type, entity_type, required, is_public, editable, options, order_index, created_at
 FROM fields WHERE id = $1
 `
 
@@ -136,9 +145,12 @@ func (q *Queries) GetFieldByID(ctx context.Context, id uuid.UUID) (Field, error)
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Description,
 		&i.FieldType,
 		&i.EntityType,
 		&i.Required,
+		&i.IsPublic,
+		&i.Editable,
 		&i.Options,
 		&i.OrderIndex,
 		&i.CreatedAt,
@@ -178,7 +190,7 @@ func (q *Queries) GetFieldValuesByEntityID(ctx context.Context, entityID uuid.UU
 }
 
 const getFieldsByEntityType = `-- name: GetFieldsByEntityType :many
-SELECT id, name, field_type, entity_type, required, options, order_index, created_at
+SELECT id, name, description, field_type, entity_type, required, is_public, editable, options, order_index, created_at
 FROM fields WHERE entity_type = $1 ORDER BY order_index, name
 `
 
@@ -194,9 +206,12 @@ func (q *Queries) GetFieldsByEntityType(ctx context.Context, entityType string) 
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Description,
 			&i.FieldType,
 			&i.EntityType,
 			&i.Required,
+			&i.IsPublic,
+			&i.Editable,
 			&i.Options,
 			&i.OrderIndex,
 			&i.CreatedAt,
@@ -212,25 +227,31 @@ func (q *Queries) GetFieldsByEntityType(ctx context.Context, entityType string) 
 }
 
 const updateField = `-- name: UpdateField :exec
-UPDATE fields SET name = $2, field_type = $3, required = $4, options = $5, order_index = $6
+UPDATE fields SET name = $2, description = $3, field_type = $4, required = $5, is_public = $6, editable = $7, options = $8, order_index = $9
 WHERE id = $1
 `
 
 type UpdateFieldParams struct {
-	ID         uuid.UUID `json:"id"`
-	Name       string    `json:"name"`
-	FieldType  string    `json:"field_type"`
-	Required   bool      `json:"required"`
-	Options    []byte    `json:"options"`
-	OrderIndex int32     `json:"order_index"`
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	FieldType   string    `json:"field_type"`
+	Required    bool      `json:"required"`
+	IsPublic    bool      `json:"is_public"`
+	Editable    bool      `json:"editable"`
+	Options     []byte    `json:"options"`
+	OrderIndex  int32     `json:"order_index"`
 }
 
 func (q *Queries) UpdateField(ctx context.Context, arg UpdateFieldParams) error {
 	_, err := q.db.Exec(ctx, updateField,
 		arg.ID,
 		arg.Name,
+		arg.Description,
 		arg.FieldType,
 		arg.Required,
+		arg.IsPublic,
+		arg.Editable,
 		arg.Options,
 		arg.OrderIndex,
 	)

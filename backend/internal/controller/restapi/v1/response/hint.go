@@ -49,11 +49,14 @@ func FromHint(h *domain.Hint) openapi.HintAdminResponse {
 	}
 }
 
-func FromHintUnlock(u *domain.HintUnlockWithDetails) openapi.HintUnlockResponse {
+func FromUnlock(u *domain.UnlockWithDetails) openapi.UnlockResponse {
 	t := u.UnlockedAt
+	unlockType := openapi.UnlockResponseType(u.Type)
 
-	return openapi.HintUnlockResponse{
+	return openapi.UnlockResponse{
 		ID:          new(u.ID.String()),
+		Type:        &unlockType,
+		ResourceID:  new(u.ResourceID.String()),
 		HintID:      new(u.HintID.String()),
 		TeamID:      new(u.TeamID.String()),
 		UnlockedAt:  &t,
@@ -62,8 +65,8 @@ func FromHintUnlock(u *domain.HintUnlockWithDetails) openapi.HintUnlockResponse 
 	}
 }
 
-func FromHintUnlockList(items []*domain.HintUnlockWithDetails, total int64, page, perPage int) openapi.HintUnlockListResponse {
-	data, meta := BuildListResponse(items, FromHintUnlock, total, page, perPage)
+func FromUnlockList(items []*domain.UnlockWithDetails, total int64, page, perPage int) openapi.UnlockListResponse {
+	data, meta := BuildListResponse(items, FromUnlock, total, page, perPage)
 
-	return openapi.HintUnlockListResponse{Data: &data, Meta: meta}
+	return openapi.UnlockListResponse{Data: &data, Meta: meta}
 }

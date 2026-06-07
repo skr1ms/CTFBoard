@@ -28,6 +28,7 @@ type SolutionBackup struct {
 	ID          uuid.UUID `json:"id"`
 	ChallengeID uuid.UUID `json:"challenge_id"`
 	Content     string    `json:"content"`
+	State       string    `json:"state"`
 }
 
 // BackupData is the root structure of the JSON backup format, versioned and timestamped.
@@ -36,6 +37,7 @@ type BackupData struct {
 	ExportedAt            time.Time                  `json:"exported_at"`
 	Competition           *Competition               `json:"competition"`
 	Tags                  []Tag                      `json:"tags,omitempty"`
+	Topics                []Topic                    `json:"topics,omitempty"`
 	Challenges            []ChallengeExport          `json:"challenges"`
 	Brackets              []Bracket                  `json:"brackets,omitempty"`
 	ChallengeRequirements []ChallengeRequirementPair `json:"challenge_requirements,omitempty"`
@@ -60,11 +62,14 @@ type ChallengeExport struct {
 	State          string      `json:"state"`
 	FlagHash       string      `json:"flag_hash"`
 	FlagRegex      string      `json:"flag_regex"`
+	Attribution    string      `json:"attribution"`
 	ConnectionInfo string      `json:"connection_info"`
 	MaxAttempts    int         `json:"max_attempts"`
 	Position       int         `json:"position"`
+	NextID         *uuid.UUID  `json:"next_id,omitempty"`
 	Hints          []Hint      `json:"hints,omitempty"`
 	TagIDs         []uuid.UUID `json:"tag_ids,omitempty"`
+	TopicIDs       []uuid.UUID `json:"topic_ids,omitempty"`
 }
 
 // TeamExport extends Team with its member list for backup and import purposes.
@@ -116,7 +121,49 @@ type ImportOptions struct {
 type ImportResult struct {
 	Success      bool     `json:"success"`
 	Errors       []string `json:"errors,omitempty"`
+	Warnings     []string `json:"warnings,omitempty"`
 	SkippedCount int      `json:"skipped_count,omitempty"`
+}
+
+// ImportJobStatus is the persisted lifecycle state for an asynchronous backup import.
+type ImportJobStatus string
+
+const (
+	ImportJobStatusQueued    ImportJobStatus = "queued"
+	ImportJobStatusRunning   ImportJobStatus = "running"
+	ImportJobStatusCompleted ImportJobStatus = "completed"
+	ImportJobStatusFailed    ImportJobStatus = "failed"
+)
+
+// ImportJobPhase is the most recent coarse-grained import step visible to operators.
+type ImportJobPhase string
+
+const (
+	ImportJobPhaseQueued         ImportJobPhase = "queued"
+	ImportJobPhaseValidating     ImportJobPhase = "validating"
+	ImportJobPhaseImportingDB    ImportJobPhase = "importing_db"
+	ImportJobPhaseRestoringFiles ImportJobPhase = "restoring_files"
+	ImportJobPhaseCleanup        ImportJobPhase = "cleanup"
+	ImportJobPhaseFinished       ImportJobPhase = "finished"
+)
+
+// ImportJob is the operator-facing status record for an asynchronous ZIP import.
+type ImportJob struct {
+	ID              uuid.UUID       `json:"id"`
+	RequestedBy     *uuid.UUID      `json:"requested_by,omitempty"`
+	ClientIP        string          `json:"client_ip,omitempty"`
+	ArchiveFilename string          `json:"archive_filename"`
+	ArchiveSize     int64           `json:"archive_size"`
+	StagingLocation string          `json:"-"`
+	Options         ImportOptions   `json:"-"`
+	Status          ImportJobStatus `json:"status"`
+	Phase           ImportJobPhase  `json:"phase"`
+	Result          *ImportResult   `json:"result,omitempty"`
+	Error           *string         `json:"error,omitempty"`
+	CreatedAt       time.Time       `json:"created_at"`
+	StartedAt       *time.Time      `json:"started_at,omitempty"`
+	FinishedAt      *time.Time      `json:"finished_at,omitempty"`
+	UpdatedAt       time.Time       `json:"updated_at"`
 }
 
 // AdminResetOptions specifies which data categories to wipe during an admin reset operation.

@@ -20,7 +20,8 @@ import (
 // FieldValidator validates custom field values (e.g. on registration)
 // Implemented by *settings.FieldValidator.
 type FieldValidator interface {
-	ValidateValues(ctx context.Context, entityType domain.EntityType, values map[uuid.UUID]string) error
+	ValidateValues(ctx context.Context, entityType domain.EntityType, values map[uuid.UUID]any) (map[uuid.UUID]string, error)
+	ValidateEditableValues(ctx context.Context, entityType domain.EntityType, values map[uuid.UUID]any) (map[uuid.UUID]string, error)
 }
 
 // EmailVerificationSender sends verification email (e.g. usecase.EmailUseCase)
@@ -69,6 +70,7 @@ type UserDeps struct {
 	TM                         repo.TransactionManager
 	JWTService                 jwtkit.Service
 	FieldValidator             FieldValidator
+	FieldRepo                  repo.FieldRepository
 	FieldValueRepo             repo.FieldValueRepository
 	SettingsRepo               repo.SettingsRepository
 	EmailSender                EmailVerificationSender

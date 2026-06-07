@@ -30,6 +30,8 @@ SCHEMA_FILES = [
     "bracket_schemas.yml",
     "field_schemas.yml",
     "tag_schemas.yml",
+    "topic_schemas.yml",
+    "share_schemas.yml",
     "award_schemas.yml",
     "avatar_schemas.yml",
     "statistics_schemas.yml",

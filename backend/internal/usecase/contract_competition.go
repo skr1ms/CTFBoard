@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -60,6 +61,50 @@ type (
 )
 
 // =============================================================================
+// Share links
+// =============================================================================
+
+const ShareTypeSolve = "solve"
+
+type (
+	CreateShareParams struct {
+		Type        string
+		UserID      uuid.UUID
+		TeamID      uuid.UUID
+		ChallengeID uuid.UUID
+	}
+
+	ShareLink struct {
+		Type    string
+		URL     string
+		SolveID uuid.UUID
+	}
+
+	SolveShare struct {
+		SolveID           uuid.UUID
+		ChallengeID       uuid.UUID
+		TeamID            uuid.UUID
+		UserID            uuid.UUID
+		TeamName          string
+		Username          string
+		ChallengeTitle    string
+		ChallengeCategory string
+		CTFName           string
+		CTFDescription    string
+		CTFLogo           string
+		RegisterURL       string
+		PointsAtSolve     int
+		SolvedAt          time.Time
+	}
+
+	// ShareUseCase creates and resolves public signed share links.
+	ShareUseCase interface {
+		CreateSolveShare(ctx context.Context, params CreateShareParams) (*ShareLink, error)
+		ResolveSolveShare(ctx context.Context, solveID uuid.UUID, mac string) (*SolveShare, error)
+	}
+)
+
+// =============================================================================
 // Statistics
 // =============================================================================
 
@@ -78,6 +123,7 @@ type (
 		GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
 		GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
 		GetSolveMatrix(ctx context.Context, forceLive bool) ([]*domain.SolveMatrixRow, error)
+		GetAdminStatisticsFunnel(ctx context.Context, limit int, forceLive bool) (*domain.AdminStatisticsFunnel, error)
 	}
 )
 

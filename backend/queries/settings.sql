@@ -12,7 +12,7 @@ SELECT id, app_name, verify_emails, frontend_url, cors_origins,
        rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
        rate_limit_oauth_redirect_per_minute,
        rate_limit_comment_per_minute,
-       max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
+       max_users, max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
 FROM app_settings
 WHERE id = 1;
 
@@ -30,7 +30,7 @@ SELECT id, app_name, verify_emails, frontend_url, cors_origins,
        rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
        rate_limit_oauth_redirect_per_minute,
        rate_limit_comment_per_minute,
-       max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
+       max_users, max_teams, writeup_enabled, oauth_github_enabled, oauth_google_enabled, updated_at
 FROM app_settings
 WHERE id = 1
 FOR UPDATE;
@@ -76,11 +76,12 @@ UPDATE app_settings SET
     rate_limit_oauth_callback_per_minute = $26,
     rate_limit_oauth_redirect_per_minute = $27,
     rate_limit_comment_per_minute = $28,
-    max_teams = $29,
-    writeup_enabled = $30,
-    oauth_github_enabled = $31,
-    oauth_google_enabled = $32,
-    updated_at = $33
+    max_users = $29,
+    max_teams = $30,
+    writeup_enabled = $31,
+    oauth_github_enabled = $32,
+    oauth_google_enabled = $33,
+    updated_at = $34
 WHERE id = 1;
 
 -- name: UpdateAppSettingsIfCurrent :one
@@ -113,10 +114,11 @@ UPDATE app_settings SET
     rate_limit_oauth_callback_per_minute = $26,
     rate_limit_oauth_redirect_per_minute = $27,
     rate_limit_comment_per_minute = $28,
-    max_teams = $29,
-    writeup_enabled = $30,
-    oauth_github_enabled = $31,
-    oauth_google_enabled = $32,
-    updated_at = $33
-WHERE id = 1 AND updated_at = $34
+    max_users = $29,
+    max_teams = $30,
+    writeup_enabled = $31,
+    oauth_github_enabled = $32,
+    oauth_google_enabled = $33,
+    updated_at = $34
+WHERE id = 1 AND updated_at = $35
 RETURNING id;

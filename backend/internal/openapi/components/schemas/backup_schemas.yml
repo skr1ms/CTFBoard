@@ -12,12 +12,33 @@ schemas:
         type: string
       exported_at:
         type: string
+        format: date-time
       competition:
         $ref: "#/schemas/Competition"
+      tags:
+        type: array
+        items:
+          $ref: "#/schemas/BackupTag"
+      topics:
+        type: array
+        items:
+          $ref: "#/schemas/BackupTopic"
       challenges:
         type: array
         items:
           $ref: "#/schemas/ChallengeExport"
+      brackets:
+        type: array
+        items:
+          $ref: "#/schemas/BackupBracket"
+      challenge_requirements:
+        type: array
+        items:
+          $ref: "#/schemas/ChallengeRequirementPair"
+      solutions:
+        type: array
+        items:
+          $ref: "#/schemas/SolutionBackup"
       teams:
         type: array
         items:
@@ -29,15 +50,232 @@ schemas:
       awards:
         type: array
         items:
-          $ref: "#/schemas/response.AwardResponse"
+          $ref: "#/schemas/BackupAward"
       solves:
         type: array
         items:
           $ref: "#/schemas/Solve"
+      hint_unlocks:
+        type: array
+        items:
+          $ref: "#/schemas/BackupHintUnlock"
       files:
         type: array
         items:
           $ref: "#/schemas/File"
+      comments:
+        type: array
+        items:
+          $ref: "#/schemas/BackupComment"
+      fields:
+        type: array
+        items:
+          $ref: "#/schemas/BackupField"
+      field_values:
+        type: array
+        items:
+          $ref: "#/schemas/BackupFieldValue"
+      ratings:
+        type: array
+        items:
+          $ref: "#/schemas/BackupRating"
+    type: object
+  BackupTag:
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      color:
+        type: string
+    type: object
+  BackupTopic:
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  BackupBracket:
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      description:
+        type: string
+      is_default:
+        type: boolean
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  ChallengeRequirementPair:
+    properties:
+      challenge_id:
+        type: string
+        format: uuid
+      required_challenge_id:
+        type: string
+        format: uuid
+    type: object
+  SolutionBackup:
+    properties:
+      id:
+        type: string
+        format: uuid
+      challenge_id:
+        type: string
+        format: uuid
+      content:
+        type: string
+      state:
+        type: string
+        enum: [hidden, solved_only, after_event, admin_only]
+    type: object
+  BackupAward:
+    properties:
+      id:
+        type: string
+        format: uuid
+      team_id:
+        type: string
+        format: uuid
+      value:
+        type: integer
+      description:
+        type: string
+      created_by:
+        type: string
+        format: uuid
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
+      banned_team_id:
+        type: string
+        format: uuid
+        nullable: true
+    type: object
+  BackupHintUnlock:
+    properties:
+      id:
+        type: string
+        format: uuid
+      hint_id:
+        type: string
+        format: uuid
+      team_id:
+        type: string
+        format: uuid
+      unlocked_at:
+        type: string
+        format: date-time
+      banned_team_id:
+        type: string
+        format: uuid
+        nullable: true
+    type: object
+  BackupComment:
+    properties:
+      id:
+        type: string
+        format: uuid
+      user_id:
+        type: string
+        format: uuid
+      username:
+        type: string
+      challenge_id:
+        type: string
+        format: uuid
+      content:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
+    type: object
+  BackupField:
+    properties:
+      id:
+        type: string
+        format: uuid
+      name:
+        type: string
+      description:
+        type: string
+      field_type:
+        type: string
+        enum: [text, number, select, boolean, json]
+      entity_type:
+        type: string
+        enum: [user, team]
+      required:
+        type: boolean
+      public:
+        type: boolean
+      editable:
+        type: boolean
+      options:
+        type: array
+        items:
+          type: string
+      order_index:
+        type: integer
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  BackupFieldValue:
+    properties:
+      id:
+        type: string
+        format: uuid
+      field_id:
+        type: string
+        format: uuid
+      entity_id:
+        type: string
+        format: uuid
+      value:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  BackupRating:
+    properties:
+      id:
+        type: string
+        format: uuid
+      challenge_id:
+        type: string
+        format: uuid
+      user_id:
+        type: string
+        format: uuid
+      team_id:
+        type: string
+        format: uuid
+      value:
+        type: integer
+      review:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
     type: object
   request.AdminResetRequest:
     properties:
@@ -65,8 +303,50 @@ schemas:
         type: array
         items:
           type: string
+      warnings:
+        type: array
+        items:
+          type: string
       skipped_count:
         type: integer
+    type: object
+  ImportJobResponse:
+    properties:
+      id:
+        type: string
+        format: uuid
+      requested_by:
+        type: string
+        format: uuid
+      client_ip:
+        type: string
+      archive_filename:
+        type: string
+      archive_size:
+        type: integer
+        format: int64
+      status:
+        type: string
+        enum: [queued, running, completed, failed]
+      phase:
+        type: string
+        enum: [queued, validating, importing_db, restoring_files, cleanup, finished]
+      result:
+        $ref: "#/schemas/ImportResult"
+      error:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+      started_at:
+        type: string
+        format: date-time
+      finished_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
     type: object
   response.CSVImportResult:
     properties:

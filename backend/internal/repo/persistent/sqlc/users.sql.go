@@ -38,6 +38,19 @@ func (q *Queries) ClearUserAvatarURL(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const countActiveUsers = `-- name: CountActiveUsers :one
+SELECT COUNT(*)::bigint
+FROM users
+WHERE role = 'user' AND is_banned = false
+`
+
+func (q *Queries) CountActiveUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveUsers)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countSearchUsers = `-- name: CountSearchUsers :one
 SELECT COUNT(*)::bigint
 FROM users

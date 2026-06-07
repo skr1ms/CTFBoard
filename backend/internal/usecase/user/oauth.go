@@ -85,6 +85,7 @@ type OAuthDeps struct {
 	CompRepo        repo.CompetitionRepository
 	SoloTeamCreator SoloTeamCreator
 	ExchangeStore   OAuthExchangeStore
+	CompParamUC     usecase.CompetitionParamUseCase
 	Logger          logkit.Logger
 }
 

@@ -113,6 +113,10 @@ schemas:
         maxLength: 72
         x-oapi-codegen-extra-tags:
           validate: "omitempty,max=72"
+      custom_fields:
+        description: Editable custom field values to patch (field_id -> value)
+        additionalProperties: true
+        type: object
     type: object
   response.UserResponse:
     properties:
@@ -152,6 +156,10 @@ schemas:
         type: string
       avatar_url:
         type: string
+      custom_fields:
+        description: Public custom field values (field_id -> value)
+        additionalProperties: true
+        type: object
     type: object
   response.SolveResponse:
     properties:

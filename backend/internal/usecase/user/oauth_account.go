@@ -154,8 +154,11 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - SettingsRepo.Get: %w", err)
 		}
 
-		if !settings.RegistrationOpen {
-			return apperr.ErrRegistrationClosed
+		if err := enforceRegistrationPolicy(ctx, registrationPolicyDeps{
+			UserRepo:    uc.deps.UserRepo,
+			CompParamUC: uc.deps.CompParamUC,
+		}, settings, registrationPolicyOAuth, ""); err != nil {
+			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - enforceRegistrationPolicy: %w", err)
 		}
 
 		desiredUsername, fallbackUsername := oauthUsernameCandidates(profile.Username, provider, profile.ID)

@@ -7,7 +7,7 @@ import (
 )
 
 // FieldType is a string-backed enum for the value type of a custom registration field
-// Valid values: text, number, select, boolean.
+// Valid values: text, number, select, boolean, json.
 type FieldType string
 
 const (
@@ -19,12 +19,14 @@ const (
 	FieldTypeSelect FieldType = "select"
 	// FieldTypeBoolean is a true/false toggle field.
 	FieldTypeBoolean FieldType = "boolean"
+	// FieldTypeJSON is an arbitrary JSON value field.
+	FieldTypeJSON FieldType = "json"
 )
 
-// IsValid returns true if ft is one of the four recognized field types.
+// IsValid returns true if ft is one of the recognized field types.
 func (ft FieldType) IsValid() bool {
 	switch ft {
-	case FieldTypeText, FieldTypeNumber, FieldTypeSelect, FieldTypeBoolean:
+	case FieldTypeText, FieldTypeNumber, FieldTypeSelect, FieldTypeBoolean, FieldTypeJSON:
 		return true
 	}
 
@@ -54,14 +56,17 @@ func (et EntityType) IsValid() bool {
 
 // Field defines a custom registration field for users or teams.
 type Field struct {
-	ID         uuid.UUID  `json:"id"`
-	Name       string     `json:"name"`
-	FieldType  FieldType  `json:"field_type"`
-	EntityType EntityType `json:"entity_type"`
-	Required   bool       `json:"required"`
-	Options    []string   `json:"options,omitempty"`
-	OrderIndex int        `json:"order_index"`
-	CreatedAt  time.Time  `json:"created_at"`
+	ID          uuid.UUID  `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	FieldType   FieldType  `json:"field_type"`
+	EntityType  EntityType `json:"entity_type"`
+	Required    bool       `json:"required"`
+	Public      bool       `json:"public"`
+	Editable    bool       `json:"editable"`
+	Options     []string   `json:"options,omitempty"`
+	OrderIndex  int        `json:"order_index"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 // FieldValue stores the value a specific entity (user or team) has submitted for a custom field.

@@ -96,6 +96,7 @@ func (r *TrackingRepo) CreateChallengeOpen(ctx context.Context, entry *domain.Ch
 	err := r.Q(ctx).CreateChallengeOpen(ctx, sqlc.CreateChallengeOpenParams{
 		ID:          entry.ID,
 		UserID:      entry.UserID,
+		TeamID:      entry.TeamID,
 		ChallengeID: entry.ChallengeID,
 		IP:          ip,
 	})
@@ -126,6 +127,7 @@ func (r *TrackingRepo) GetChallengeOpensByChallenge(ctx context.Context, challen
 		out = append(out, &domain.ChallengeOpen{
 			ID:          row.ID,
 			UserID:      row.UserID,
+			TeamID:      row.TeamID,
 			ChallengeID: row.ChallengeID,
 			IP:          lo.FromPtr(row.IP),
 			OpenedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.OpenedAt)),
@@ -146,20 +148,22 @@ func (r *TrackingRepo) CountChallengeOpensByChallenge(ctx context.Context, chall
 
 // DeleteOlderThan removes all tracking rows whose tracked_at is before
 // cutoffDate. Used by the cleanup job to bound table growth.
-func (r *TrackingRepo) DeleteOlderThan(ctx context.Context, cutoffDate time.Time) error {
-	if err := r.Q(ctx).DeleteTrackingOlderThan(ctx, pgutil.TimeToTimestamptz(&cutoffDate)); err != nil {
-		return fmt.Errorf("TrackingRepo - DeleteOlderThan: %w", err)
+func (r *TrackingRepo) DeleteOlderThan(ctx context.Context, cutoffDate time.Time) (int64, error) {
+	rows, err := r.Q(ctx).DeleteTrackingOlderThan(ctx, pgutil.TimeToTimestamptz(&cutoffDate))
+	if err != nil {
+		return 0, fmt.Errorf("TrackingRepo - DeleteOlderThan: %w", err)
 	}
 
-	return nil
+	return rows, nil
 }
 
 // DeleteChallengeOpensOlderThan removes challenge_opens rows whose opened_at
 // is before cutoffDate. Used by the cleanup job to bound table growth.
-func (r *TrackingRepo) DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) error {
-	if err := r.Q(ctx).DeleteChallengeOpensOlderThan(ctx, pgutil.TimeToTimestamptz(&cutoffDate)); err != nil {
-		return fmt.Errorf("TrackingRepo - DeleteChallengeOpensOlderThan: %w", err)
+func (r *TrackingRepo) DeleteChallengeOpensOlderThan(ctx context.Context, cutoffDate time.Time) (int64, error) {
+	rows, err := r.Q(ctx).DeleteChallengeOpensOlderThan(ctx, pgutil.TimeToTimestamptz(&cutoffDate))
+	if err != nil {
+		return 0, fmt.Errorf("TrackingRepo - DeleteChallengeOpensOlderThan: %w", err)
 	}
 
-	return nil
+	return rows, nil
 }

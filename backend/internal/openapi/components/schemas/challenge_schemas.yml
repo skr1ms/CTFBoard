@@ -11,7 +11,17 @@ schemas:
         type: string
       points:
         type: integer
+      initial_value:
+        type: integer
+      min_value:
+        type: integer
+      decay:
+        type: integer
+      solve_count:
+        type: integer
       flag_hash:
+        type: string
+      flag_regex:
         type: string
       state:
         type: string
@@ -19,16 +29,48 @@ schemas:
           - visible
           - hidden
           - locked
+      attribution:
+        type: string
       connection_info:
         type: string
       max_attempts:
         type: integer
+      max_attempts_window:
+        type: integer
+        format: int64
       position:
         type: integer
+      next_id:
+        type: string
+        format: uuid
+        nullable: true
+      is_regex:
+        type: boolean
+      is_case_insensitive:
+        type: boolean
+      flag_format_regex:
+        type: string
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
+        type: string
+        format: date-time
       hints:
         type: array
         items:
           $ref: "#/schemas/Hint"
+      tag_ids:
+        type: array
+        items:
+          type: string
+          format: uuid
+      topic_ids:
+        type: array
+        items:
+          type: string
+          format: uuid
     type: object
   Hint:
     properties:
@@ -57,6 +99,17 @@ schemas:
         type: string
       solved_at:
         type: string
+        format: date-time
+      points_at_solve:
+        type: integer
+      banned_team_id:
+        type: string
+        format: uuid
+        nullable: true
+      banned_user_id:
+        type: string
+        format: uuid
+        nullable: true
     type: object
   request.CreateChallengeRequest:
     properties:
@@ -73,6 +126,10 @@ schemas:
           validate: "omitempty,min=0"
       connection_info:
         description: Connection info (e.g. SSH, URL) for the challenge
+        example: ''
+        type: string
+      attribution:
+        description: Optional author, sponsor, or source attribution shown with the challenge
         example: ''
         type: string
       max_attempts:
@@ -96,6 +153,11 @@ schemas:
         type: integer
         x-oapi-codegen-extra-tags:
           validate: "omitempty,min=0"
+      next_id:
+        description: Optional next challenge navigation pointer
+        type: string
+        format: uuid
+        nullable: true
       description:
         example: Challenge description
         type: string
@@ -221,6 +283,10 @@ schemas:
         description: Connection info (e.g. SSH, URL) for the challenge
         example: ''
         type: string
+      attribution:
+        description: Optional author, sponsor, or source attribution shown with the challenge
+        example: ''
+        type: string
       max_attempts:
         description: Max submission attempts per team (0 = unlimited)
         example: 0
@@ -242,6 +308,13 @@ schemas:
         type: integer
         x-oapi-codegen-extra-tags:
           validate: "omitempty,min=0"
+      next_id:
+        description: Optional next challenge navigation pointer. Send null to clear the pointer.
+        type: string
+        format: uuid
+        nullable: true
+        x-go-type: nullable.Nullable[openapi_types.UUID]
+        x-go-type-skip-optional-pointer: true
       state:
         description: Challenge visibility and submit policy
         enum: [visible, hidden, locked]
@@ -341,6 +414,8 @@ schemas:
     properties:
       category:
         type: string
+      attribution:
+        type: string
       connection_info:
         type: string
       max_attempts:
@@ -349,6 +424,10 @@ schemas:
         type: integer
       position:
         type: integer
+      next_id:
+        type: string
+        format: uuid
+        nullable: true
       description:
         type: string
       id:
@@ -379,6 +458,8 @@ schemas:
         type: string
       category:
         type: string
+      attribution:
+        type: string
       connection_info:
         type: string
       max_attempts:
@@ -387,6 +468,10 @@ schemas:
         type: integer
       position:
         type: integer
+      next_id:
+        type: string
+        format: uuid
+        nullable: true
       state:
         type: string
         enum: [visible, hidden, locked]
@@ -527,9 +612,14 @@ schemas:
         type: string
         format: date-time
     type: object
-  response.HintUnlockResponse:
+  response.UnlockResponse:
     properties:
       id:
+        type: string
+      type:
+        type: string
+        enum: [hint]
+      resource_id:
         type: string
       hint_id:
         type: string
@@ -543,12 +633,12 @@ schemas:
       hint_cost:
         type: integer
     type: object
-  response.HintUnlockListResponse:
+  response.UnlockListResponse:
     properties:
       data:
         type: array
         items:
-          $ref: "#/schemas/response.HintUnlockResponse"
+          $ref: "#/schemas/response.UnlockResponse"
       meta:
         $ref: "#/schemas/response.PaginationMeta"
     type: object
@@ -577,6 +667,13 @@ schemas:
         type: string
         x-oapi-codegen-extra-tags:
           validate: "required,max=524288"
+      state:
+        default: solved_only
+        description: Solution visibility policy
+        enum: [hidden, solved_only, after_event, admin_only]
+        type: string
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=hidden solved_only after_event admin_only"
     required:
       - content
     type: object
@@ -585,6 +682,9 @@ schemas:
       challenge_id:
         type: string
       content:
+        type: string
+      state:
+        enum: [hidden, solved_only, after_event, admin_only]
         type: string
       files:
         items:
@@ -600,6 +700,9 @@ schemas:
       challenge_category:
         type: string
       content:
+        type: string
+      state:
+        enum: [hidden, solved_only, after_event, admin_only]
         type: string
       files:
         items:

@@ -121,6 +121,13 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 		return apperr.ErrTokenRequired
 	}
 
+	if uc.deps.ConfigUC != nil {
+		minLen := uc.deps.ConfigUC.GetInt(ctx, "password_min_length", defaultPasswordMinLength)
+		if minLen > 0 && len(newPassword) < minLen {
+			return apperr.NewValidationErrorf("password must be at least %d characters", minLen)
+		}
+	}
+
 	hashedToken := hashToken(tokenStr)
 
 	bcryptCost := uc.deps.BcryptCost

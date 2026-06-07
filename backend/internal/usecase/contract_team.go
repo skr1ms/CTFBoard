@@ -34,9 +34,28 @@ type (
 		AffectedData       *TeamCreateAffectedData
 	}
 
+	TeamProfile struct {
+		Team         *domain.Team
+		CustomFields CustomFieldValues
+	}
+
+	TeamMe struct {
+		Team         *domain.Team
+		Members      []*domain.User
+		MinTeamSize  int
+		MeetsMinSize bool
+		CustomFields CustomFieldValues
+	}
+
+	TeamUpdateParams struct {
+		Name         *string
+		CustomFields *CustomFieldValues
+	}
+
 	// TeamReadUseCase exposes public/team-read operations used by the transport layer.
 	TeamReadUseCase interface {
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team, error)
+		GetProfile(ctx context.Context, ID uuid.UUID) (*TeamProfile, error)
 		ListTeams(ctx context.Context, search *string, page, perPage int) (*Paginated[*domain.Team], error)
 		GetTeamSolves(ctx context.Context, teamID uuid.UUID) ([]*domain.SolveWithDetails, error)
 		GetTeamFails(ctx context.Context, teamID uuid.UUID, page, perPage int) (*Paginated[*domain.SubmissionWithDetails], error)
@@ -50,11 +69,11 @@ type (
 		Join(ctx context.Context, inviteToken, userID uuid.UUID, confirmReset bool) (*domain.Team, error)
 		Leave(ctx context.Context, userID uuid.UUID) error
 		TransferCaptain(ctx context.Context, captainID, newCaptainID uuid.UUID) error
-		GetMyTeam(ctx context.Context, userID uuid.UUID) (*domain.Team, []*domain.User, int, bool, error)
+		GetMyTeam(ctx context.Context, userID uuid.UUID) (*TeamMe, error)
 		CreateSoloTeam(ctx context.Context, userID uuid.UUID, confirmReset bool) (*domain.Team, error)
 		DisbandTeam(ctx context.Context, captainID uuid.UUID) error
 		KickMember(ctx context.Context, captainID, targetUserID uuid.UUID) error
-		UpdateMyTeam(ctx context.Context, captainID uuid.UUID, name string) (*domain.Team, error)
+		UpdateMyTeam(ctx context.Context, captainID uuid.UUID, params TeamUpdateParams) (*TeamProfile, error)
 		GetInviteToken(ctx context.Context, captainID uuid.UUID) (*domain.Team, error)
 		RegenerateInviteToken(ctx context.Context, captainID uuid.UUID) (*domain.Team, error)
 	}

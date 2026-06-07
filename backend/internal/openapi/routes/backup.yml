@@ -276,7 +276,7 @@
 /admin/import:
   post:
     operationId: PostAdminImport
-    description: Imports competition data from ZIP backup. Admin only.
+    description: Starts an asynchronous competition data import from ZIP backup. Admin only.
     requestBody:
       content:
         multipart/form-data:
@@ -292,7 +292,7 @@
                 description: Erase existing data before import
               conflict_mode:
                 type: string
-                enum: [merge, overwrite, skip]
+                enum: [overwrite, skip]
                 description: How to handle conflicts
               validate_files:
                 type: boolean
@@ -304,12 +304,12 @@
               - file
       required: true
     responses:
-      "200":
-        description: Import result
+      "202":
+        description: Import job accepted
         content:
           application/json:
             schema:
-              $ref: '../components/schemas.yml#/ImportResult'
+              $ref: '../components/schemas.yml#/ImportJobResponse'
       "400":
         description: Bad Request
         content:
@@ -331,7 +331,57 @@
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
-    summary: Import competition backup
+    summary: Start backup import job
+    tags:
+      - Admin
+
+/admin/import/jobs/{ID}:
+  get:
+    operationId: GetAdminImportJobsID
+    description: Returns asynchronous ZIP import job status. Admin only.
+    parameters:
+      - name: ID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Import job ID
+    responses:
+      "200":
+        description: Import job status
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ImportJobResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Import job not found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Get backup import job
     tags:
       - Admin
 

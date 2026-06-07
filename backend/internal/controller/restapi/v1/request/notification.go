@@ -52,6 +52,23 @@ func CreateUserNotificationRequestToParams(req *openapi.CreateUserNotificationRe
 	}, nil
 }
 
+func CreateTeamNotificationRequestToParams(req *openapi.CreateUserNotificationRequest, teamID uuid.UUID) (usecase.NotificationCreateTeamParams, error) {
+	notifType := domain.NotificationInfo
+
+	if req.Type != nil {
+		if t, ok := validNotificationType(string(*req.Type)); ok {
+			notifType = t
+		}
+	}
+
+	return usecase.NotificationCreateTeamParams{
+		TeamID:  teamID,
+		Title:   req.Title,
+		Content: req.Content,
+		Type:    notifType,
+	}, nil
+}
+
 func UpdateNotificationRequestToParams(req *openapi.UpdateNotificationRequest, ID uuid.UUID) (usecase.NotificationUpdateParams, error) {
 	notifType := domain.NotificationInfo
 

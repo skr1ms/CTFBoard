@@ -12,6 +12,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	validation "github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -28,16 +29,23 @@ func normalizeEmail(email string) string {
 // the competition is in solo_only mode, auto-creates a solo team within the same
 // transaction so a rollback on failure leaves no orphaned rows. A verification email
 // is dispatched outside the transaction on a best-effort basis.
-func (uc *UserUseCase) Register(ctx context.Context, username, email, password string, customFields map[string]string) (*domain.User, error) {
-	email = normalizeEmail(email)
+func (uc *UserUseCase) Register(ctx context.Context, params usecase.UserRegisterParams) (*domain.User, error) {
+	username := params.Username
+	email := normalizeEmail(params.Email)
+	password := params.Password
+	customFields := params.CustomFields
 
 	if err := validation.ValidateCustomFieldEnvelope(customFields); err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - ValidateCustomFieldEnvelope: %w", apperr.NewValidationErrorf("%v", err))
 	}
 
-	customFields = validation.SanitizeCustomFieldValues(customFields)
-	if err := uc.registerValidateCustomFields(ctx, customFields); err != nil {
+	storageCustomFields, err := uc.registerValidateCustomFields(ctx, customFields)
+	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - registerValidateCustomFields: %w", err)
+	}
+
+	if err := uc.validateConfiguredPasswordLength(ctx, password); err != nil {
+		return nil, fmt.Errorf("UserUseCase - Register - validateConfiguredPasswordLength: %w", err)
 	}
 
 	uc.bcryptSem <- struct{}{}
@@ -57,37 +65,36 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 	}
 
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		var settings *domain.Settings
+
 		if uc.deps.SettingsRepo != nil {
-			settings, err := uc.deps.SettingsRepo.Get(ctx)
+			settings, err = uc.deps.SettingsRepo.Get(ctx)
 			if err != nil {
 				return fmt.Errorf("UserUseCase - Register - SettingsRepo.Get: %w", err)
 			}
-
-			if !settings.RegistrationOpen {
-				return apperr.ErrRegistrationClosed
-			}
 		}
 
-		err := repo.AcquireRegistrationAdvisoryLocks(ctx, uc.deps.UserRepo,
-			repo.RegistrationAdvisoryLock{Label: "email", Scope: repo.RegistrationLockEmail, Value: email},
-			repo.RegistrationAdvisoryLock{Label: "username", Scope: repo.RegistrationLockUsername, Value: username},
-		)
-		if err != nil {
+		if err := enforceRegistrationPolicy(ctx, registrationPolicyDeps{
+			UserRepo:    uc.deps.UserRepo,
+			CompParamUC: uc.deps.CompParamUC,
+		}, settings, registrationPolicyLocal, params.RegistrationCode); err != nil {
+			return fmt.Errorf("UserUseCase - Register - enforceRegistrationPolicy: %w", err)
+		}
+
+		if err := acquireUserRegistrationLocks(ctx, uc.deps.UserRepo, username, email); err != nil {
 			return fmt.Errorf("UserUseCase - Register - %w", err)
 		}
 
-		err = uc.registerCheckUniqueness(ctx, username, email)
-		if err != nil {
+		if err := uc.registerCheckUniqueness(ctx, username, email); err != nil {
 			return fmt.Errorf("UserUseCase - Register - registerCheckUniqueness: %w", err)
 		}
 
-		err = uc.deps.UserRepo.Create(ctx, user)
-		if err != nil {
+		if err := uc.deps.UserRepo.Create(ctx, user); err != nil {
 			return fmt.Errorf("UserUseCase - Register - UserRepo.Create: %w", err)
 		}
 
-		if uc.deps.FieldValueRepo != nil && len(customFields) > 0 {
-			err := uc.deps.FieldValueRepo.SetValues(ctx, user.ID, customFields)
+		if uc.deps.FieldValueRepo != nil && len(storageCustomFields) > 0 {
+			err := uc.deps.FieldValueRepo.SetValues(ctx, user.ID, storageCustomFields)
 			if err != nil {
 				return fmt.Errorf("UserUseCase - Register - FieldValueRepo.SetValues: %w", err)
 			}
@@ -109,31 +116,35 @@ func (uc *UserUseCase) Register(ctx context.Context, username, email, password s
 }
 
 // registerValidateCustomFields parses the string-keyed custom field map into
-// uuid.UUID-keyed values (returning ErrValidation on a malformed key) and then
-// delegates value validation to FieldValidator. It still calls FieldValidator
-// for an empty map so required fields are enforced.
-func (uc *UserUseCase) registerValidateCustomFields(ctx context.Context, customFields map[string]string) error {
+// uuid.UUID-keyed values (returning ErrValidation on a malformed key), delegates
+// value validation to FieldValidator, and returns storage-ready string values.
+// It still calls FieldValidator for an empty map so required fields are enforced.
+func (uc *UserUseCase) registerValidateCustomFields(ctx context.Context, customFields usecase.CustomFieldValues) (map[string]string, error) {
 	if uc.deps.FieldValidator == nil {
-		return nil
+		if len(customFields) > 0 {
+			return nil, apperr.NewValidationErrorf("custom fields are not configured")
+		}
+
+		return nil, nil
 	}
 
-	fieldValues := make(map[uuid.UUID]string, len(customFields))
+	fieldValues := make(map[uuid.UUID]any, len(customFields))
 
 	for k, v := range customFields {
 		id, err := uuid.Parse(k)
 		if err != nil {
-			return apperr.NewValidationErrorf("invalid custom field key")
+			return nil, apperr.NewValidationErrorf("invalid custom field key")
 		}
 
 		fieldValues[id] = v
 	}
 
-	err := uc.deps.FieldValidator.ValidateValues(ctx, domain.EntityTypeUser, fieldValues)
+	normalized, err := uc.deps.FieldValidator.ValidateValues(ctx, domain.EntityTypeUser, fieldValues)
 	if err != nil {
-		return fmt.Errorf("UserUseCase - registerValidateCustomFields - FieldValidator.ValidateValues: %w", err)
+		return nil, fmt.Errorf("UserUseCase - registerValidateCustomFields - FieldValidator.ValidateValues: %w", err)
 	}
 
-	return nil
+	return usecase.CustomFieldStorageValuesToStringKeyMap(normalized), nil
 }
 
 // registerCheckUniqueness verifies that neither the username nor the email is already

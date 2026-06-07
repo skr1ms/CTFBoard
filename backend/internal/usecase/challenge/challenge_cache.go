@@ -20,6 +20,16 @@ func (uc *ChallengeUseCase) InvalidateScoreboardCacheForTeam(ctx context.Context
 	}
 }
 
+func (uc *ChallengeUseCase) invalidateStatisticsCache(ctx context.Context, op string) {
+	if uc.deps.StatsCache == nil {
+		return
+	}
+
+	if err := uc.deps.StatsCache.InvalidateStatistics(ctx); err != nil {
+		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - " + op + ": failed to invalidate statistics cache")
+	}
+}
+
 // InvalidateChallengeListCache evicts all challenge list cache entries by
 // deleting three key prefixes: the team-scoped paginated list (challengeListCachePrefix),
 // the shared base list (challengeBaseCachePrefix), and the per-team solved-set

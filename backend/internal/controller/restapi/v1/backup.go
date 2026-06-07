@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
@@ -133,8 +134,8 @@ func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 
 // PostAdminImport imports a competition backup from an uploaded ZIP file. The
 // handler validates the ZIP magic bytes (PK: 0x50 0x4B) before passing to the
-// use-case to prevent processing arbitrary binary uploads. It supports three
-// conflict modes (merge, overwrite, skip), optional table erasure, file
+// use-case to prevent processing arbitrary binary uploads. It supports conflict
+// modes (overwrite, skip), optional table erasure, file
 // validation, and admin-role preservation - the requesting admin's ID and IP
 // are recorded in ImportOptions for the audit trail.
 // (POST /admin/import).
@@ -165,12 +166,22 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 
 	reader := bytes.NewReader(data)
 
-	result, err := h.admin.BackupUC.ImportZIP(r.Context(), reader, body.File.FileSize(), opts)
-	if h.OnError(w, r, err, "PostAdminImport", "ImportZIP") {
+	job, err := h.admin.BackupUC.StartImportZIPJob(r.Context(), reader, body.File.FileSize(), opts, body.File.Filename())
+	if h.OnError(w, r, err, "PostAdminImport", "StartImportZIPJob") {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromImportResult(result))
+	httputil.RenderJSON(w, r, http.StatusAccepted, response.FromImportJob(job))
+}
+
+// (GET /admin/import/jobs/{ID}).
+func (h *Server) GetAdminImportJobsID(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
+	job, err := h.admin.BackupUC.GetImportJob(r.Context(), id)
+	if h.OnError(w, r, err, "GetAdminImportJobsID", "GetImportJob") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.FromImportJob(job))
 }
 
 // (GET /admin/export/csv).

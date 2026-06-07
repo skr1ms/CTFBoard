@@ -116,7 +116,7 @@ func (h *Server) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	helper.TrackChallengeOpenAsync(r.Context(), h.infra.Logger, h.user.TrackingUC, user.ID, challengeIDParsed, helper.ClientIP(r))
+	helper.TrackChallengeOpenAsync(r.Context(), h.infra.Logger, h.user.TrackingUC, user.ID, teamID, challengeIDParsed, helper.ClientIP(r))
 
 	httputil.RenderOK(w, r, response.FromChallengeDetail(detail))
 }

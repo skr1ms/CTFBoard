@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -262,13 +263,13 @@ const (
 	MaxCustomFields = 10
 	// MaxCustomFieldKeyLen is the maximum byte length allowed for a custom profile field key.
 	MaxCustomFieldKeyLen = 50
-	// MaxCustomFieldValueLen is the maximum byte length allowed for a custom profile field value.
-	MaxCustomFieldValueLen = 500
+	// MaxCustomFieldEncodedValueLen is the maximum byte length allowed for a JSON-encoded custom profile field value.
+	MaxCustomFieldEncodedValueLen = 65536
 )
 
 // ValidateCustomFieldEnvelope checks request-level custom field limits before
 // dynamic schema validation resolves field IDs and per-field rules.
-func ValidateCustomFieldEnvelope(fields map[string]string) error {
+func ValidateCustomFieldEnvelope(fields map[string]any) error {
 	if len(fields) > MaxCustomFields {
 		return fmt.Errorf("validator.ValidateCustomFieldEnvelope: too many custom fields (max %d)", MaxCustomFields)
 	}
@@ -278,7 +279,12 @@ func ValidateCustomFieldEnvelope(fields map[string]string) error {
 			return fmt.Errorf("validator.ValidateCustomFieldEnvelope: custom field key too long: %s", k)
 		}
 
-		if len(v) > MaxCustomFieldValueLen {
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("validator.ValidateCustomFieldEnvelope: custom field value is not JSON-serializable for %s", k)
+		}
+
+		if len(raw) > MaxCustomFieldEncodedValueLen {
 			return fmt.Errorf("validator.ValidateCustomFieldEnvelope: custom field value too long for %s", k)
 		}
 	}
@@ -296,6 +302,10 @@ func sanitizeCustomFieldValue(s string) string {
 	}
 
 	return strings.TrimSpace(b.String())
+}
+
+func SanitizeCustomFieldValue(s string) string {
+	return sanitizeCustomFieldValue(s)
 }
 
 // SanitizeCustomFieldValues trims values and removes control characters that

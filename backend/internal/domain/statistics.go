@@ -97,3 +97,59 @@ type SolveMatrixRow struct {
 	Solved            bool       `json:"solved"`
 	SolvedAt          *time.Time `json:"solved_at,omitempty"`
 }
+
+// AdminStatisticsFunnel summarizes challenge engagement from open to attempt to solve.
+type AdminStatisticsFunnel struct {
+	Challenges []*FunnelChallengeRow `json:"challenges"`
+	Teams      []*FunnelTeamRow      `json:"teams"`
+	TeamCells  []*FunnelTeamCell     `json:"team_cells"`
+	Users      []*FunnelUserRow      `json:"users"`
+	UserCells  []*FunnelUserCell     `json:"user_cells"`
+}
+
+type FunnelChallengeRow struct {
+	ChallengeID       uuid.UUID `json:"challenge_id"`
+	ChallengeTitle    string    `json:"challenge_title"`
+	ChallengeCategory string    `json:"challenge_category"`
+	OpenedCount       int       `json:"opened_count"`
+	AttemptedCount    int       `json:"attempted_count"`
+	SolvedCount       int       `json:"solved_count"`
+}
+
+type FunnelTeamRow struct {
+	TeamID         uuid.UUID `json:"team_id"`
+	TeamName       string    `json:"team_name"`
+	OpenedCount    int       `json:"opened_count"`
+	AttemptedCount int       `json:"attempted_count"`
+	SolvedCount    int       `json:"solved_count"`
+}
+
+type FunnelTeamCell struct {
+	TeamID           uuid.UUID  `json:"team_id"`
+	ChallengeID      uuid.UUID  `json:"challenge_id"`
+	Opened           bool       `json:"opened"`
+	Attempted        bool       `json:"attempted"`
+	Solved           bool       `json:"solved"`
+	FirstOpenedAt    *time.Time `json:"first_opened_at,omitempty"`
+	FirstAttemptedAt *time.Time `json:"first_attempted_at,omitempty"`
+	SolvedAt         *time.Time `json:"solved_at,omitempty"`
+}
+
+type FunnelUserRow struct {
+	UserID         uuid.UUID `json:"user_id"`
+	Username       string    `json:"username"`
+	OpenedCount    int       `json:"opened_count"`
+	AttemptedCount int       `json:"attempted_count"`
+	SolvedCount    int       `json:"solved_count"`
+}
+
+type FunnelUserCell struct {
+	UserID           uuid.UUID  `json:"user_id"`
+	ChallengeID      uuid.UUID  `json:"challenge_id"`
+	Opened           bool       `json:"opened"`
+	Attempted        bool       `json:"attempted"`
+	Solved           bool       `json:"solved"`
+	FirstOpenedAt    *time.Time `json:"first_opened_at,omitempty"`
+	FirstAttemptedAt *time.Time `json:"first_attempted_at,omitempty"`
+	SolvedAt         *time.Time `json:"solved_at,omitempty"`
+}

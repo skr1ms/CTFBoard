@@ -184,14 +184,14 @@ func (h *Server) PatchAuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, email, currentPassword, newPassword := request.UpdateProfileRequestToParams(&req)
+	params := request.UpdateProfileRequestToParams(me.ID, &req)
 
-	user, err := h.user.UserUC.UpdateProfile(r.Context(), me.ID, username, email, currentPassword, newPassword)
+	updated, err := h.user.UserUC.UpdateProfile(r.Context(), params)
 	if h.OnError(w, r, err, "PatchAuthMe", "UpdateProfile") {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromUserForMe(user))
+	httputil.RenderOK(w, r, response.FromUserMe(updated))
 }
 
 // (GET /users/me/submissions).

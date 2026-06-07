@@ -686,7 +686,7 @@
 "/challenges/solutions":
   get:
     operationId: GetChallengesSolutions
-    description: Returns all solutions for challenges solved by the requesting user's team. Requires writeup_enabled=true.
+    description: Returns all challenge solutions visible to the requesting user according to solution state and writeup_enabled.
     responses:
       "200":
         description: OK
@@ -711,14 +711,14 @@
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
-    summary: List all solutions for solved challenges
+    summary: List all visible challenge solutions
     tags:
       - Challenges
 
 "/challenges/{challengeID}/solution":
   get:
     operationId: GetChallengesChallengeIDSolution
-    description: Returns challenge solution/writeup if available and user has solved the challenge
+    description: Returns challenge solution/writeup if available and visible to the requesting user according to solution state and writeup_enabled.
     parameters:
       - description: Challenge ID
         in: path
@@ -1051,7 +1051,7 @@
 "/admin/unlocks":
   get:
     operationId: GetAdminUnlocks
-    description: Returns paginated list of all hint unlocks. Admin only.
+    description: Returns paginated list of unlock records. In v1, unlocks are backed by hint unlocks. Admin only.
     parameters:
       - name: page
         in: query
@@ -1067,7 +1067,7 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas.yml#/HintUnlockListResponse'
+              $ref: '../components/schemas.yml#/UnlockListResponse'
       "401":
         description: Unauthorized
         content:
@@ -1083,14 +1083,14 @@
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
-    summary: Get all hint unlocks
+    summary: Get all unlocks
     tags:
       - Admin
 
 "/admin/challenges/{challengeID}/solution":
   post:
     operationId: PostAdminChallengesChallengeIDSolution
-    description: Creates or updates challenge solution/writeup content. Admin only.
+    description: Creates or updates challenge solution/writeup content and visibility state. Admin only.
     parameters:
       - name: challengeID
         in: path

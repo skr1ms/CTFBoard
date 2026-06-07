@@ -24,6 +24,17 @@ func (h *Server) GetNotifications(w http.ResponseWriter, r *http.Request, params
 	httputil.RenderOK(w, r, response.FromNotificationList(notifs))
 }
 
+// (GET /notifications/count).
+func (h *Server) GetNotificationsCount(w http.ResponseWriter, r *http.Request, params openapi.GetNotificationsCountParams) {
+	count, err := h.admin.NotifUC.CountGlobal(r.Context(), params.SinceCreatedAt)
+	if h.OnError(w, r, err, "GetNotificationsCount", "CountGlobal") {
+		return
+	}
+
+	setPublicCache(w, cacheShort, false)
+	httputil.RenderOK(w, r, response.FromNotificationCount(count))
+}
+
 // (GET /user/notifications).
 func (h *Server) GetUserNotifications(w http.ResponseWriter, r *http.Request, params openapi.GetUserNotificationsParams) {
 	user, ok := helper.RequireUser(w, r)
@@ -41,6 +52,21 @@ func (h *Server) GetUserNotifications(w http.ResponseWriter, r *http.Request, pa
 	}
 
 	httputil.RenderOK(w, r, response.FromUserNotificationList(userNotifs))
+}
+
+// (GET /user/notifications/unread-count).
+func (h *Server) GetUserNotificationsUnreadCount(w http.ResponseWriter, r *http.Request) {
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	count, err := h.admin.NotifUC.CountUnread(r.Context(), user.ID)
+	if h.OnError(w, r, err, "GetUserNotificationsUnreadCount", "CountUnread") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.FromNotificationUnreadCount(count))
 }
 
 // (PATCH /user/notifications/{ID}/read).
@@ -111,6 +137,33 @@ func (h *Server) PostAdminNotificationsUserUserID(w http.ResponseWriter, r *http
 	}
 
 	httputil.RenderCreated(w, r, response.FromUserNotification(userNotif))
+}
+
+// (POST /admin/notifications/team/{teamID}).
+func (h *Server) PostAdminNotificationsTeamTeamID(w http.ResponseWriter, r *http.Request, teamIDString string) {
+	teamIDParsed, ok := httputil.ParseUUID(w, r, teamIDString)
+	if !ok {
+		return
+	}
+
+	req, ok := httputil.DecodeAndValidate[openapi.CreateUserNotificationRequest](
+		w, r, h.infra.Validator,
+	)
+	if !ok {
+		return
+	}
+
+	params, err := request.CreateTeamNotificationRequestToParams(&req, teamIDParsed)
+	if h.OnError(w, r, err, "PostAdminNotificationsTeamTeamID", "CreateTeamNotificationRequestToParams") {
+		return
+	}
+
+	result, err := h.admin.NotifUC.CreateTeam(r.Context(), params)
+	if h.OnError(w, r, err, "PostAdminNotificationsTeamTeamID", "CreateTeam") {
+		return
+	}
+
+	httputil.RenderCreated(w, r, response.FromNotificationDelivery(result))
 }
 
 // (PUT /admin/notifications/{ID}).

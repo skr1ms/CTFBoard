@@ -41,9 +41,9 @@ func (uc *BackupUseCase) importZIPRunTx(ctx context.Context, backupData *domain.
 }
 
 // importZIPRunTxImports inserts all backup entities in dependency order inside
-// the caller's transaction: competition settings -> tags -> challenges -> brackets ->
+// the caller's transaction: competition settings -> tags -> topics -> challenges -> brackets ->
 // users -> teams -> memberships -> awards -> solves -> hint unlocks -> files -> requirements
-// -> solutions -> ratings -> comments -> fields -> field values. Each step calls a repo
+// -> challenge topics -> solutions -> ratings -> comments -> fields -> field values. Each step calls a repo
 // method that uses ON CONFLICT DO NOTHING so re-imports are idempotent.
 func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *domain.BackupData, opts domain.ImportOptions) error {
 	err := uc.deps.BackupRepo.ImportCompetition(ctx, backupData.Competition)
@@ -56,6 +56,11 @@ func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *
 		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportTags: %w", err)
 	}
 
+	err = uc.deps.BackupRepo.ImportTopics(ctx, backupData)
+	if err != nil {
+		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportTopics: %w", err)
+	}
+
 	err = uc.deps.BackupRepo.ImportChallenges(ctx, backupData)
 	if err != nil {
 		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportChallenges: %w", err)
@@ -64,6 +69,11 @@ func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *
 	err = uc.deps.BackupRepo.ImportChallengeTags(ctx, backupData)
 	if err != nil {
 		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportChallengeTags: %w", err)
+	}
+
+	err = uc.deps.BackupRepo.ImportChallengeTopics(ctx, backupData)
+	if err != nil {
+		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportChallengeTopics: %w", err)
 	}
 
 	err = uc.deps.BackupRepo.ImportBrackets(ctx, backupData)

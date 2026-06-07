@@ -79,6 +79,7 @@ func setupBasicAuthRoutes(
 	profileUpdateLimit := rl(rlKeyProfileUpdateIP, defaultRLWindow, generalIP, keyFunc)
 	apiTokenLimit := rl(rlKeyAPITokenIP, defaultRLWindow, generalIP, keyFunc)
 	notificationLimit := rl(rlKeyNotificationIP, defaultRLWindow, generalIP, keyFunc)
+	shareCreateLimit := rl(rlKeyShareCreateUser, defaultRLWindow, generalIP, userIDKeyFunc)
 	protectedReadLimit := rl(rlKeyProtectedReadIP, defaultRLWindow, generalIP, keyFunc)
 	challengeReadLimit := rl(rlKeyChallengeReadIP, defaultRLWindow, generalIP, keyFunc)
 	requireVerified := restapimiddleware.RequireVerifiedFromSettings(verifyEmails, deps.Admin.SettingsUC, deps.Infra.Logger)
@@ -99,6 +100,7 @@ func setupBasicAuthRoutes(
 		})
 
 		r.With(notificationLimit).Get("/user/notifications", wrapper.GetUserNotifications)
+		r.With(notificationLimit).Get("/user/notifications/unread-count", wrapper.GetUserNotificationsUnreadCount)
 		r.With(notificationLimit).Patch("/user/notifications/{ID}/read", wrapper.PatchUserNotificationsIDRead)
 
 		r.Group(func(tokens chi.Router) {
@@ -115,6 +117,7 @@ func setupBasicAuthRoutes(
 		verified.Delete("/users/me/avatar", wrapper.DeleteUsersMeAvatar)
 		verified.With(avatarUploadLimitMw).Put("/teams/me/avatar", wrapper.PutTeamsMeAvatar)
 		verified.Delete("/teams/me/avatar", wrapper.DeleteTeamsMeAvatar)
+		verified.With(restapimiddleware.RequireTeam(), shareCreateLimit).Post("/shares", wrapper.PostShares)
 
 		r.Group(func(acc chi.Router) {
 			acc.Use(notBanned)

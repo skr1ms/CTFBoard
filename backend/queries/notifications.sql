@@ -17,6 +17,12 @@ LIMIT $1 OFFSET $2;
 -- name: CountAllNotifications :one
 SELECT COUNT(*)::int FROM notifications WHERE is_global = TRUE;
 
+-- name: CountGlobalNotificationsSince :one
+SELECT COUNT(*)::int
+FROM notifications
+WHERE is_global = TRUE
+  AND (sqlc.narg('since_created_at')::timestamptz IS NULL OR created_at > sqlc.narg('since_created_at'));
+
 -- name: UpdateNotification :execrows
 UPDATE notifications
 SET title = $2, content = $3, type = $4, is_pinned = $5

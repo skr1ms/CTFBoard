@@ -138,5 +138,5 @@ func (h *Server) GetAdminUnlocks(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromHintUnlockList(result.Data, result.Total, result.Page, result.PerPage))
+	httputil.RenderOK(w, r, response.FromUnlockList(result.Data, result.Total, result.Page, result.PerPage))
 }

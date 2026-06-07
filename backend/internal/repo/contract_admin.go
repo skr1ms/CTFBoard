@@ -3,6 +3,8 @@ package repo
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
@@ -28,8 +30,10 @@ type (
 		EraseTables(ctx context.Context, tables []string) error
 		ImportCompetition(ctx context.Context, comp *domain.Competition) error
 		ImportTags(ctx context.Context, data *domain.BackupData) error
+		ImportTopics(ctx context.Context, data *domain.BackupData) error
 		ImportChallenges(ctx context.Context, data *domain.BackupData) error
 		ImportChallengeTags(ctx context.Context, data *domain.BackupData) error
+		ImportChallengeTopics(ctx context.Context, data *domain.BackupData) error
 		ImportUsers(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error
 		ImportTeams(ctx context.Context, data *domain.BackupData, opts domain.ImportOptions) error
 		UpdateUserTeamIDs(ctx context.Context, data *domain.BackupData) error
@@ -45,5 +49,12 @@ type (
 		ImportFields(ctx context.Context, data *domain.BackupData) error
 		ImportFieldValues(ctx context.Context, data *domain.BackupData) error
 		ImportCSV(ctx context.Context, tableName string, header []string, rows [][]string) (int, []string, error)
+		CreateImportJob(ctx context.Context, job *domain.ImportJob) (*domain.ImportJob, error)
+		GetImportJob(ctx context.Context, id uuid.UUID) (*domain.ImportJob, error)
+		MarkImportJobRunning(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase) (*domain.ImportJob, error)
+		UpdateImportJobPhase(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase) error
+		CompleteImportJob(ctx context.Context, id uuid.UUID, result *domain.ImportResult) error
+		FailImportJob(ctx context.Context, id uuid.UUID, message string) error
+		FailInterruptedImportJobs(ctx context.Context) error
 	}
 )

@@ -22,7 +22,15 @@ func FromUserForRegister(u *domain.User) openapi.RegisterResponse {
 	}
 }
 
-func FromUserForMe(u *domain.User) openapi.MeResponse {
+func FromUserMe(me *usecase.UserMe) openapi.MeResponse {
+	if me == nil {
+		return openapi.MeResponse{}
+	}
+
+	return FromUserForMe(me.User, me.CustomFields)
+}
+
+func FromUserForMe(u *domain.User, customFields ...usecase.CustomFieldValues) openapi.MeResponse {
 	if u == nil {
 		return openapi.MeResponse{}
 	}
@@ -54,6 +62,10 @@ func FromUserForMe(u *domain.User) openapi.MeResponse {
 		}
 	}
 
+	if len(customFields) > 0 && len(customFields[0]) > 0 {
+		resp.CustomFields = &customFields[0]
+	}
+
 	return resp
 }
 
@@ -73,7 +85,7 @@ func FromUserProfile(up *usecase.UserProfile) openapi.UserProfileResponse {
 		solves[i] = FromSolve(solve)
 	}
 
-	return openapi.UserProfileResponse{
+	resp := openapi.UserProfileResponse{
 		ID:        new(up.User.ID.String()),
 		Username:  new(up.User.Username),
 		TeamID:    teamIDStr,
@@ -81,6 +93,12 @@ func FromUserProfile(up *usecase.UserProfile) openapi.UserProfileResponse {
 		Solves:    &solves,
 		AvatarURL: up.User.AvatarURL,
 	}
+
+	if len(up.CustomFields) > 0 {
+		resp.CustomFields = &up.CustomFields
+	}
+
+	return resp
 }
 
 func FromUser(u *domain.User) openapi.UserResponse {

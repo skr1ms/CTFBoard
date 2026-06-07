@@ -5,13 +5,19 @@ schemas:
         type: string
       name:
         type: string
+      description:
+        type: string
       field_type:
         type: string
-        enum: [text, number, select, boolean]
+        enum: [text, number, select, boolean, json]
       entity_type:
         type: string
         enum: [user, team]
       required:
+        type: boolean
+      public:
+        type: boolean
+      editable:
         type: boolean
       options:
         items:
@@ -30,17 +36,29 @@ schemas:
         maxLength: 100
         x-oapi-codegen-extra-tags:
           validate: "required,max=100"
+      description:
+        type: string
+        maxLength: 500
+        default: ""
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=500"
       field_type:
         type: string
-        enum: [text, number, select, boolean]
+        enum: [text, number, select, boolean, json]
         x-oapi-codegen-extra-tags:
-          validate: "required,oneof=text number select boolean"
+          validate: "required,oneof=text number select boolean json"
       entity_type:
         type: string
         enum: [user, team]
         x-oapi-codegen-extra-tags:
           validate: "required,oneof=user team"
       required:
+        type: boolean
+        default: false
+      public:
+        type: boolean
+        default: false
+      editable:
         type: boolean
         default: false
       options:
@@ -67,13 +85,25 @@ schemas:
         maxLength: 100
         x-oapi-codegen-extra-tags:
           validate: "required,max=100"
+      description:
+        type: string
+        maxLength: 500
+        default: ""
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=500"
       field_type:
         type: string
-        enum: [text, number, select, boolean]
+        enum: [text, number, select, boolean, json]
         x-oapi-codegen-extra-tags:
-          validate: "required,oneof=text number select boolean"
+          validate: "required,oneof=text number select boolean json"
       required:
         type: boolean
+      public:
+        type: boolean
+        default: false
+      editable:
+        type: boolean
+        default: false
       options:
         maxItems: 100
         items:

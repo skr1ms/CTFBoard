@@ -29,23 +29,6 @@ func (h *Server) OnError(w http.ResponseWriter, r *http.Request, err error, op, 
 	return helper.HandleAppError(w, r, h.errHandler, err, op, step)
 }
 
-// checkWriteupEnabled loads app settings and ensures writeups are enabled. If not, it
-// reports the error and returns false. Use for solution/writeup endpoints.
-func (h *Server) checkWriteupEnabled(w http.ResponseWriter, r *http.Request, handlerName, op string) bool {
-	settings, err := h.admin.SettingsUC.Get(r.Context())
-	if h.OnError(w, r, err, handlerName, "GetSettings") {
-		return false
-	}
-
-	if !settings.WriteupEnabled {
-		h.OnError(w, r, helper.ErrWriteupsDisabled, handlerName, op)
-
-		return false
-	}
-
-	return true
-}
-
 // forceLiveFromParams returns true only when the caller explicitly requests live
 // data AND is an admin. Used on mixed-access routes (e.g. scoreboard, statistics)
 // where both regular users and admins share the same endpoint.

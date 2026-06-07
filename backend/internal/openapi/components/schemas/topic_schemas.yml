@@ -1,0 +1,39 @@
+schemas:
+  response.TopicResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+    type: object
+  request.CreateTopicRequest:
+    properties:
+      name:
+        type: string
+        maxLength: 100
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=100"
+    required:
+      - name
+    type: object
+  request.UpdateTopicRequest:
+    properties:
+      name:
+        type: string
+        maxLength: 100
+        x-oapi-codegen-extra-tags:
+          validate: "required,max=100"
+    required:
+      - name
+    type: object
+  request.SetChallengeTopicsRequest:
+    properties:
+      topic_ids:
+        description: Topic IDs attached to the challenge. Empty array clears all topics.
+        items:
+          type: string
+        type: array
+    type: object

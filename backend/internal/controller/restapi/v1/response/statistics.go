@@ -177,3 +177,79 @@ func FromSolveMatrixList(matrix []*domain.SolveMatrixRow) []openapi.SolveMatrixR
 
 	return res
 }
+
+func FromAdminStatisticsFunnel(funnel *domain.AdminStatisticsFunnel) openapi.AdminStatisticsFunnel {
+	if funnel == nil {
+		return openapi.AdminStatisticsFunnel{}
+	}
+
+	challenges := make([]openapi.FunnelChallengeRow, len(funnel.Challenges))
+	for i, row := range funnel.Challenges {
+		challenges[i] = openapi.FunnelChallengeRow{
+			ChallengeID:       new(row.ChallengeID),
+			ChallengeTitle:    new(row.ChallengeTitle),
+			ChallengeCategory: new(row.ChallengeCategory),
+			OpenedCount:       new(row.OpenedCount),
+			AttemptedCount:    new(row.AttemptedCount),
+			SolvedCount:       new(row.SolvedCount),
+		}
+	}
+
+	teams := make([]openapi.FunnelTeamRow, len(funnel.Teams))
+	for i, row := range funnel.Teams {
+		teams[i] = openapi.FunnelTeamRow{
+			TeamID:         new(row.TeamID),
+			TeamName:       new(row.TeamName),
+			OpenedCount:    new(row.OpenedCount),
+			AttemptedCount: new(row.AttemptedCount),
+			SolvedCount:    new(row.SolvedCount),
+		}
+	}
+
+	teamCells := make([]openapi.FunnelTeamCell, len(funnel.TeamCells))
+	for i, cell := range funnel.TeamCells {
+		teamCells[i] = openapi.FunnelTeamCell{
+			TeamID:           new(cell.TeamID),
+			ChallengeID:      new(cell.ChallengeID),
+			Opened:           new(cell.Opened),
+			Attempted:        new(cell.Attempted),
+			Solved:           new(cell.Solved),
+			FirstOpenedAt:    cell.FirstOpenedAt,
+			FirstAttemptedAt: cell.FirstAttemptedAt,
+			SolvedAt:         cell.SolvedAt,
+		}
+	}
+
+	users := make([]openapi.FunnelUserRow, len(funnel.Users))
+	for i, row := range funnel.Users {
+		users[i] = openapi.FunnelUserRow{
+			UserID:         new(row.UserID),
+			Username:       new(row.Username),
+			OpenedCount:    new(row.OpenedCount),
+			AttemptedCount: new(row.AttemptedCount),
+			SolvedCount:    new(row.SolvedCount),
+		}
+	}
+
+	userCells := make([]openapi.FunnelUserCell, len(funnel.UserCells))
+	for i, cell := range funnel.UserCells {
+		userCells[i] = openapi.FunnelUserCell{
+			UserID:           new(cell.UserID),
+			ChallengeID:      new(cell.ChallengeID),
+			Opened:           new(cell.Opened),
+			Attempted:        new(cell.Attempted),
+			Solved:           new(cell.Solved),
+			FirstOpenedAt:    cell.FirstOpenedAt,
+			FirstAttemptedAt: cell.FirstAttemptedAt,
+			SolvedAt:         cell.SolvedAt,
+		}
+	}
+
+	return openapi.AdminStatisticsFunnel{
+		Challenges: &challenges,
+		Teams:      &teams,
+		TeamCells:  &teamCells,
+		Users:      &users,
+		UserCells:  &userCells,
+	}
+}

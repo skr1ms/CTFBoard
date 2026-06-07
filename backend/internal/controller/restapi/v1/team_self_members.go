@@ -70,12 +70,17 @@ func (h *Server) PatchTeamsMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.team.SelfUC.UpdateMyTeam(r.Context(), user.ID, request.UpdateTeamRequestToParams(&req))
+	params, err := request.UpdateTeamRequestToParams(&req)
+	if h.OnError(w, r, err, "PatchTeamsMe", "RequestConversion") {
+		return
+	}
+
+	team, err := h.team.SelfUC.UpdateMyTeam(r.Context(), user.ID, params)
 	if h.OnError(w, r, err, "PatchTeamsMe", "UpdateMyTeam") {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromTeam(team))
+	httputil.RenderOK(w, r, response.FromTeamProfile(team))
 }
 
 // (GET /teams/me/invite).

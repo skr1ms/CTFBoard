@@ -50,7 +50,12 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromTeamWithoutToken(team))
+	profile, err := h.team.ReadUC.GetProfile(r.Context(), teamIDParsed)
+	if h.OnError(w, r, err, "GetTeamsID", "GetProfile") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.FromPublicTeamProfile(profile))
 }
 
 // (GET /teams).

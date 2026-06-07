@@ -16,6 +16,9 @@ schemas:
       max_teams:
         type: integer
         description: Maximum number of teams allowed (0 = unlimited)
+      max_users:
+        type: integer
+        description: Maximum number of participant users allowed (0 = unlimited)
       rate_limit_forgot_password_per_minute:
         type: integer
       rate_limit_general_ip_per_minute:
@@ -110,6 +113,12 @@ schemas:
         minimum: 0
         type: integer
         description: Maximum number of teams allowed (0 = unlimited)
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,min=0"
+      max_users:
+        minimum: 0
+        type: integer
+        description: Maximum number of participant users allowed (0 = unlimited)
         x-oapi-codegen-extra-tags:
           validate: "omitempty,min=0"
       rate_limit_forgot_password_per_minute:

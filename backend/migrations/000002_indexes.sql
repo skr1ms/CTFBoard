@@ -15,8 +15,22 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_solves_challenge_active ON solves (c
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_global_pinned_created ON notifications (is_global, is_pinned, created_at DESC) WHERE is_global = TRUE;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_notifications_unread ON user_notifications (user_id) WHERE is_read = FALSE;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_solves_user_solved_at ON solves (user_id, solved_at DESC) WHERE banned_team_id IS NULL AND banned_user_id IS NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_challenge_opens_team_challenge_opened ON challenge_opens (team_id, challenge_id, opened_at DESC) WHERE team_id IS NOT NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_challenge_opens_challenge_opened ON challenge_opens (challenge_id, opened_at DESC);
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_challenge_opens_user_challenge_unique ON challenge_opens (user_id, challenge_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_backup_import_jobs_created_at ON backup_import_jobs (created_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_backup_import_jobs_status_created_at ON backup_import_jobs (status, created_at DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_challenges_next_challenge_id ON challenges (next_challenge_id) WHERE next_challenge_id IS NOT NULL;
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_challenge_topics_topic_id ON challenge_topics (topic_id);
 
 -- +goose Down
+DROP INDEX CONCURRENTLY IF EXISTS idx_challenge_topics_topic_id;
+DROP INDEX CONCURRENTLY IF EXISTS idx_challenges_next_challenge_id;
+DROP INDEX CONCURRENTLY IF EXISTS idx_backup_import_jobs_status_created_at;
+DROP INDEX CONCURRENTLY IF EXISTS idx_backup_import_jobs_created_at;
+DROP INDEX CONCURRENTLY IF EXISTS idx_challenge_opens_user_challenge_unique;
+DROP INDEX CONCURRENTLY IF EXISTS idx_challenge_opens_challenge_opened;
+DROP INDEX CONCURRENTLY IF EXISTS idx_challenge_opens_team_challenge_opened;
 DROP INDEX CONCURRENTLY IF EXISTS idx_solves_user_solved_at;
 DROP INDEX CONCURRENTLY IF EXISTS idx_user_notifications_unread;
 DROP INDEX CONCURRENTLY IF EXISTS idx_notifications_global_pinned_created;

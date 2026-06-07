@@ -49,6 +49,7 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 		RateLimitOAuthCallbackPerMinute:  lo.FromPtrOr(req.RateLimitOauthCallbackPerMinute, current.RateLimitOAuthCallbackPerMinute),
 		RateLimitOAuthRedirectPerMinute:  lo.FromPtrOr(req.RateLimitOauthRedirectPerMinute, current.RateLimitOAuthRedirectPerMinute),
 		RateLimitCommentPerMinute:        lo.FromPtrOr(req.RateLimitCommentPerMinute, current.RateLimitCommentPerMinute),
+		MaxUsers:                         lo.FromPtrOr(req.MaxUsers, current.MaxUsers),
 		MaxTeams:                         lo.FromPtrOr(req.MaxTeams, current.MaxTeams),
 		WriteupEnabled:                   lo.FromPtrOr(req.WriteupEnabled, current.WriteupEnabled),
 		OAuthGithubEnabled:               lo.FromPtrOr(req.OauthGithubEnabled, current.OAuthGithubEnabled),

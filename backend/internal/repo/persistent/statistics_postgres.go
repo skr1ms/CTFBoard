@@ -324,3 +324,127 @@ func (r *StatisticsRepo) GetSolveMatrix(ctx context.Context, freezeTime *time.Ti
 
 	return out, nil
 }
+
+func (r *StatisticsRepo) GetAdminStatisticsFunnel(ctx context.Context, limit int, freezeTime *time.Time) (*domain.AdminStatisticsFunnel, error) {
+	limit32, err := intToInt32Safe(limit)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetAdminStatisticsFunnel - limit: %w", err)
+	}
+
+	ft := pgutil.TimeToTimestamptz(freezeTime)
+
+	challenges, err := r.Q(ctx).GetFunnelChallengeRows(ctx, ft)
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetAdminStatisticsFunnel - GetFunnelChallengeRows: %w", err)
+	}
+
+	teams, err := r.Q(ctx).GetFunnelTeamRows(ctx, sqlc.GetFunnelTeamRowsParams{Limit: limit32, FreezeTime: ft})
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetAdminStatisticsFunnel - GetFunnelTeamRows: %w", err)
+	}
+
+	teamCells, err := r.Q(ctx).GetFunnelTeamCells(ctx, sqlc.GetFunnelTeamCellsParams{Limit: limit32, FreezeTime: ft})
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetAdminStatisticsFunnel - GetFunnelTeamCells: %w", err)
+	}
+
+	users, err := r.Q(ctx).GetFunnelUserRows(ctx, sqlc.GetFunnelUserRowsParams{Limit: limit32, FreezeTime: ft})
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetAdminStatisticsFunnel - GetFunnelUserRows: %w", err)
+	}
+
+	userCells, err := r.Q(ctx).GetFunnelUserCells(ctx, sqlc.GetFunnelUserCellsParams{Limit: limit32, FreezeTime: ft})
+	if err != nil {
+		return nil, fmt.Errorf("StatisticsRepo - GetAdminStatisticsFunnel - GetFunnelUserCells: %w", err)
+	}
+
+	return &domain.AdminStatisticsFunnel{
+		Challenges: toFunnelChallengeRows(challenges),
+		Teams:      toFunnelTeamRows(teams),
+		TeamCells:  toFunnelTeamCells(teamCells),
+		Users:      toFunnelUserRows(users),
+		UserCells:  toFunnelUserCells(userCells),
+	}, nil
+}
+
+func toFunnelChallengeRows(rows []sqlc.GetFunnelChallengeRowsRow) []*domain.FunnelChallengeRow {
+	out := make([]*domain.FunnelChallengeRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &domain.FunnelChallengeRow{
+			ChallengeID:       row.ChallengeID,
+			ChallengeTitle:    row.ChallengeTitle,
+			ChallengeCategory: row.ChallengeCategory,
+			OpenedCount:       int(row.OpenedCount),
+			AttemptedCount:    int(row.AttemptedCount),
+			SolvedCount:       int(row.SolvedCount),
+		})
+	}
+
+	return out
+}
+
+func toFunnelTeamRows(rows []sqlc.GetFunnelTeamRowsRow) []*domain.FunnelTeamRow {
+	out := make([]*domain.FunnelTeamRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &domain.FunnelTeamRow{
+			TeamID:         row.TeamID,
+			TeamName:       row.TeamName,
+			OpenedCount:    int(row.OpenedCount),
+			AttemptedCount: int(row.AttemptedCount),
+			SolvedCount:    int(row.SolvedCount),
+		})
+	}
+
+	return out
+}
+
+func toFunnelTeamCells(rows []sqlc.GetFunnelTeamCellsRow) []*domain.FunnelTeamCell {
+	out := make([]*domain.FunnelTeamCell, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &domain.FunnelTeamCell{
+			TeamID:           row.TeamID,
+			ChallengeID:      row.ChallengeID,
+			Opened:           row.Opened,
+			Attempted:        row.Attempted,
+			Solved:           row.Solved,
+			FirstOpenedAt:    pgutil.TimestamptzToTime(row.FirstOpenedAt),
+			FirstAttemptedAt: pgutil.TimestamptzToTime(row.FirstAttemptedAt),
+			SolvedAt:         pgutil.TimestamptzToTime(row.SolvedAt),
+		})
+	}
+
+	return out
+}
+
+func toFunnelUserRows(rows []sqlc.GetFunnelUserRowsRow) []*domain.FunnelUserRow {
+	out := make([]*domain.FunnelUserRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &domain.FunnelUserRow{
+			UserID:         row.UserID,
+			Username:       row.Username,
+			OpenedCount:    int(row.OpenedCount),
+			AttemptedCount: int(row.AttemptedCount),
+			SolvedCount:    int(row.SolvedCount),
+		})
+	}
+
+	return out
+}
+
+func toFunnelUserCells(rows []sqlc.GetFunnelUserCellsRow) []*domain.FunnelUserCell {
+	out := make([]*domain.FunnelUserCell, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &domain.FunnelUserCell{
+			UserID:           row.UserID,
+			ChallengeID:      row.ChallengeID,
+			Opened:           row.Opened,
+			Attempted:        row.Attempted,
+			Solved:           row.Solved,
+			FirstOpenedAt:    pgutil.TimestamptzToTime(row.FirstOpenedAt),
+			FirstAttemptedAt: pgutil.TimestamptzToTime(row.FirstAttemptedAt),
+			SolvedAt:         pgutil.TimestamptzToTime(row.SolvedAt),
+		})
+	}
+
+	return out
+}

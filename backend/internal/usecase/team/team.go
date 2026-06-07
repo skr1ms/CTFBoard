@@ -10,6 +10,7 @@ import (
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
@@ -21,6 +22,10 @@ type TeamUseCase struct {
 
 type JWTRevoker interface {
 	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
+}
+
+type FieldValidator interface {
+	ValidateEditableValues(ctx context.Context, entityType domain.EntityType, values map[uuid.UUID]any) (map[uuid.UUID]string, error)
 }
 
 type TeamDeps struct {
@@ -41,6 +46,8 @@ type TeamDeps struct {
 	TeamCache          *cachekit.Cache
 	HintRepo           repo.HintRepository
 	RatingRepo         repo.RatingRepository
+	FieldValidator     FieldValidator
+	FieldRepo          repo.FieldRepository
 	FieldValueRepo     repo.FieldValueRepository
 	JWTRevoker         JWTRevoker
 	DefaultMaxTeamSize int

@@ -14,6 +14,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/webapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 )
 
@@ -92,6 +93,7 @@ func ProvideOAuthUseCase(
 	compRepo repo.CompetitionRepository,
 	soloTeamCreator user.SoloTeamCreator,
 	exchangeStore user.OAuthExchangeStore,
+	compParamUC *competition.CompetitionParamUseCase,
 	l logkit.Logger,
 ) *user.OAuthUseCase {
 	return user.NewOAuthUseCase(user.OAuthDeps{
@@ -105,6 +107,7 @@ func ProvideOAuthUseCase(
 		CompRepo:        compRepo,
 		SoloTeamCreator: soloTeamCreator,
 		ExchangeStore:   exchangeStore,
+		CompParamUC:     compParamUC,
 		Logger:          l,
 	})
 }

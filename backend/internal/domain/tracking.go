@@ -17,9 +17,10 @@ type TrackingEntry struct {
 
 // ChallengeOpen records that a user opened a challenge detail page, used for engagement analytics.
 type ChallengeOpen struct {
-	ID          uuid.UUID `json:"id"`
-	UserID      uuid.UUID `json:"user_id"`
-	ChallengeID uuid.UUID `json:"challenge_id"`
-	IP          string    `json:"ip"`
-	OpenedAt    time.Time `json:"opened_at"`
+	ID          uuid.UUID  `json:"id"`
+	UserID      uuid.UUID  `json:"user_id"`
+	TeamID      *uuid.UUID `json:"team_id,omitempty"`
+	ChallengeID uuid.UUID  `json:"challenge_id"`
+	IP          string     `json:"ip"`
+	OpenedAt    time.Time  `json:"opened_at"`
 }

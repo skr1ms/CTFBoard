@@ -23,6 +23,7 @@ type ChallengeDeps struct {
 	HintUC    usecase.HintUseCase
 	FileUC    usecase.FileUseCase
 	TagUC     usecase.TagUseCase
+	TopicUC   usecase.TopicUseCase
 	CommentUC usecase.CommentUseCase
 	RatingUC  usecase.RatingUseCase
 }
@@ -52,6 +53,7 @@ type UserDeps struct {
 type CompetitionDeps struct {
 	CompetitionUC usecase.CompetitionUseCase
 	SolveUC       usecase.SolveUseCase
+	ShareUC       usecase.ShareUseCase
 	StatsUC       usecase.StatisticsUseCase
 	SubmissionUC  usecase.SubmissionUseCase
 	BracketUC     usecase.BracketUseCase

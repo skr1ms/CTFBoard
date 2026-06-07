@@ -28,6 +28,8 @@ type (
 		Export(ctx context.Context, opts domain.ExportOptions) (*domain.BackupData, error)
 		ExportZIP(ctx context.Context, opts domain.ExportOptions) (io.ReadCloser, error)
 		ImportZIP(ctx context.Context, r io.ReaderAt, size int64, opts domain.ImportOptions) (*domain.ImportResult, error)
+		StartImportZIPJob(ctx context.Context, r io.Reader, size int64, opts domain.ImportOptions, archiveFilename string) (*domain.ImportJob, error)
+		GetImportJob(ctx context.Context, id uuid.UUID) (*domain.ImportJob, error)
 		Reset(ctx context.Context, opts domain.AdminResetOptions) error
 		ExportCSV(ctx context.Context, tableName string) ([]byte, error)
 		ImportCSV(ctx context.Context, tableName string, data []byte) (*CSVImportResult, error)
@@ -86,6 +88,19 @@ type (
 		Type    domain.NotificationType
 	}
 
+	NotificationCreateTeamParams struct {
+		TeamID  uuid.UUID
+		Title   string
+		Content string
+		Type    domain.NotificationType
+	}
+
+	NotificationDeliveryResult struct {
+		TargetType   string
+		TargetID     uuid.UUID
+		CreatedCount int
+	}
+
 	NotificationUpdateParams struct {
 		ID       uuid.UUID
 		Title    string
@@ -98,7 +113,9 @@ type (
 	NotificationUseCase interface {
 		CreateGlobal(ctx context.Context, params NotificationCreateGlobalParams) (*domain.Notification, error)
 		CreatePersonal(ctx context.Context, params NotificationCreatePersonalParams) (*domain.UserNotification, error)
+		CreateTeam(ctx context.Context, params NotificationCreateTeamParams) (*NotificationDeliveryResult, error)
 		GetGlobal(ctx context.Context, page, perPage int) ([]*domain.Notification, error)
+		CountGlobal(ctx context.Context, sinceCreatedAt *time.Time) (int, error)
 		GetUserNotifications(ctx context.Context, userID uuid.UUID, page, perPage int) ([]*domain.UserNotification, error)
 		MarkAsRead(ctx context.Context, ID, userID uuid.UUID) error
 		CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
@@ -129,20 +146,26 @@ type (
 type (
 	// FieldUseCase manages custom registration fields attached to users or teams.
 	FieldCreateParams struct {
-		Name       string
-		FieldType  domain.FieldType
-		EntityType domain.EntityType
-		Required   bool
-		Options    []string
-		OrderIndex int
+		Name        string
+		Description string
+		FieldType   domain.FieldType
+		EntityType  domain.EntityType
+		Required    bool
+		Public      bool
+		Editable    bool
+		Options     []string
+		OrderIndex  int
 	}
 
 	FieldUpdateParams struct {
-		Name       string
-		FieldType  domain.FieldType
-		Required   bool
-		Options    []string
-		OrderIndex int
+		Name        string
+		Description string
+		FieldType   domain.FieldType
+		Required    bool
+		Public      bool
+		Editable    bool
+		Options     []string
+		OrderIndex  int
 	}
 
 	FieldUseCase interface {

@@ -169,3 +169,16 @@ func (h *Server) GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Re
 
 	httputil.RenderOK(w, r, response.FromSolveMatrixList(matrix))
 }
+
+// (GET /admin/statistics/funnel).
+func (h *Server) GetAdminStatisticsFunnel(w http.ResponseWriter, r *http.Request, params openapi.GetAdminStatisticsFunnelParams) {
+	forceLive := adminForceLive(params.Live)
+	limit := helper.ResolveScoreboardHistoryLimit(params.Limit)
+
+	funnel, err := h.comp.StatsUC.GetAdminStatisticsFunnel(r.Context(), limit, forceLive)
+	if h.OnError(w, r, err, "GetAdminStatisticsFunnel", "GetAdminStatisticsFunnel") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.FromAdminStatisticsFunnel(funnel))
+}

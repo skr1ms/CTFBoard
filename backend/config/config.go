@@ -61,6 +61,7 @@ type (
 		AccessSecret   string
 		RefreshSecret  string
 		DownloadSecret string
+		ShareSecret    string
 		AccessKeys     []JWTKey
 		RefreshKeys    []JWTKey
 		AccessTTL      time.Duration

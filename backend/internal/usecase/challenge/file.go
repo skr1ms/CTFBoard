@@ -26,6 +26,8 @@ type FileDeps struct {
 	ChallengeRepo  repo.ChallengeRepository
 	PageRepo       PageReader
 	SolveRepo      repo.SolveRepository
+	CompRepo       repo.CompetitionRepository
+	SettingsRepo   repo.SettingsRepository
 	Storage        FileStorage
 	Expiry         time.Duration
 	DownloadSecret string

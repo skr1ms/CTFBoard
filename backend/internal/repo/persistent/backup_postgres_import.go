@@ -51,6 +51,14 @@ func (r *BackupRepo) ImportTags(ctx context.Context, data *domain.BackupData) er
 		})
 }
 
+// ImportTopics upserts organizer topics in batches using ON CONFLICT (id) DO UPDATE.
+func (r *BackupRepo) ImportTopics(ctx context.Context, data *domain.BackupData) error {
+	return execImportBatches(ctx, r, "ImportTopics", data.Topics, "topics", backupTopicImportCols, backupTopicUpsertSuffix,
+		func(q squirrel.InsertBuilder, t domain.Topic) squirrel.InsertBuilder {
+			return q.Values(t.ID, t.Name, t.CreatedAt)
+		})
+}
+
 func (r *BackupRepo) ImportChallengeTags(ctx context.Context, data *domain.BackupData) error {
 	var pairs []struct{ challengeID, tagID uuid.UUID }
 
@@ -77,6 +85,38 @@ func (r *BackupRepo) ImportChallengeTags(ctx context.Context, data *domain.Backu
 		err := r.exec(ctx, q.Suffix("ON CONFLICT (challenge_id, tag_id) DO NOTHING"))
 		if err != nil {
 			return fmt.Errorf("BackupRepo - ImportChallengeTags: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (r *BackupRepo) ImportChallengeTopics(ctx context.Context, data *domain.BackupData) error {
+	var pairs []struct{ challengeID, topicID uuid.UUID }
+
+	for _, ch := range data.Challenges {
+		for _, topicID := range ch.TopicIDs {
+			pairs = append(pairs, struct{ challengeID, topicID uuid.UUID }{ch.ID, topicID})
+		}
+	}
+
+	if len(pairs) == 0 {
+		return nil
+	}
+
+	for i := 0; i < len(pairs); i += backupImportBatchSize {
+		end := min(i+backupImportBatchSize, len(pairs))
+
+		batch := pairs[i:end]
+		q := sqlBuilder().Insert("challenge_topics").Columns(backupChallengeTopicCols...)
+
+		for _, p := range batch {
+			q = q.Values(p.challengeID, p.topicID)
+		}
+
+		err := r.exec(ctx, q.Suffix("ON CONFLICT (challenge_id, topic_id) DO NOTHING"))
+		if err != nil {
+			return fmt.Errorf("BackupRepo - ImportChallengeTopics: %w", err)
 		}
 	}
 
@@ -145,7 +185,7 @@ func (r *BackupRepo) ImportChallenges(ctx context.Context, data *domain.BackupDa
 			}
 
 			q = q.Values(ch.ID, ch.Title, ch.Description, ch.Category, ch.FlagHash, ch.Points,
-				ch.InitialValue, ch.MinValue, ch.Decay, ch.SolveCount, state, ch.ConnectionInfo, ch.MaxAttempts, int64(ch.MaxAttemptsWindow), ch.Position,
+				ch.InitialValue, ch.MinValue, ch.Decay, ch.SolveCount, state, ch.Attribution, ch.ConnectionInfo, ch.MaxAttempts, int64(ch.MaxAttemptsWindow), ch.Position, ch.NextID,
 				ch.IsRegex, ch.IsCaseInsensitive, flagRegex, flagFormatRegex)
 		}
 
@@ -272,7 +312,7 @@ func (r *BackupRepo) ImportHintUnlocks(ctx context.Context, data *domain.BackupD
 func (r *BackupRepo) ImportFileMetadata(ctx context.Context, data *domain.BackupData) error {
 	return execImportBatches(ctx, r, "ImportFileMetadata", data.Files, "files", backupFileImportCols, backupFileUpsertSuffix,
 		func(q squirrel.InsertBuilder, f domain.File) squirrel.InsertBuilder {
-			return q.Values(f.ID, f.Type, f.ChallengeID, f.Location, f.Filename, f.Size, f.SHA256, f.CreatedAt)
+			return q.Values(f.ID, f.Type, f.ChallengeID, f.PageID, f.Location, f.Filename, f.Size, f.SHA256, f.CreatedAt)
 		})
 }
 
@@ -299,7 +339,7 @@ func (r *BackupRepo) ImportChallengeRequirements(ctx context.Context, data *doma
 func (r *BackupRepo) ImportSolutions(ctx context.Context, data *domain.BackupData) error {
 	return execImportBatches(ctx, r, "ImportSolutions", data.Solutions, "solutions", backupSolutionImportCols, backupSolutionUpsertSuffix,
 		func(q squirrel.InsertBuilder, s domain.SolutionBackup) squirrel.InsertBuilder {
-			return q.Values(s.ID, s.ChallengeID, s.Content)
+			return q.Values(s.ID, s.ChallengeID, s.Content, domain.SolutionStateOrDefault(s.State))
 		})
 }
 
@@ -339,7 +379,7 @@ func (r *BackupRepo) ImportFields(ctx context.Context, data *domain.BackupData) 
 				optsVal = nil
 			}
 
-			q = q.Values(f.ID, f.Name, string(f.FieldType), string(f.EntityType), f.Required, optsVal, f.OrderIndex, f.CreatedAt)
+			q = q.Values(f.ID, f.Name, f.Description, string(f.FieldType), string(f.EntityType), f.Required, f.Public, f.Editable, optsVal, f.OrderIndex, f.CreatedAt)
 		}
 
 		err := r.exec(ctx, q.Suffix(backupFieldUpsertSuffix))

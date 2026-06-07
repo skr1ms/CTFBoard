@@ -11,26 +11,65 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 const maxSolutionContentLen = 524288
 
-func (uc *ChallengeUseCase) AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*domain.ChallengeSolution, error) {
-	if utf8.RuneCountInString(content) > maxSolutionContentLen {
+func (uc *ChallengeUseCase) AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, params usecase.ChallengeSolutionUpsertParams) (*domain.ChallengeSolution, error) {
+	if utf8.RuneCountInString(params.Content) > maxSolutionContentLen {
 		return nil, apperr.NewValidationErrorf("solution content exceeds maximum length")
+	}
+
+	state, err := parseRequestedSolutionState(params.State)
+	if err != nil {
+		return nil, err
 	}
 
 	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - AdminUpsertSolution - ChallengeRepo.GetByID: %w", err)
 	}
 
-	solution, err := uc.deps.ChallengeRepo.UpsertSolution(ctx, challengeID, content)
+	if params.State == "" {
+		state, err = uc.resolveExistingSolutionState(ctx, challengeID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	solution, err := uc.deps.ChallengeRepo.UpsertSolution(ctx, challengeID, params.Content, state)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - AdminUpsertSolution - ChallengeRepo.UpsertSolution: %w", err)
 	}
 
 	return solution, nil
+}
+
+func parseRequestedSolutionState(requestedState string) (string, error) {
+	state := domain.SolutionStateOrDefault(requestedState)
+	if requestedState != "" {
+		if state != requestedState {
+			return "", apperr.NewValidationErrorf("solution state must be hidden, solved_only, after_event, or admin_only")
+		}
+
+		return state, nil
+	}
+
+	return state, nil
+}
+
+func (uc *ChallengeUseCase) resolveExistingSolutionState(ctx context.Context, challengeID uuid.UUID) (string, error) {
+	existing, err := uc.deps.ChallengeRepo.GetSolution(ctx, challengeID)
+	if err != nil {
+		if errors.Is(err, apperr.ErrChallengeNotFound) {
+			return domain.SolutionStateSolvedOnly, nil
+		}
+
+		return "", fmt.Errorf("ChallengeUseCase - AdminUpsertSolution - ChallengeRepo.GetSolution: %w", err)
+	}
+
+	return domain.SolutionStateOrDefault(existing.State), nil
 }
 
 func (uc *ChallengeUseCase) AdminDeleteSolution(ctx context.Context, challengeID uuid.UUID) error {
@@ -155,6 +194,7 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 	}
 
 	uc.submitInvalidateCache(ctx, teamID)
+	uc.invalidateStatisticsCache(ctx, "AdminCreateSolve")
 
 	return nil
 }
@@ -200,6 +240,7 @@ func (uc *ChallengeUseCase) RecalcAllDynamicPoints(ctx context.Context) error {
 
 	uc.InvalidateChallengeListCache(ctx)
 	uc.InvalidateScoreboardCache(ctx)
+	uc.invalidateStatisticsCache(ctx, "RecalcAllDynamicPoints")
 
 	return nil
 }
@@ -267,6 +308,7 @@ func (uc *ChallengeUseCase) AdminDeleteSolve(ctx context.Context, teamID, challe
 	}
 
 	uc.submitInvalidateCache(ctx, teamID)
+	uc.invalidateStatisticsCache(ctx, "AdminDeleteSolve")
 
 	return nil
 }

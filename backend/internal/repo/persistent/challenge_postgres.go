@@ -38,10 +38,12 @@ type challengeRow struct {
 	Decay             int32
 	SolveCount        int32
 	FlagHash          string
+	Attribution       string
 	ConnectionInfo    string
 	MaxAttempts       int32
 	MaxAttemptsWindow int64
 	Position          int32
+	NextChallengeID   *uuid.UUID
 	State             string
 	IsRegex           bool
 	IsCaseInsensitive bool
@@ -66,10 +68,12 @@ type challengeFields struct {
 	Decay             int32
 	SolveCount        int32
 	FlagHash          string
+	Attribution       string
 	ConnectionInfo    string
 	MaxAttempts       int32
 	MaxAttemptsWindow int64
 	Position          int32
+	NextChallengeID   *uuid.UUID
 	State             string
 	IsRegex           bool
 	IsCaseInsensitive bool
@@ -91,10 +95,12 @@ func (f challengeFields) toChallengeRow() challengeRow {
 		Decay:             f.Decay,
 		SolveCount:        f.SolveCount,
 		FlagHash:          f.FlagHash,
+		Attribution:       f.Attribution,
 		ConnectionInfo:    f.ConnectionInfo,
 		MaxAttempts:       f.MaxAttempts,
 		MaxAttemptsWindow: f.MaxAttemptsWindow,
 		Position:          f.Position,
+		NextChallengeID:   f.NextChallengeID,
 		State:             f.State,
 		IsRegex:           f.IsRegex,
 		IsCaseInsensitive: f.IsCaseInsensitive,
@@ -106,43 +112,43 @@ func (f challengeFields) toChallengeRow() challengeRow {
 }
 
 func fieldsFromGetByID(r sqlc.GetChallengeByIDRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetByIDForUpdate(r sqlc.GetChallengeByIDForUpdateRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetByIDs(r sqlc.GetChallengesByIDsRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetForTeamByTag(r sqlc.GetChallengesForTeamByTagRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetByTag(r sqlc.GetChallengesByTagRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetForTeam(r sqlc.GetChallengesForTeamRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetAll(r sqlc.GetChallengesRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetAllForBackup(r sqlc.GetChallengesAllRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetMissingByTeamID(r sqlc.GetMissingChallengesByTeamIDRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func fieldsFromGetMissingByUserID(r sqlc.GetMissingChallengesByUserIDRow) challengeFields {
-	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
+	return challengeFields{ID: r.ID, Title: r.Title, Description: r.Description, Category: r.Category, Points: r.Points, InitialValue: r.InitialValue, MinValue: r.MinValue, Decay: r.Decay, SolveCount: r.SolveCount, FlagHash: r.FlagHash, Attribution: r.Attribution, ConnectionInfo: r.ConnectionInfo, MaxAttempts: r.MaxAttempts, MaxAttemptsWindow: r.MaxAttemptsWindow, Position: r.Position, NextChallengeID: r.NextChallengeID, State: r.State, IsRegex: r.IsRegex, IsCaseInsensitive: r.IsCaseInsensitive, FlagRegex: r.FlagRegex, FlagFormatRegex: r.FlagFormatRegex, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 }
 
 func toDomainChallenge(r challengeRow) *domain.Challenge {
@@ -157,10 +163,12 @@ func toDomainChallenge(r challengeRow) *domain.Challenge {
 		Decay:             int(r.Decay),
 		SolveCount:        int(r.SolveCount),
 		FlagHash:          r.FlagHash,
+		Attribution:       r.Attribution,
 		ConnectionInfo:    r.ConnectionInfo,
 		MaxAttempts:       int(r.MaxAttempts),
 		MaxAttemptsWindow: time.Duration(r.MaxAttemptsWindow),
 		Position:          int(r.Position),
+		NextChallengeID:   r.NextChallengeID,
 		State:             r.State,
 		IsRegex:           r.IsRegex,
 		IsCaseInsensitive: r.IsCaseInsensitive,

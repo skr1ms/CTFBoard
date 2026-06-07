@@ -39,6 +39,41 @@
     tags:
       - Notifications
 
+/notifications/count:
+  get:
+    operationId: GetNotificationsCount
+    security: []
+    description: Returns count of global notifications, optionally newer than since_created_at
+    parameters:
+      - name: since_created_at
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/NotificationCountResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    summary: Count global notifications
+    tags:
+      - Notifications
+
 /user/notifications:
   get:
     operationId: GetUserNotifications
@@ -73,6 +108,36 @@
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get user notifications
+    tags:
+      - Notifications
+
+/user/notifications/unread-count:
+  get:
+    operationId: GetUserNotificationsUnreadCount
+    description: Returns unread notification count for current user
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/NotificationUnreadCountResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Count unread user notifications
     tags:
       - Notifications
 
@@ -205,6 +270,60 @@
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Create personal notification
+    tags:
+      - Admin
+
+"/admin/notifications/team/{teamID}":
+  post:
+    operationId: PostAdminNotificationsTeamTeamID
+    description: Creates a personal notification for each current active member of a team. Admin only.
+    parameters:
+      - name: teamID
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/CreateUserNotificationRequest'
+      required: true
+    responses:
+      "201":
+        description: Created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/NotificationDeliveryResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Create team notification
     tags:
       - Admin
 

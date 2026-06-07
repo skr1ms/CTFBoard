@@ -67,6 +67,10 @@ func ProvideTagRepo(pool *pgxpool.Pool) *persistent.TagRepo {
 	return persistent.NewTagRepo(pool)
 }
 
+func ProvideTopicRepo(pool *pgxpool.Pool) *persistent.TopicRepo {
+	return persistent.NewTopicRepo(pool)
+}
+
 func ProvideFieldRepo(pool *pgxpool.Pool) *persistent.FieldRepo {
 	return persistent.NewFieldRepo(pool)
 }

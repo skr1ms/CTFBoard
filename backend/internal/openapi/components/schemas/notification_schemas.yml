@@ -14,6 +14,20 @@ schemas:
       created_at:
         type: string
     type: object
+  response.NotificationCountResponse:
+    properties:
+      count:
+        type: integer
+    type: object
+  response.NotificationDeliveryResponse:
+    properties:
+      target_type:
+        type: string
+      target_id:
+        type: string
+      created_count:
+        type: integer
+    type: object
   response.UserNotificationResponse:
     properties:
       id:
@@ -28,6 +42,11 @@ schemas:
         type: boolean
       created_at:
         type: string
+    type: object
+  response.NotificationUnreadCountResponse:
+    properties:
+      unread_count:
+        type: integer
     type: object
   request.CreateNotificationRequest:
     properties:

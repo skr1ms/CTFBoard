@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
@@ -12,7 +13,9 @@ import (
 )
 
 type TrackingDeps struct {
-	TrackingRepo repo.TrackingRepository
+	TrackingRepo          repo.TrackingRepository
+	StatsCacheInvalidator StatisticsInvalidator
+	Logger                logkit.Logger
 }
 
 type TrackingUseCase struct {
@@ -21,7 +24,15 @@ type TrackingUseCase struct {
 
 var _ usecase.TrackingUseCase = (*TrackingUseCase)(nil)
 
+type StatisticsInvalidator interface {
+	InvalidateStatistics(ctx context.Context) error
+}
+
 func NewTrackingUseCase(deps TrackingDeps) *TrackingUseCase {
+	if deps.Logger == nil {
+		deps.Logger = logkit.Noop()
+	}
+
 	return &TrackingUseCase{deps: deps}
 }
 
@@ -56,9 +67,10 @@ func (uc *TrackingUseCase) GetByUser(ctx context.Context, userID uuid.UUID, page
 	return usecase.NewPaginated(entries, int64(total), page, perPage), nil
 }
 
-func (uc *TrackingUseCase) TrackChallengeOpen(ctx context.Context, userID, challengeID uuid.UUID, ip string) error {
+func (uc *TrackingUseCase) TrackChallengeOpen(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, ip string) error {
 	entry := &domain.ChallengeOpen{
 		UserID:      userID,
+		TeamID:      teamID,
 		ChallengeID: challengeID,
 		IP:          ip,
 	}
@@ -66,6 +78,12 @@ func (uc *TrackingUseCase) TrackChallengeOpen(ctx context.Context, userID, chall
 	err := uc.deps.TrackingRepo.CreateChallengeOpen(ctx, entry)
 	if err != nil {
 		return fmt.Errorf("TrackingUseCase - TrackChallengeOpen - TrackingRepo.CreateChallengeOpen: %w", err)
+	}
+
+	if uc.deps.StatsCacheInvalidator != nil {
+		if err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx); err != nil {
+			uc.deps.Logger.WithError(err).Warn("TrackingUseCase - TrackChallengeOpen: failed to invalidate statistics cache")
+		}
 	}
 
 	return nil

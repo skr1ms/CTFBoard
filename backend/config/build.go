@@ -20,7 +20,8 @@ import (
 // JWT key rotation arrays (JWT_ACCESS_KEYS / JWT_REFRESH_KEYS) are parsed from
 // JSON if present, otherwise the single primary secret is wrapped as kid="0".
 // If JWT_DOWNLOAD_SECRET is empty, it is derived via HMAC-SHA256 over the access
-// secret with the fixed label "download-url-signing". The Postgres DSN is
+// secret with the fixed label "download-url-signing". Share-link signing derives
+// a separate secret with the fixed label "share-link-signing". The Postgres DSN is
 // constructed programmatically to avoid injection via url.URL. SecureCookies is
 // forced true when API_BASE_URL starts with https://. Post-assembly warnings are
 // emitted for known configuration anti-patterns such as solo_only with MinTeamSize>1.
@@ -139,6 +140,7 @@ func buildJWT(raw *rawConfig, accessKeys, refreshKeys []JWTKey) JWT {
 		AccessSecret:   raw.JWTAccessSecret,
 		RefreshSecret:  raw.JWTRefreshSecret,
 		DownloadSecret: downloadSecret(raw),
+		ShareSecret:    shareSecret(raw),
 		AccessKeys:     accessKeys,
 		RefreshKeys:    refreshKeys,
 		AccessTTL:      time.Duration(raw.JWTAccessTTLMin) * time.Minute,
@@ -152,8 +154,16 @@ func downloadSecret(raw *rawConfig) string {
 		return raw.JWTDownloadSecret
 	}
 
-	h := hmac.New(sha256.New, []byte(raw.JWTAccessSecret))
-	_, _ = h.Write([]byte("download-url-signing"))
+	return derivedJWTSecret(raw.JWTAccessSecret, "download-url-signing")
+}
+
+func shareSecret(raw *rawConfig) string {
+	return derivedJWTSecret(raw.JWTAccessSecret, "share-link-signing")
+}
+
+func derivedJWTSecret(accessSecret, label string) string {
+	h := hmac.New(sha256.New, []byte(accessSecret))
+	_, _ = h.Write([]byte(label))
 
 	return hex.EncodeToString(h.Sum(nil))
 }
@@ -226,7 +236,6 @@ func warnCompetitionConfig(competition Competition, l logkit.Logger) {
 		l.Warn("Config: COMPETITION_MODE=solo_only with MIN_TEAM_SIZE>1 misconfigures flag submit for solo; set MIN_TEAM_SIZE=1 or change mode",
 			logkit.Fields{"min_team_size": competition.MinTeamSize})
 	}
-
 }
 
 func buildOAuth(raw *rawConfig) OAuth {

@@ -14,6 +14,7 @@ INSERT INTO configs (key, value, value_type, description, category) VALUES
 ('theme_dark_mode', 'true', 'bool', 'Enable dark theme by default', 'theme'),
 ('challenge_visibility', 'private', 'string', 'Challenge visibility: public, private, admins', 'visibility'),
 ('score_visibility', 'public', 'string', 'Scoreboard visibility: public, hidden, admins', 'visibility'),
+('account_visibility', 'public', 'string', 'User/team account visibility: public, private, hidden, admins', 'visibility'),
 ('registration_visibility', 'public', 'string', 'Registration visibility: public, private', 'visibility'),
 ('view_after_ctf', 'true', 'bool', 'Show challenges after CTF ends', 'visibility'),
 ('scoring_type', 'dynamic', 'string', 'Scoring type: static or dynamic', 'scoring'),
@@ -54,7 +55,7 @@ ON CONFLICT (key) DO NOTHING;
 DELETE FROM configs WHERE key IN (
 'ctf_name','ctf_description','ctf_logo','user_mode',
 'theme_color_primary','theme_color_secondary','theme_header_html','theme_footer_html','theme_dark_mode',
-'challenge_visibility','score_visibility','registration_visibility','view_after_ctf',
+'challenge_visibility','score_visibility','account_visibility','registration_visibility','view_after_ctf',
 'scoring_type','decay_function','first_blood_bonus',
 'mail_verification_subject','mail_verification_body','mail_reset_subject','mail_reset_body',
 'social_github','social_discord','social_twitter','social_website',

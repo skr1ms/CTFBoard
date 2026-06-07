@@ -21,6 +21,9 @@ var table = map[error]mapping{
 	apperr.ErrUserAlreadyExists:           {http.StatusConflict, "USER_ALREADY_EXISTS"},
 	apperr.ErrUsernameTaken:               {http.StatusConflict, "USERNAME_TAKEN"},
 	apperr.ErrRegistrationClosed:          {http.StatusForbidden, "REGISTRATION_CLOSED"},
+	apperr.ErrRegistrationCodeRequired:    {http.StatusForbidden, "REGISTRATION_CODE_REQUIRED"},
+	apperr.ErrInvalidRegistrationCode:     {http.StatusForbidden, "INVALID_REGISTRATION_CODE"},
+	apperr.ErrMaxUsersReached:             {http.StatusConflict, "MAX_USERS_REACHED"},
 	apperr.ErrInvalidCredentials:          {http.StatusUnauthorized, "INVALID_CREDENTIALS"},
 	apperr.ErrAuthorizationHeaderRequired: {http.StatusUnauthorized, "AUTHORIZATION_REQUIRED"},
 	apperr.ErrInvalidAuthorizationHeader:  {http.StatusUnauthorized, "INVALID_AUTHORIZATION_HEADER"},
@@ -72,6 +75,8 @@ var table = map[error]mapping{
 	apperr.ErrRequirementsNotMet:                     {http.StatusForbidden, "REQUIREMENTS_NOT_MET"},
 	apperr.ErrMaxAttemptsReached:                     {http.StatusTooManyRequests, "MAX_ATTEMPTS_REACHED"},
 	apperr.ErrChallengeLocked:                        {http.StatusForbidden, "CHALLENGE_LOCKED"},
+	apperr.ErrTopicNotFound:                          {http.StatusNotFound, "TOPIC_NOT_FOUND"},
+	apperr.ErrTopicNameRequired:                      {http.StatusBadRequest, "TOPIC_NAME_REQUIRED"},
 
 	// competition
 	apperr.ErrCompetitionNotFound:           {http.StatusNotFound, "COMPETITION_NOT_FOUND"},
@@ -115,6 +120,7 @@ var table = map[error]mapping{
 	apperr.ErrBackupVersionUnsupported: {http.StatusBadRequest, "BACKUP_VERSION_UNSUPPORTED"},
 	apperr.ErrBackupTableUnsupported:   {http.StatusBadRequest, "BACKUP_TABLE_UNSUPPORTED"},
 	apperr.ErrBackupCSVEmpty:           {http.StatusBadRequest, "BACKUP_CSV_EMPTY"},
+	apperr.ErrBackupImportJobNotFound:  {http.StatusNotFound, "BACKUP_IMPORT_JOB_NOT_FOUND"},
 
 	// page
 	apperr.ErrPageNotFound:      {http.StatusNotFound, "PAGE_NOT_FOUND"},
@@ -135,6 +141,8 @@ var table = map[error]mapping{
 	apperr.ErrSolveNotFound:        {http.StatusNotFound, "SOLVE_NOT_FOUND"},
 	apperr.ErrAlreadySolved:        {http.StatusConflict, "ALREADY_SOLVED"},
 	apperr.ErrSolutionAccessDenied: {http.StatusForbidden, "SOLUTION_ACCESS_DENIED"},
+	apperr.ErrShareNotFound:        {http.StatusNotFound, "SHARE_NOT_FOUND"},
+	apperr.ErrSharesDisabled:       {http.StatusForbidden, "SHARES_DISABLED"},
 
 	// avatar
 	apperr.ErrInvalidAvatar:          {http.StatusBadRequest, "INVALID_AVATAR"},

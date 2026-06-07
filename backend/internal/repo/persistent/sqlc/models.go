@@ -49,6 +49,7 @@ type AppSettings struct {
 	RateLimitOAuthCallbackPerMinute  int32              `json:"rate_limit_oauth_callback_per_minute"`
 	RateLimitOAuthRedirectPerMinute  int32              `json:"rate_limit_oauth_redirect_per_minute"`
 	RateLimitCommentPerMinute        int32              `json:"rate_limit_comment_per_minute"`
+	MaxUsers                         int32              `json:"max_users"`
 	MaxTeams                         int32              `json:"max_teams"`
 	WriteupEnabled                   bool               `json:"writeup_enabled"`
 	OAuthGithubEnabled               bool               `json:"oauth_github_enabled"`
@@ -77,6 +78,24 @@ type Award struct {
 	BannedTeamID *uuid.UUID         `json:"banned_team_id"`
 }
 
+type BackupImportJob struct {
+	ID              uuid.UUID          `json:"id"`
+	RequestedBy     *uuid.UUID         `json:"requested_by"`
+	ClientIp        *string            `json:"client_ip"`
+	ArchiveFilename string             `json:"archive_filename"`
+	ArchiveSize     int64              `json:"archive_size"`
+	StagingLocation string             `json:"staging_location"`
+	Status          string             `json:"status"`
+	Phase           string             `json:"phase"`
+	Options         []byte             `json:"options"`
+	Result          []byte             `json:"result"`
+	Error           *string            `json:"error"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	StartedAt       pgtype.Timestamptz `json:"started_at"`
+	FinishedAt      pgtype.Timestamptz `json:"finished_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type BanAppeal struct {
 	ID            uuid.UUID          `json:"id"`
 	UserID        uuid.UUID          `json:"user_id"`
@@ -102,10 +121,12 @@ type Challenge struct {
 	Category          string             `json:"category"`
 	Points            int32              `json:"points"`
 	FlagHash          string             `json:"flag_hash"`
+	Attribution       string             `json:"attribution"`
 	ConnectionInfo    string             `json:"connection_info"`
 	MaxAttempts       int32              `json:"max_attempts"`
 	MaxAttemptsWindow int64              `json:"max_attempts_window"`
 	Position          int32              `json:"position"`
+	NextChallengeID   *uuid.UUID         `json:"next_challenge_id"`
 	State             string             `json:"state"`
 	InitialValue      int32              `json:"initial_value"`
 	MinValue          int32              `json:"min_value"`
@@ -122,6 +143,7 @@ type Challenge struct {
 type ChallengeOpen struct {
 	ID          uuid.UUID          `json:"id"`
 	UserID      uuid.UUID          `json:"user_id"`
+	TeamID      *uuid.UUID         `json:"team_id"`
 	ChallengeID uuid.UUID          `json:"challenge_id"`
 	IP          *string            `json:"ip"`
 	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
@@ -135,6 +157,11 @@ type ChallengeRequirement struct {
 type ChallengeTag struct {
 	ChallengeID uuid.UUID `json:"challenge_id"`
 	TagID       uuid.UUID `json:"tag_id"`
+}
+
+type ChallengeTopic struct {
+	ChallengeID uuid.UUID `json:"challenge_id"`
+	TopicID     uuid.UUID `json:"topic_id"`
 }
 
 type Comment struct {
@@ -175,14 +202,17 @@ type CompetitionParam struct {
 }
 
 type Field struct {
-	ID         uuid.UUID          `json:"id"`
-	Name       string             `json:"name"`
-	FieldType  string             `json:"field_type"`
-	EntityType string             `json:"entity_type"`
-	Required   bool               `json:"required"`
-	Options    []byte             `json:"options"`
-	OrderIndex int32              `json:"order_index"`
-	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	FieldType   string             `json:"field_type"`
+	EntityType  string             `json:"entity_type"`
+	Required    bool               `json:"required"`
+	IsPublic    bool               `json:"is_public"`
+	Editable    bool               `json:"editable"`
+	Options     []byte             `json:"options"`
+	OrderIndex  int32              `json:"order_index"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type FieldValue struct {
@@ -269,6 +299,7 @@ type Solution struct {
 	ID          uuid.UUID `json:"id"`
 	ChallengeID uuid.UUID `json:"challenge_id"`
 	Content     string    `json:"content"`
+	State       string    `json:"state"`
 }
 
 type Solve struct {
@@ -326,6 +357,12 @@ type TeamAuditLog struct {
 	UserID    *uuid.UUID         `json:"user_id"`
 	Action    string             `json:"action"`
 	Details   []byte             `json:"details"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Topic struct {
+	ID        uuid.UUID          `json:"id"`
+	Name      string             `json:"name"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 

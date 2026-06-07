@@ -45,6 +45,7 @@ type SubmissionDeps struct {
 	SolveCreator     AdminSolveCreator
 	SolveDeleter     AdminSolveDeleter
 	CacheInvalidator CacheInvalidator
+	StatsCache       StatisticsCacheInvalidator
 	Logger           logkit.Logger
 	UserRepo         repo.UserRepository
 	TeamRepo         repo.TeamRepository

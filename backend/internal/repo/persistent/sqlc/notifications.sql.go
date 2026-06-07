@@ -23,6 +23,20 @@ func (q *Queries) CountAllNotifications(ctx context.Context) (int32, error) {
 	return column_1, err
 }
 
+const countGlobalNotificationsSince = `-- name: CountGlobalNotificationsSince :one
+SELECT COUNT(*)::int
+FROM notifications
+WHERE is_global = TRUE
+  AND ($1::timestamptz IS NULL OR created_at > $1)
+`
+
+func (q *Queries) CountGlobalNotificationsSince(ctx context.Context, sinceCreatedAt pgtype.Timestamptz) (int32, error) {
+	row := q.db.QueryRow(ctx, countGlobalNotificationsSince, sinceCreatedAt)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countUnreadUserNotifications = `-- name: CountUnreadUserNotifications :one
 SELECT COUNT(*)::int FROM user_notifications WHERE user_id = $1 AND is_read = FALSE
 `

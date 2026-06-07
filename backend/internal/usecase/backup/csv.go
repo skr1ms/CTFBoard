@@ -27,7 +27,7 @@ var allowedCSVTables = map[string]bool{
 var csvUUIDColumns = map[string]map[string]bool{
 	"users":       {"id": true, "team_id": true},
 	"teams":       {"id": true, "captain_id": true, "invite_token": true, "bracket_id": true},
-	"challenges":  {"id": true},
+	"challenges":  {"id": true, "next_challenge_id": true},
 	"submissions": {"id": true, "user_id": true, "team_id": true, "challenge_id": true, "banned_team_id": true, "banned_user_id": true},
 	"solves":      {"id": true, "user_id": true, "team_id": true, "challenge_id": true, "banned_team_id": true, "banned_user_id": true},
 	"awards":      {"id": true, "team_id": true, "created_by": true, "banned_team_id": true},
@@ -134,7 +134,7 @@ func csvExportTeams(teams []*domain.Team) ([]byte, error) {
 }
 
 func csvExportChallenges(challenges []*domain.Challenge) ([]byte, error) {
-	header := []string{"id", "title", "description", "category", "flag_hash", "points", "initial_value", "min_value", "decay", "solve_count", "state", "connection_info", "max_attempts", "max_attempts_window", "position", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex"}
+	header := []string{"id", "title", "description", "category", "flag_hash", "points", "initial_value", "min_value", "decay", "solve_count", "state", "attribution", "connection_info", "max_attempts", "max_attempts_window", "position", "next_challenge_id", "is_regex", "is_case_insensitive", "flag_regex", "flag_format_regex"}
 
 	rows := make([][]string, 0, len(challenges))
 	for _, c := range challenges {
@@ -150,6 +150,12 @@ func csvExportChallenges(challenges []*domain.Challenge) ([]byte, error) {
 			flagRegex = *c.FlagRegex
 		}
 
+		nextChallengeID := ""
+
+		if c.NextChallengeID != nil {
+			nextChallengeID = c.NextChallengeID.String()
+		}
+
 		rows = append(rows, []string{
 			c.ID.String(),
 			c.Title,
@@ -162,10 +168,12 @@ func csvExportChallenges(challenges []*domain.Challenge) ([]byte, error) {
 			strconv.Itoa(c.Decay),
 			strconv.Itoa(c.SolveCount),
 			c.State,
+			c.Attribution,
 			c.ConnectionInfo,
 			strconv.Itoa(c.MaxAttempts),
 			strconv.FormatInt(int64(c.MaxAttemptsWindow), 10),
 			strconv.Itoa(c.Position),
+			nextChallengeID,
 			strconv.FormatBool(c.IsRegex),
 			strconv.FormatBool(c.IsCaseInsensitive),
 			flagRegex,

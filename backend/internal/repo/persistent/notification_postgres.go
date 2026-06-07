@@ -230,6 +230,15 @@ func (r *NotificationRepo) CountAll(ctx context.Context) (int, error) {
 	return int(count), nil
 }
 
+func (r *NotificationRepo) CountGlobal(ctx context.Context, sinceCreatedAt *time.Time) (int, error) {
+	count, err := r.Q(ctx).CountGlobalNotificationsSince(ctx, pgutil.TimeToTimestamptz(sinceCreatedAt))
+	if err != nil {
+		return 0, fmt.Errorf("NotificationRepo - CountGlobal: %w", err)
+	}
+
+	return int(count), nil
+}
+
 func (r *NotificationRepo) CountUnread(ctx context.Context, userID uuid.UUID) (int, error) {
 	count, err := r.Q(ctx).CountUnreadUserNotifications(ctx, userID)
 	if err != nil {

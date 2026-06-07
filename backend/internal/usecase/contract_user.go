@@ -15,16 +15,40 @@ import (
 type (
 	// UserProfile is a user profile view combining the user record with their solve history.
 	UserProfile struct {
-		User   *domain.User
-		Solves []*domain.Solve
+		User         *domain.User
+		Solves       []*domain.Solve
+		CustomFields CustomFieldValues
+	}
+
+	UserMe struct {
+		User         *domain.User
+		CustomFields CustomFieldValues
+	}
+
+	UserRegisterParams struct {
+		Username         string
+		Email            string
+		Password         string
+		RegistrationCode string
+		CustomFields     CustomFieldValues
+	}
+
+	UserProfileUpdateParams struct {
+		UserID          uuid.UUID
+		Username        *string
+		Email           *string
+		CurrentPassword *string
+		NewPassword     *string
+		CustomFields    *CustomFieldValues
 	}
 
 	// UserUseCase handles user registration, authentication, profile management, and admin operations.
 	UserUseCase interface {
-		Register(ctx context.Context, username, email, password string, customFields map[string]string) (*domain.User, error)
+		Register(ctx context.Context, params UserRegisterParams) (*domain.User, error)
 		Login(ctx context.Context, email, password string) (*TokenPair, error)
 		RefreshTokenPair(ctx context.Context, refreshToken string) (*TokenPair, error)
 		Logout(ctx context.Context, refreshToken string, accessToken *string) error
+		GetMe(ctx context.Context, userID uuid.UUID) (*UserMe, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.User, error)
 		GetProfile(ctx context.Context, userID uuid.UUID) (*UserProfile, error)
 		ListUsers(ctx context.Context, search *string, field string, page, perPage int) (*Paginated[*domain.User], error)
@@ -36,7 +60,7 @@ type (
 		AdminDelete(ctx context.Context, userID, actorID uuid.UUID) error
 		BanUser(ctx context.Context, userID uuid.UUID, reason string, actorID uuid.UUID) error
 		UnbanUser(ctx context.Context, userID, actorID uuid.UUID) error
-		UpdateProfile(ctx context.Context, userID uuid.UUID, username, email, currentPassword, newPassword *string) (*domain.User, error)
+		UpdateProfile(ctx context.Context, params UserProfileUpdateParams) (*UserMe, error)
 		GetMySubmissions(ctx context.Context, userID uuid.UUID, page, perPage int) (*Paginated[*domain.SubmissionWithDetails], error)
 	}
 )

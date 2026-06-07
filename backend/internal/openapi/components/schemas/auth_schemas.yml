@@ -41,9 +41,14 @@ schemas:
           validate: "required,custom_username"
       custom_fields:
         description: Custom field values (field_id -> value)
-        additionalProperties:
-          type: string
+        additionalProperties: true
         type: object
+      registration_code:
+        description: Optional access code required when registration_code is configured by admins.
+        type: string
+        maxLength: 255
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,max=255"
     required:
       - email
       - username
@@ -79,6 +84,10 @@ schemas:
         type: string
       avatar_url:
         type: string
+      custom_fields:
+        description: Current user's custom field values (field_id -> value)
+        additionalProperties: true
+        type: object
       has_password:
         type: boolean
         description: true when the account has a local password set (false for OAuth-only accounts)

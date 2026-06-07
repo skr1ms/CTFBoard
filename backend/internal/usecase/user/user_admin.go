@@ -23,6 +23,10 @@ import (
 func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, password, role string) (*domain.User, error) {
 	email = normalizeEmail(email)
 
+	if err := uc.validateConfiguredPasswordLength(ctx, password); err != nil {
+		return nil, fmt.Errorf("UserUseCase - AdminCreate - validateConfiguredPasswordLength: %w", err)
+	}
+
 	uc.bcryptSem <- struct{}{}
 
 	defer func() { <-uc.bcryptSem }()
@@ -95,6 +99,10 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 	var passwordHash *string
 
 	if password != nil {
+		if err := uc.validateConfiguredPasswordLength(ctx, *password); err != nil {
+			return nil, fmt.Errorf("UserUseCase - AdminUpdate - validateConfiguredPasswordLength: %w", err)
+		}
+
 		uc.bcryptSem <- struct{}{}
 
 		defer func() { <-uc.bcryptSem }()

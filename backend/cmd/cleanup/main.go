@@ -91,11 +91,15 @@ func main() {
 
 	l.Info("Starting cleanup of old tracking data (older than 90 days)")
 
-	if err := cleanupUC.CleanupOldTracking(ctx, oldTrackingRetention); err != nil {
+	deletedTracking, err := cleanupUC.CleanupOldTracking(ctx, oldTrackingRetention)
+	if err != nil {
 		l.WithError(err).Fatal("CleanupOldTracking failed")
 	}
 
-	l.Info("Old tracking data cleanup completed")
+	l.Info("Old tracking data cleanup completed", logkit.Fields{
+		"tracking_deleted":        deletedTracking.TrackingDeleted,
+		"challenge_opens_deleted": deletedTracking.ChallengeOpensDeleted,
+	})
 
 	l.Info("Cleanup completed successfully")
 }

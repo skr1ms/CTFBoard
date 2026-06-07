@@ -99,6 +99,11 @@ FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1;
 
+-- name: CountActiveUsers :one
+SELECT COUNT(*)::bigint
+FROM users
+WHERE role = 'user' AND is_banned = false;
+
 -- name: BanUser :one
 UPDATE users SET is_banned = TRUE, banned_at = $2, banned_reason = $3 WHERE id = $1 RETURNING id;
 

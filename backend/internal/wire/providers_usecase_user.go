@@ -39,6 +39,7 @@ func ProvideUserUseCase(
 	TM repo.TransactionManager,
 	jwtService *jwtkit.JWTService,
 	fieldValidator *settings.FieldValidator,
+	fieldRepo repo.FieldRepository,
 	fieldValueRepo repo.FieldValueRepository,
 	settingsRepo repo.SettingsRepository,
 	emailUC *email.EmailUseCase,
@@ -58,7 +59,7 @@ func ProvideUserUseCase(
 		ChallengeRepo:  challengeRepo,
 		SubmissionRepo: submissionRepo, AwardRepo: awardRepo, HintRepo: hintRepo,
 		TM: TM, JWTService: jwtService,
-		FieldValidator: fieldValidator, FieldValueRepo: fieldValueRepo,
+		FieldValidator: fieldValidator, FieldRepo: fieldRepo, FieldValueRepo: fieldValueRepo,
 		SettingsRepo: settingsRepo, EmailSender: emailUC, FailedLogin: failedLoginTracker,
 		CompRepo: compRepo, SoloTeamCreator: soloTeamCreator,
 		PersonalNotificationSender: notificationUC,
@@ -71,8 +72,18 @@ func ProvideUserUseCase(
 	})
 }
 
-func ProvideTrackingUseCase(trackingRepo repo.TrackingRepository) *user.TrackingUseCase {
-	return user.NewTrackingUseCase(user.TrackingDeps{TrackingRepo: trackingRepo})
+func ProvideTrackingUseCase(trackingRepo repo.TrackingRepository, c *cachekit.Cache, l logkit.Logger) *user.TrackingUseCase {
+	var statsInvalidator competition.StatisticsCacheInvalidator
+
+	if c != nil {
+		statsInvalidator = &competition.FunnelStatsCacheInvalidatorImpl{Cache: c}
+	}
+
+	return user.NewTrackingUseCase(user.TrackingDeps{
+		TrackingRepo:          trackingRepo,
+		StatsCacheInvalidator: statsInvalidator,
+		Logger:                l,
+	})
 }
 
 func ProvideAPITokenUseCase(apiTokenRepo repo.APITokenRepository) *user.APITokenUseCase {

@@ -45,7 +45,7 @@ type teamByIDGetter interface {
 }
 
 type challengeOpenTracker interface {
-	TrackChallengeOpen(ctx context.Context, userID, challengeID uuid.UUID, ip string) error
+	TrackChallengeOpen(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, ip string) error
 }
 
 func ClientIP(r *http.Request) string {
@@ -64,7 +64,7 @@ func CurrentUser(r *http.Request) (*domain.User, bool) {
 // TrackChallengeOpenAsync records the side-effect outside the handler path while
 // keeping the goroutine detached from the response cancellation and bounded by
 // its own timeout.
-func TrackChallengeOpenAsync(reqCtx context.Context, logger logkit.Logger, tracker challengeOpenTracker, userID, challengeID uuid.UUID, ip string) {
+func TrackChallengeOpenAsync(reqCtx context.Context, logger logkit.Logger, tracker challengeOpenTracker, userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, ip string) {
 	if tracker == nil {
 		return
 	}
@@ -79,7 +79,7 @@ func TrackChallengeOpenAsync(reqCtx context.Context, logger logkit.Logger, track
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(reqCtx), challengeOpenTrackTimeout)
 		defer cancel()
 
-		_ = tracker.TrackChallengeOpen(ctx, userID, challengeID, ip)
+		_ = tracker.TrackChallengeOpen(ctx, userID, teamID, challengeID, ip)
 	}()
 }
 

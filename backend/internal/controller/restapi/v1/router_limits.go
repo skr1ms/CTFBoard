@@ -30,6 +30,7 @@ const (
 	rlKeyHintUnlockUser    = "hint:unlock:user"
 	rlKeyCommentUser       = "comment:user"
 	rlKeyRatingUser        = "rating:user"
+	rlKeyShareCreateUser   = "share:create:user"
 	rlKeyProfileUpdateIP   = "auth:profile-update:ip"
 	rlKeyAPITokenIP        = "user:api-token:ip"
 	rlKeyNotificationIP    = "user:notification:ip"

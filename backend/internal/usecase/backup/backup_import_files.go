@@ -8,25 +8,23 @@ import (
 	"io"
 	"math"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 
-	"github.com/samber/lo"
 	"github.com/wahrwelt-kit/go-logkit"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/storagepath"
 )
 
 const maxConcurrentFileUploads = 5
 
-// importFilesToStorage concurrently uploads challenge files from the ZIP archive
+// importFilesToStorage concurrently uploads backup file payloads from the ZIP archive
 // to object storage. It builds a lookup map from the expected ZIP path to the
 // corresponding File record, then spawns up to maxConcurrentFileUploads workers
-// via an errgroup. Each worker uploads one file and sanitizes the storage
-// location path before writing. Individual upload failures are collected as
+// via an errgroup. Each worker validates the storage location path before
+// writing. Individual upload failures are collected as
 // warning strings and returned; the overall function always returns nil for the
 // error so that the caller can treat file upload failures as partial results
 // rather than fatal errors.
@@ -73,9 +71,18 @@ func (uc *BackupUseCase) importFilesToStorage(ctx context.Context, zr *zip.Reade
 }
 
 func (uc *BackupUseCase) importFilesBuildFileMap(files []domain.File) map[string]domain.File {
-	return lo.Associate(files, func(f domain.File) (string, domain.File) {
-		return fmt.Sprintf("files/challenge-%s/%s", f.ChallengeID, f.Filename), f
-	})
+	fileMap := make(map[string]domain.File, len(files))
+
+	for _, f := range files {
+		zipPath, err := backupFileZIPPath(f)
+		if err != nil {
+			continue
+		}
+
+		fileMap[zipPath] = f
+	}
+
+	return fileMap
 }
 
 type importFileTask struct {
@@ -84,9 +91,9 @@ type importFileTask struct {
 }
 
 // importFilesBuildTasks matches ZIP entries against fileMap (keyed by the
-// canonical "files/challenge-<id>/<filename>" path). Symlinks are skipped to
-// prevent path-traversal attacks via crafted ZIP archives. Returns only the
-// entries that have a corresponding DB file record.
+// canonical backup file path). Symlinks are skipped to prevent path-traversal
+// attacks via crafted ZIP archives. Returns only the entries that have a
+// corresponding DB file record.
 func (uc *BackupUseCase) importFilesBuildTasks(zr *zip.Reader, fileMap map[string]domain.File) []importFileTask {
 	var tasks []importFileTask
 
@@ -118,7 +125,10 @@ func (uc *BackupUseCase) importFileUploadOne(ctx context.Context, zf *zip.File, 
 	defer rc.Close()
 
 	size := zipSizeToInt64(zf.UncompressedSize64)
-	file.Location = sanitizeFileLocation(file.Location)
+
+	if !storagepath.ValidateDownloadPath(file.Location) {
+		return fmt.Sprintf("invalid storage location for %s: %s", zf.Name, file.Location)
+	}
 
 	if opts.ValidateFiles {
 		return uc.importFileUploadWithHash(ctx, zf.Name, rc, size, file)
@@ -168,20 +178,78 @@ func zipSizeToInt64(u uint64) int64 {
 	return int64(u)
 }
 
-// sanitizeFileLocation strips path traversal sequences and normalizes a storage
-// location path. It prepends a synthetic leading slash so that filepath.Clean
-// resolves all ".." components, then converts backslashes to forward slashes and
-// removes the synthetic prefix. If the resulting path does not start with
-// "files/" (e.g. an absolute or escape path was supplied) the basename is
-// placed directly under "files/" to prevent directory traversal attacks when
-// writing to object storage.
-func sanitizeFileLocation(location string) string {
-	cleaned := filepath.ToSlash(filepath.Clean("/" + location))
-
-	cleaned = strings.TrimPrefix(cleaned, "/")
-	if !strings.HasPrefix(cleaned, backupFilesPrefix) {
-		cleaned = backupFilesPrefix + filepath.Base(cleaned)
+func (uc *BackupUseCase) prepareImportFiles(zr *zip.Reader, files []domain.File, validateFiles bool) ([]domain.File, []string) {
+	if len(files) == 0 {
+		return files, nil
 	}
 
-	return cleaned
+	entries := make(map[string]*zip.File, len(zr.File))
+	for _, zf := range zr.File {
+		entries[zf.Name] = zf
+	}
+
+	prepared := make([]domain.File, 0, len(files))
+	warnings := make([]string, 0)
+
+	for _, file := range files {
+		zipPath, err := backupFileZIPPath(file)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("skip file %s: %v", file.ID, err))
+
+			continue
+		}
+
+		if !storagepath.ValidateDownloadPath(file.Location) {
+			warnings = append(warnings, fmt.Sprintf("skip %s: invalid storage location %s", zipPath, file.Location))
+
+			continue
+		}
+
+		zf, ok := entries[zipPath]
+		if !ok {
+			warnings = append(warnings, fmt.Sprintf("skip %s: payload not found in archive", zipPath))
+
+			continue
+		}
+
+		if zf.FileInfo().Mode()&os.ModeSymlink != 0 {
+			warnings = append(warnings, fmt.Sprintf("skip %s: symlink payload is not allowed", zipPath))
+
+			continue
+		}
+
+		if validateFiles {
+			if err := validateImportFileHash(zf, file.SHA256); err != nil {
+				warnings = append(warnings, fmt.Sprintf("skip %s: %v", zipPath, err))
+
+				continue
+			}
+		}
+
+		prepared = append(prepared, file)
+	}
+
+	return prepared, warnings
+}
+
+func validateImportFileHash(zf *zip.File, expectedHash string) error {
+	rc, err := zf.Open()
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer rc.Close()
+
+	hash := sha256.New()
+
+	//nolint:gosec // ImportZIP checks total uncompressed size before file hash validation.
+	if _, err := io.Copy(hash, rc); err != nil {
+		return fmt.Errorf("hash: %w", err)
+	}
+
+	actualHash := crypto.HashHex(hash)
+	if actualHash != expectedHash {
+		return fmt.Errorf("sha256 mismatch: expected %s, got %s", expectedHash, actualHash)
+	}
+
+	return nil
 }

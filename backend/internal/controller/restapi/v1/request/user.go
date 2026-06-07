@@ -3,8 +3,11 @@ package request
 import (
 	"net"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 const (
@@ -62,22 +65,35 @@ func AdminUpdateUserRequestToParams(req *openapi.AdminUpdateUserRequest) (userna
 	return req.Username, req.Email, req.Role, req.Password, req.IsVerified, nil
 }
 
-func UpdateProfileRequestToParams(req *openapi.UpdateProfileRequest) (username, email, currentPassword, newPassword *string) {
-	return req.Username, req.Email, req.CurrentPassword, req.Password
+func UpdateProfileRequestToParams(userID uuid.UUID, req *openapi.UpdateProfileRequest) usecase.UserProfileUpdateParams {
+	return usecase.UserProfileUpdateParams{
+		UserID:          userID,
+		Username:        req.Username,
+		Email:           req.Email,
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.Password,
+		CustomFields:    req.CustomFields,
+	}
 }
 
 func LoginRequestToParams(req *openapi.LoginRequest) (email, password string) {
 	return req.Email, req.Password
 }
 
-func RegisterRequestToParams(req *openapi.RegisterRequest) (username, email, password string, customFields map[string]string, err error) {
-	username = req.Username
-	email = req.Email
-	password = req.Password
-
-	if req.CustomFields != nil {
-		customFields = *req.CustomFields
+func RegisterRequestToParams(req *openapi.RegisterRequest) (usecase.UserRegisterParams, error) {
+	params := usecase.UserRegisterParams{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: req.Password,
 	}
 
-	return username, email, password, customFields, nil
+	if req.RegistrationCode != nil {
+		params.RegistrationCode = *req.RegistrationCode
+	}
+
+	if req.CustomFields != nil {
+		params.CustomFields = *req.CustomFields
+	}
+
+	return params, nil
 }

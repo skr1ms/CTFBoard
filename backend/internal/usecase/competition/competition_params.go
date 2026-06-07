@@ -35,7 +35,7 @@ var errCacheNotInitialized = errors.New("cache not initialized")
 var publicConfigKeys = []string{
 	"ctf_name", "ctf_description", "ctf_logo", "tos_url", "privacy_url",
 	"theme_color_primary", "theme_color_secondary", "theme_header_html", "theme_footer_html", "theme_dark_mode",
-	"social_github", "social_discord", "social_twitter", "social_website",
+	"social_github", "social_discord", "social_twitter", "social_website", "social_shares_enabled",
 	"challenge_visibility", "score_visibility", "account_visibility", "registration_visibility",
 	"setup_complete", "email_verification_required", "timezone",
 }

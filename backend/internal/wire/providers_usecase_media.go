@@ -1,6 +1,8 @@
 package wire
 
 import (
+	"context"
+
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-logkit"
 	"github.com/wahrwelt-kit/go-wskit"
@@ -58,9 +60,11 @@ func ProvideCleanupUseCase(
 }
 
 func ProvideBackupUseCase(
+	ctx context.Context,
 	competitionRepo repo.CompetitionRepository,
 	challengeRepo repo.ChallengeRepository,
 	tagRepo repo.TagRepository,
+	topicRepo repo.TopicRepository,
 	hintRepo repo.HintRepository,
 	teamRepo repo.TeamRepository,
 	userRepo repo.UserRepository,
@@ -81,9 +85,11 @@ func ProvideBackupUseCase(
 	l logkit.Logger,
 ) *backup.BackupUseCase {
 	return backup.NewBackupUseCase(backup.BackupDeps{
+		StopContext:     ctx,
 		CompetitionRepo: competitionRepo,
 		ChallengeRepo:   challengeRepo,
 		TagRepo:         tagRepo,
+		TopicRepo:       topicRepo,
 		HintRepo:        hintRepo,
 		TeamRepo:        teamRepo,
 		UserRepo:        userRepo,

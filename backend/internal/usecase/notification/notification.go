@@ -22,6 +22,7 @@ type NotificationRepository interface {
 	Create(ctx context.Context, notif *domain.Notification) error
 	GetByID(ctx context.Context, ID uuid.UUID) (*domain.Notification, error)
 	GetAll(ctx context.Context, limit, offset int) ([]*domain.Notification, error)
+	CountGlobal(ctx context.Context, sinceCreatedAt *time.Time) (int, error)
 	Update(ctx context.Context, notif *domain.Notification) error
 	Delete(ctx context.Context, ID uuid.UUID) error
 	CreateUserNotification(ctx context.Context, userNotif *domain.UserNotification) error
@@ -31,12 +32,27 @@ type NotificationRepository interface {
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
 }
 
+type TeamReader interface {
+	GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team, error)
+}
+
+type TeamMemberReader interface {
+	GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error)
+}
+
+type TransactionManager interface {
+	Run(ctx context.Context, fn func(context.Context) error) error
+}
+
 type NotificationUseCase struct {
 	deps NotificationDeps
 }
 
 type NotificationDeps struct {
 	NotifRepo   NotificationRepository
+	TeamRepo    TeamReader
+	UserRepo    TeamMemberReader
+	TM          TransactionManager
 	Broadcaster NotificationBroadcaster
 	Logger      logkit.Logger
 }
@@ -52,12 +68,8 @@ func NewNotificationUseCase(deps NotificationDeps) *NotificationUseCase {
 }
 
 func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, params usecase.NotificationCreateGlobalParams) (*domain.Notification, error) {
-	if params.Title == "" || params.Content == "" {
-		return nil, apperr.ErrNotificationTitleContentRequired
-	}
-
-	if !params.Type.IsValid() {
-		return nil, apperr.NewValidationErrorf("invalid notification type %q", params.Type)
+	if err := validateNotification(params.Title, params.Content, params.Type); err != nil {
+		return nil, err
 	}
 
 	notif := &domain.Notification{
@@ -83,24 +95,11 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, params usecase.
 }
 
 func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, params usecase.NotificationCreatePersonalParams) (*domain.UserNotification, error) {
-	if params.Title == "" || params.Content == "" {
-		return nil, apperr.ErrNotificationTitleContentRequired
+	if err := validateNotification(params.Title, params.Content, params.Type); err != nil {
+		return nil, err
 	}
 
-	if !params.Type.IsValid() {
-		return nil, apperr.NewValidationErrorf("invalid notification type %q", params.Type)
-	}
-
-	userNotif := &domain.UserNotification{
-		ID:             uuid.New(),
-		UserID:         params.UserID,
-		NotificationID: nil,
-		Title:          params.Title,
-		Content:        params.Content,
-		Type:           params.Type,
-		IsRead:         false,
-		CreatedAt:      time.Now(),
-	}
+	userNotif := newUserNotification(params.UserID, params.Title, params.Content, params.Type)
 
 	err := uc.deps.NotifRepo.CreateUserNotification(ctx, userNotif)
 	if err != nil {
@@ -108,6 +107,56 @@ func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, params usecas
 	}
 
 	return userNotif, nil
+}
+
+func (uc *NotificationUseCase) CreateTeam(ctx context.Context, params usecase.NotificationCreateTeamParams) (*usecase.NotificationDeliveryResult, error) {
+	if err := validateNotification(params.Title, params.Content, params.Type); err != nil {
+		return nil, err
+	}
+
+	result := &usecase.NotificationDeliveryResult{
+		TargetType: "team",
+		TargetID:   params.TeamID,
+	}
+
+	if uc.deps.TeamRepo == nil || uc.deps.UserRepo == nil || uc.deps.TM == nil {
+		return nil, fmt.Errorf("NotificationUseCase - CreateTeam: dependencies not configured")
+	}
+
+	if err := uc.deps.TM.Run(ctx, func(txCtx context.Context) error {
+		team, err := uc.deps.TeamRepo.GetByID(txCtx, params.TeamID)
+		if err != nil {
+			return fmt.Errorf("TeamRepo.GetByID: %w", err)
+		}
+
+		if team.IsBanned {
+			return apperr.ErrTeamBanned
+		}
+
+		members, err := uc.deps.UserRepo.GetByTeamID(txCtx, params.TeamID)
+		if err != nil {
+			return fmt.Errorf("UserRepo.GetByTeamID: %w", err)
+		}
+
+		for _, member := range members {
+			if member == nil || member.IsBanned {
+				continue
+			}
+
+			userNotif := newUserNotification(member.ID, params.Title, params.Content, params.Type)
+			if err := uc.deps.NotifRepo.CreateUserNotification(txCtx, userNotif); err != nil {
+				return fmt.Errorf("NotificationRepo.CreateUserNotification: %w", err)
+			}
+
+			result.CreatedCount++
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("NotificationUseCase - CreateTeam - TransactionManager.Run: %w", err)
+	}
+
+	return result, nil
 }
 
 func (uc *NotificationUseCase) GetGlobal(ctx context.Context, page, perPage int) ([]*domain.Notification, error) {
@@ -119,6 +168,15 @@ func (uc *NotificationUseCase) GetGlobal(ctx context.Context, page, perPage int)
 	}
 
 	return notifs, nil
+}
+
+func (uc *NotificationUseCase) CountGlobal(ctx context.Context, sinceCreatedAt *time.Time) (int, error) {
+	count, err := uc.deps.NotifRepo.CountGlobal(ctx, sinceCreatedAt)
+	if err != nil {
+		return 0, fmt.Errorf("NotificationUseCase - CountGlobal - NotificationRepo.CountGlobal: %w", err)
+	}
+
+	return count, nil
 }
 
 func (uc *NotificationUseCase) GetUserNotifications(ctx context.Context, userID uuid.UUID, page, perPage int) ([]*domain.UserNotification, error) {
@@ -143,6 +201,31 @@ func (uc *NotificationUseCase) MarkAsRead(ctx context.Context, ID, userID uuid.U
 	}
 
 	return nil
+}
+
+func validateNotification(title, content string, notificationType domain.NotificationType) error {
+	if title == "" || content == "" {
+		return apperr.ErrNotificationTitleContentRequired
+	}
+
+	if !notificationType.IsValid() {
+		return apperr.NewValidationErrorf("invalid notification type %q", notificationType)
+	}
+
+	return nil
+}
+
+func newUserNotification(userID uuid.UUID, title, content string, notificationType domain.NotificationType) *domain.UserNotification {
+	return &domain.UserNotification{
+		ID:             uuid.New(),
+		UserID:         userID,
+		NotificationID: nil,
+		Title:          title,
+		Content:        content,
+		Type:           notificationType,
+		IsRead:         false,
+		CreatedAt:      time.Now(),
+	}
 }
 
 func (uc *NotificationUseCase) CountUnread(ctx context.Context, userID uuid.UUID) (int, error) {

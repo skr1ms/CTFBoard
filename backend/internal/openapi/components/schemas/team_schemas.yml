@@ -16,6 +16,10 @@ schemas:
         type: string
       avatar_url:
         type: string
+      custom_fields:
+        additionalProperties: true
+        description: Team custom field values visible to the caller (field_id -> value).
+        type: object
     type: object
   response.TeamWithMembersResponse:
     properties:
@@ -51,6 +55,10 @@ schemas:
         type: boolean
       avatar_url:
         type: string
+      custom_fields:
+        additionalProperties: true
+        description: Current team's public or captain-editable custom field values (field_id -> value).
+        type: object
     type: object
   response.TeamListResponse:
     properties:
@@ -217,11 +225,14 @@ schemas:
   request.UpdateTeamRequest:
     properties:
       name:
+        minLength: 1
         type: string
         x-oapi-codegen-extra-tags:
-          validate: "required,team_name"
-    required:
-      - name
+          validate: "omitempty,team_name"
+      custom_fields:
+        additionalProperties: true
+        description: Editable team custom field values to patch (field_id -> value).
+        type: object
     type: object
   response.TeamInviteResponse:
     properties:

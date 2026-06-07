@@ -217,6 +217,14 @@ func (uc *SettingsUseCase) validate(s *domain.Settings) error {
 		return fmt.Errorf("SettingsUseCase - validate - validateRateLimits: %w", err)
 	}
 
+	if s.MaxUsers < 0 {
+		return apperr.NewValidationErrorf("max_users must be >= 0")
+	}
+
+	if s.MaxTeams < 0 {
+		return apperr.NewValidationErrorf("max_teams must be >= 0")
+	}
+
 	switch s.ScoreboardVisible {
 	case domain.ScoreboardVisiblePublic, domain.ScoreboardVisibleHidden, domain.ScoreboardVisibleAdminsOnly:
 	default:

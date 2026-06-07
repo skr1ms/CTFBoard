@@ -9,24 +9,33 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
+	validation "github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
 // UpdateMyTeam validates the competition-level team-switch guard, runs updateMyTeamTx
 // in a transaction, then evicts both the team-specific cache entry and the full
 // scoreboard cache (name change affects public display).
-func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, name string) (*domain.Team, error) {
-	if _, err := uc.deps.Guard.RequireTeamSwitch(ctx); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - UpdateMyTeam - Guard.RequireTeamSwitch: %w", err)
+func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, params usecase.TeamUpdateParams) (*usecase.TeamProfile, error) {
+	if params.Name == nil && params.CustomFields == nil {
+		return nil, apperr.NewValidationErrorf("at least one team field must be provided")
 	}
 
-	var team *domain.Team
+	if params.Name != nil && *params.Name == "" {
+		return nil, apperr.NewValidationErrorf("name cannot be empty")
+	}
+
+	var (
+		team        *domain.Team
+		nameChanged bool
+	)
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var err error
 
-		team, err = uc.updateMyTeamTx(ctx, captainID, name)
+		team, nameChanged, err = uc.updateMyTeamTx(ctx, captainID, params)
 		if err != nil {
 			return fmt.Errorf("TeamUseCase - UpdateMyTeam - updateMyTeamTx: %w", err)
 		}
@@ -37,74 +46,151 @@ func (uc *TeamUseCase) UpdateMyTeam(ctx context.Context, captainID uuid.UUID, na
 		return nil, fmt.Errorf("TeamUseCase - UpdateMyTeam - TM.Run: %w", err)
 	}
 
-	if team != nil {
-		cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, team.ID)
+	if team == nil {
+		return nil, nil
+	}
+
+	cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, team.ID)
+
+	if nameChanged {
 		cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
 	}
 
-	return team, nil
+	customFields, err := uc.getSelfTeamCustomFields(ctx, team.ID)
+	if err != nil {
+		return nil, fmt.Errorf("TeamUseCase - UpdateMyTeam - getSelfTeamCustomFields: %w", err)
+	}
+
+	return &usecase.TeamProfile{Team: team, CustomFields: customFields}, nil
 }
 
-// updateMyTeamTx performs the team name update inside a transaction: locks the team row,
-// validates name uniqueness, recomputes the slug, and persists the change.
-func (uc *TeamUseCase) updateMyTeamTx(ctx context.Context, captainID uuid.UUID, name string) (*domain.Team, error) {
-	comp, err := uc.deps.CompRepo.Get(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - CompetitionRepo.Get: %w", err)
-	}
-
-	if err := guard.ValidateTeamSwitchState(comp); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - ValidateTeamSwitchState: %w", err)
-	}
-
+// updateMyTeamTx performs the team update inside a transaction: locks the caller
+// and team rows, validates captainship, and applies name/custom-field changes.
+func (uc *TeamUseCase) updateMyTeamTx(
+	ctx context.Context,
+	captainID uuid.UUID,
+	params usecase.TeamUpdateParams,
+) (*domain.Team, bool, error) {
 	if err := uc.deps.UserRepo.Lock(ctx, captainID); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - UserRepo.Lock: %w", err)
+		return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - UserRepo.Lock: %w", err)
 	}
 
 	user, err := uc.deps.UserRepo.GetByID(ctx, captainID)
 	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - UserRepo.GetByID: %w", err)
+		return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - UserRepo.GetByID: %w", err)
 	}
 
 	if user.TeamID == nil {
-		return nil, apperr.ErrTeamNotFound
+		return nil, false, apperr.ErrTeamNotFound
 	}
 
 	if user.IsBanned {
-		return nil, apperr.ErrUserBanned
+		return nil, false, apperr.ErrUserBanned
 	}
 
 	if err := uc.deps.TeamRepo.Lock(ctx, *user.TeamID); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - TeamRepo.Lock: %w", err)
+		return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - TeamRepo.Lock: %w", err)
 	}
 
 	team, err := uc.deps.TeamRepo.GetByID(ctx, *user.TeamID)
 	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - TeamRepo.GetByID: %w", err)
+		return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - TeamRepo.GetByID: %w", err)
 	}
 
 	if team.IsBanned {
-		return nil, apperr.ErrTeamBanned
+		return nil, false, apperr.ErrTeamBanned
 	}
 
 	if team.CaptainID != captainID {
-		return nil, apperr.ErrNotCaptain
+		return nil, false, apperr.ErrNotCaptain
 	}
 
-	if team.Name != name {
-		err := uc.validateTeamNameAvailable(ctx, name)
+	nameChanged := false
+
+	if params.Name != nil && team.Name != *params.Name {
+		comp, err := uc.deps.CompRepo.Get(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - validateTeamNameAvailable: %w", err)
+			return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - CompetitionRepo.Get: %w", err)
+		}
+
+		if err := guard.ValidateTeamSwitchState(comp); err != nil {
+			return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - ValidateTeamSwitchState: %w", err)
+		}
+
+		if err := uc.validateTeamNameAvailable(ctx, *params.Name); err != nil {
+			return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - validateTeamNameAvailable: %w", err)
+		}
+
+		if err := uc.deps.TeamRepo.UpdateName(ctx, team.ID, *params.Name); err != nil {
+			return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - TeamRepo.UpdateName: %w", err)
+		}
+
+		team.Name = *params.Name
+		nameChanged = true
+	}
+
+	if params.CustomFields != nil {
+		customFields, err := uc.validateTeamCustomFields(ctx, *params.CustomFields)
+		if err != nil {
+			return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - validateTeamCustomFields: %w", err)
+		}
+
+		if err := uc.deps.FieldValueRepo.UpsertValues(ctx, team.ID, customFields); err != nil {
+			return nil, false, fmt.Errorf("TeamUseCase - updateMyTeamTx - FieldValueRepo.UpsertValues: %w", err)
 		}
 	}
 
-	if err := uc.deps.TeamRepo.UpdateName(ctx, team.ID, name); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - updateMyTeamTx - TeamRepo.UpdateName: %w", err)
+	return team, nameChanged, nil
+}
+
+func (uc *TeamUseCase) validateTeamCustomFields(ctx context.Context, raw usecase.CustomFieldValues) (map[string]string, error) {
+	if uc.deps.FieldValidator == nil {
+		return nil, apperr.NewValidationErrorf("custom fields are not configured")
 	}
 
-	team.Name = name
+	if uc.deps.FieldValueRepo == nil {
+		return nil, apperr.NewValidationErrorf("custom field storage is not configured")
+	}
 
-	return team, nil
+	if err := validation.ValidateCustomFieldEnvelope(raw); err != nil {
+		return nil, apperr.NewValidationErrorf("%v", err)
+	}
+
+	fieldValues := make(map[uuid.UUID]any, len(raw))
+
+	for key, value := range raw {
+		id, err := uuid.Parse(key)
+		if err != nil {
+			return nil, apperr.NewValidationErrorf("invalid custom field key")
+		}
+
+		fieldValues[id] = value
+	}
+
+	normalized, err := uc.deps.FieldValidator.ValidateEditableValues(ctx, domain.EntityTypeTeam, fieldValues)
+	if err != nil {
+		return nil, fmt.Errorf("TeamUseCase - validateTeamCustomFields - FieldValidator.ValidateEditableValues: %w", err)
+	}
+
+	return usecase.CustomFieldStorageValuesToStringKeyMap(normalized), nil
+}
+
+func (uc *TeamUseCase) getSelfTeamCustomFields(ctx context.Context, teamID uuid.UUID) (usecase.CustomFieldValues, error) {
+	if uc.deps.FieldRepo == nil || uc.deps.FieldValueRepo == nil {
+		return nil, nil
+	}
+
+	fields, err := uc.deps.FieldRepo.GetByEntityType(ctx, domain.EntityTypeTeam)
+	if err != nil {
+		return nil, fmt.Errorf("TeamUseCase - getSelfTeamCustomFields - FieldRepo.GetByEntityType: %w", err)
+	}
+
+	values, err := uc.deps.FieldValueRepo.GetByEntityID(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("TeamUseCase - getSelfTeamCustomFields - FieldValueRepo.GetByEntityID: %w", err)
+	}
+
+	return visibleTeamFieldValuesToMap(fields, values, selfTeamField), nil
 }
 
 func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) (*domain.Team, error) {

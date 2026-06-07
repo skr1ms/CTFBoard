@@ -70,12 +70,12 @@ func (h *Server) PostAuthRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, email, password, customFields, err := request.RegisterRequestToParams(&req)
+	params, err := request.RegisterRequestToParams(&req)
 	if h.OnError(w, r, err, "PostAuthRegister", "RegisterRequestToParams") {
 		return
 	}
 
-	user, err := h.user.UserUC.Register(r.Context(), username, email, password, customFields)
+	user, err := h.user.UserUC.Register(r.Context(), params)
 	if h.OnError(w, r, err, "PostAuthRegister", "Register") {
 		return
 	}
@@ -94,10 +94,15 @@ func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := response.FromUserForMe(user)
+	me, err := h.user.UserUC.GetMe(r.Context(), user.ID)
+	if h.OnError(w, r, err, "GetAuthMe", "GetMe") {
+		return
+	}
 
-	if user.IsBanned && resp.BanStatus != nil {
-		canAppeal, hasPending, err := h.user.AppealUC.CanAppeal(r.Context(), user.ID)
+	resp := response.FromUserMe(me)
+
+	if me.User.IsBanned && resp.BanStatus != nil {
+		canAppeal, hasPending, err := h.user.AppealUC.CanAppeal(r.Context(), me.User.ID)
 		if h.OnError(w, r, err, "GetAuthMe", "CanAppeal") {
 			return
 		}
