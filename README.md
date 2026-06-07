@@ -1,7 +1,5 @@
 # AstroCTFb
 
-> Read this in: **English** · [Русский](README.ru.md)
-
 Self-hosted Capture The Flag platform.
 
 ---
@@ -12,7 +10,7 @@ A production-ready self-hosted platform for running CTF (Capture The Flag) cyber
 
 ## Features
 
-- Team & solo competition modes
+- Team-only and solo-only competition modes
 - Dynamic scoring with configurable decay per bracket
 - Real-time scoreboard via SSE / WebSocket, freeze / unfreeze
 - Challenge management - categories, tags, file attachments, unlockable hints, first-blood tracking
@@ -84,7 +82,7 @@ Practical rule:
 - If the stack is already up and you only mistyped config, stop editing through panic. Fix `.env` or use `secrets edit`, then restart.
 - If this is still an early broken first deploy and no real data exists yet, `reset config` is the safe redo button; `reset data` is the nuclear one.
 
-Full guide: [`docs/en/DEPLOYMENT.md`](docs/en/DEPLOYMENT.md) · env reference: [`docs/en/ENVIRONMENT.md`](docs/en/ENVIRONMENT.md) · architecture: [`docs/en/ARCHITECTURE.md`](docs/en/ARCHITECTURE.md).
+Deployment: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) · development: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) · architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Tech stack
 
@@ -93,8 +91,7 @@ Go 1.26 (chi, sqlc, pgx, google/wire, oapi-codegen) · PostgreSQL 18 · Redis ·
 ## Local development
 
 ```bash
-cp .env.local.example .env.local
-make -C backend compose-infra
+docker compose --env-file .env.local -f deployment/docker/docker-compose.local.yml up -d postgres redis seaweedfs vault
 cd backend && make run
 ```
 

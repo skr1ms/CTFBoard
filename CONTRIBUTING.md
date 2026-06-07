@@ -42,12 +42,8 @@ git remote add upstream https://github.com/TakuyaYagam1/AstroCTFb.git
 ### Local Setup
 
 ```bash
-# Copy env and configure (use .env.local.example for Docker stack with Vault)
-cp .env.local.example .env.local
-# Edit .env.local - set DB password, JWT secrets, etc.
-
 # Start infrastructure (PostgreSQL, Redis, SeaweedFS, monitoring)
-make -C backend compose-infra
+docker compose --env-file .env.local -f deployment/docker/docker-compose.local.yml up -d postgres redis seaweedfs vault
 
 # Run backend
 cd backend && make run
@@ -200,8 +196,8 @@ The project uses a **fixed 3-file migration set** (no incremental numbered migra
 ### New Environment Variable
 
 1. Add to `backend/config/config.go` (parse in `New()`)
-2. Add to `.env.example` and `.env.local.example` with a comment
-3. Document in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)
+2. Add to `.env.example` and `.env.local` when local defaults are needed
+3. Document operator-facing behavior in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 4. Document in PR description
 
 ## Testing
