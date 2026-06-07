@@ -342,7 +342,7 @@
     },
     {
       "id": 13,
-      "title": "SeaweedFS UI",
+      "title": "SeaweedFS Admin UI",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -352,7 +352,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=\"seaweedfs-ui\"}",
+          "expr": "haproxy_backend_up{proxy=\"bk_seaweedfs_admin\"}",
           "refId": "A"
         }
       ],

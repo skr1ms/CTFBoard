@@ -1,0 +1,152 @@
+discovery.docker "docker" {
+	host             = "unix:///var/run/docker.sock"
+	refresh_interval = "5s"
+}
+
+discovery.relabel "docker" {
+	targets = []
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_log_stream"]
+		target_label  = "stream"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "compose_service"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_id"]
+		target_label  = "container_id"
+	}
+}
+
+loki.source.docker "docker" {
+	host             = "unix:///var/run/docker.sock"
+	targets          = discovery.docker.docker.targets
+	forward_to       = [loki.process.docker.receiver]
+	relabel_rules    = discovery.relabel.docker.rules
+	refresh_interval = "5s"
+}
+
+loki.process "docker" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.json {
+		expressions = {
+			output = "log",
+			stream = "stream",
+			time   = "time",
+		}
+	}
+
+	stage.timestamp {
+		source = "time"
+		format = "RFC3339Nano"
+	}
+
+	stage.labels {
+		values = {
+			compose_service = "",
+			container       = "",
+			stream          = "",
+		}
+	}
+
+	stage.match {
+		selector = "{compose_service=\"backend\"}"
+
+		stage.json {
+			expressions = {
+				component = "component",
+				level     = "level",
+				msg       = "msg",
+				trace_id  = "trace_id",
+			}
+		}
+
+		stage.labels {
+			values = {
+				component = "",
+				level     = "",
+			}
+		}
+
+		stage.output {
+			source = "msg"
+		}
+	}
+
+	stage.match {
+		selector = "{compose_service=\"postgres\"}"
+
+		stage.regex {
+			expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d+ \\w+) \\[(?P<pid>\\d+)\\] (?P<level>\\w+):  (?P<message>.*)$"
+		}
+
+		stage.labels {
+			values = {
+				level = "",
+				pid   = "",
+			}
+		}
+
+		stage.output {
+			source = "message"
+		}
+	}
+
+	stage.match {
+		selector = "{compose_service=\"postgres-exporter\"}"
+
+		stage.regex {
+			expression = "^.*level=(?P<level>\\w+).*msg=\"(?P<message>[^\"]*)\".*$"
+		}
+
+		stage.labels {
+			values = {
+				level = "",
+			}
+		}
+
+		stage.output {
+			source = "message"
+		}
+	}
+
+	stage.match {
+		selector = "{compose_service=~\"seaweedfs.*\"}"
+
+		stage.regex {
+			expression = "^(?P<timestamp>\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}) (?P<level>[A-Z]+) (?P<message>.*)$"
+		}
+
+		stage.labels {
+			values = {
+				level = "",
+			}
+		}
+
+		stage.output {
+			source = "message"
+		}
+	}
+
+	stage.output {
+		source = "output"
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+	external_labels = {}
+}

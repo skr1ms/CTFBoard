@@ -140,8 +140,8 @@ frontend fe_main
     acl is_grafana   hdr(host) -i ${GRAFANA_DOMAIN}
     acl is_vault     hdr(host) -i ${VAULT_DOMAIN}
     acl is_s3        hdr(host) -i ${S3_DOMAIN}
-    acl is_s3_filer  path_beg /filer/
-    acl is_s3_master path_beg /master/
+    acl is_s3_presigned urlp(X-Amz-Signature) -m found
+    acl is_s3_sigv4 hdr_beg(Authorization) -i AWS4-HMAC-SHA256
     acl admin_ok     src -f /etc/haproxy/maps/admin_ips.txt
     acl vault_ok     src -f /etc/haproxy/maps/vault_ips.txt
 
@@ -155,7 +155,7 @@ frontend fe_main
 
     http-request deny deny_status 403 if is_grafana !admin_ok !is_acme
     http-request deny deny_status 403 if is_vault   !vault_ok !is_acme
-    http-request deny deny_status 403 if is_s3      !admin_ok !is_acme
+    http-request deny deny_status 403 if is_s3      !admin_ok !is_acme !is_s3_presigned !is_s3_sigv4
 
     # Edge cache lookups - GET/HEAD only on public cacheable paths.
     # Placed after access-control denies so blocked paths never hit cache.
@@ -178,9 +178,9 @@ frontend fe_main
     http-response cache-store scoreboard_cache if { var(txn.cache_scoreboard) -m str 1 }
 
     use_backend bk_acme if is_acme
-    use_backend bk_seaweedfs_filer  if is_s3 is_s3_filer
-    use_backend bk_seaweedfs_master if is_s3 is_s3_master
-    use_backend bk_s3_ui            if is_s3
+    use_backend bk_seaweedfs_s3     if is_s3 is_s3_presigned
+    use_backend bk_seaweedfs_s3     if is_s3 is_s3_sigv4
+    use_backend bk_seaweedfs_admin  if is_s3
     use_backend bk_grafana          if is_grafana
     use_backend bk_vault            if is_vault
 

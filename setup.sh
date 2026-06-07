@@ -472,7 +472,7 @@ run_wizard() {
   dim "  Certbot requests them as a single multi-SAN cert - missing DNS = failed issuance."
   echo ""
   read_default "Grafana subdomain" "$(env_get_default GRAFANA_DOMAIN "grafana.${DOMAIN}")" GRAFANA_DOMAIN
-  read_default "S3 UI subdomain  " "$(env_get_default S3_DOMAIN "s3.${DOMAIN}")" S3_DOMAIN
+  read_default "S3/Admin subdomain" "$(env_get_default S3_DOMAIN "s3.${DOMAIN}")" S3_DOMAIN
   read_default "Vault subdomain  " "$(env_get_default VAULT_DOMAIN "vault.${DOMAIN}")" VAULT_DOMAIN
   read_default "API subdomain    " "$(env_get_default API_DOMAIN "api.${DOMAIN}")" API_DOMAIN
 
@@ -480,11 +480,9 @@ run_wizard() {
   API_BASE_URL="https://${API_DOMAIN}"
   GF_SERVER_ROOT_URL="https://${GRAFANA_DOMAIN}"
   STORAGE_S3_PUBLIC_ENDPOINT="https://${S3_DOMAIN}"
-  VITE_API_URL="https://${API_DOMAIN}"
   VITE_API_BASE_URL="https://${API_DOMAIN}/api/v1"
   VITE_WS_URL="wss://${API_DOMAIN}/api/v1/ws"
   VITE_SSE_URL="https://${API_DOMAIN}/api/v1/sse"
-  VITE_HOST="${S3_DOMAIN}"
   VITE_APP_NAME="${CTF_NAME}"
   OAUTH_GITHUB_REDIRECT_URL="https://${API_DOMAIN}/api/v1/auth/oauth/github/callback"
   OAUTH_GOOGLE_REDIRECT_URL="https://${API_DOMAIN}/api/v1/auth/oauth/google/callback"
@@ -665,7 +663,7 @@ run_wizard() {
   printf "  %-12s %s\n" "TLS:" "$([ "$USE_LE_STAGING" = "true" ] && echo "HAProxy + LE Staging" || echo "HAProxy + LE Production")"
   echo ""
   printf "  %-12s %s\n" "Grafana:" "${GRAFANA_DOMAIN:-internal only}"
-  printf "  %-12s %s\n" "S3 UI:" "${S3_DOMAIN:-internal only}"
+  printf "  %-12s %s\n" "S3/Admin:" "${S3_DOMAIN:-internal only}"
   printf "  %-12s %s\n" "Vault:" "${VAULT_DOMAIN:-internal only}"
   printf "  %-12s %s\n" "API:" "${API_DOMAIN:-api.${DOMAIN}}"
   echo ""
@@ -696,73 +694,83 @@ run_wizard() {
 # ---------------------------------------------------------------------------
 # apply_env: update .env in-place with wizard values.
 # Uses env_set to preserve comments and structure from .env.example.
-# Backend-only secrets (JWT, FLAG, ADMIN_PASSWORD, OAUTH_*_SECRET, RESEND_API_KEY)
-# are NOT written here - they live exclusively in Vault.
+# Values are grouped in the same order as .env.example. Secrets that the wizard
+# seeds directly into Vault are intentionally not written back here.
 # ---------------------------------------------------------------------------
 apply_env() {
-  # Installer metadata
+  # REQUIRED / Domain & TLS
   env_set DOMAIN               "$DOMAIN"
+  env_set API_DOMAIN           "$API_DOMAIN"
+  env_set GRAFANA_DOMAIN       "$GRAFANA_DOMAIN"
+  env_set VAULT_DOMAIN         "$VAULT_DOMAIN"
+  env_set S3_DOMAIN            "$S3_DOMAIN"
+
   env_set VAULT_ADMIN_IP       "$VAULT_ADMIN_IP"
+  env_set ACME_EMAIL           "$ACME_EMAIL"
+  env_set USE_LE_STAGING       "$USE_LE_STAGING"
 
-  # Platform identity
-  env_set APP_NAME             "$APP_NAME"
-  env_set APP_VERSION          "$APP_VERSION"
-  env_set VITE_APP_NAME        "$VITE_APP_NAME"
-  env_set RESEND_FROM_NAME     "$RESEND_FROM_NAME"
-  env_set JWT_ISSUER           "$JWT_ISSUER"
-
-  # Vault (VAULT_TOKEN is filled later by vault_init_and_unseal)
-  # env_set VAULT_ADDR is not needed - default http://vault:8200 is correct
-
-  # Infrastructure bootstrap credentials (stay in .env for container init)
-  env_set POSTGRES_USER        "$POSTGRES_USER"
-  env_set POSTGRES_PASSWORD    "$POSTGRES_PASSWORD"
-  env_set POSTGRES_DB          "$POSTGRES_DB"
-  env_set REDIS_PASSWORD       "$REDIS_PASSWORD"
-  env_set SEAWEED_S3_ACCESS_KEY "$SEAWEED_S3_ACCESS_KEY"
-  env_set SEAWEED_S3_SECRET_KEY "$SEAWEED_S3_SECRET_KEY"
-  env_set GRAFANA_ADMIN_USER   "$GRAFANA_ADMIN_USER"
-  env_set GRAFANA_ADMIN_PASSWORD "$GRAFANA_ADMIN_PASSWORD"
-  env_set HAPROXY_STATS_PASSWORD "$HAPROXY_STATS_PASSWORD"
-  env_set SETUP_TOKEN          "$SETUP_TOKEN"
-
-  # URLs
+  # REQUIRED / Public URLs
   env_set API_BASE_URL         "$API_BASE_URL"
   env_set FRONTEND_URL         "$FRONTEND_URL"
   env_set CORS_ORIGINS         "$CORS_ORIGINS"
   env_set GF_SERVER_ROOT_URL   "$GF_SERVER_ROOT_URL"
   env_set STORAGE_S3_PUBLIC_ENDPOINT "$STORAGE_S3_PUBLIC_ENDPOINT"
-  env_set VITE_API_URL         "$VITE_API_URL"
-  env_set VITE_API_BASE_URL    "$VITE_API_BASE_URL"
-  env_set VITE_WS_URL          "$VITE_WS_URL"
-  env_set VITE_SSE_URL         "$VITE_SSE_URL"
-  env_set VITE_HOST            "$VITE_HOST"
 
-  # OAuth - IDs are not secrets; redirect URLs depend on API_DOMAIN
-  env_set OAUTH_GITHUB_CLIENT_ID      "$OAUTH_GITHUB_CLIENT_ID"
-  env_set OAUTH_GOOGLE_CLIENT_ID      "$OAUTH_GOOGLE_CLIENT_ID"
+  # REQUIRED / OAuth callback URLs
   env_set OAUTH_GITHUB_REDIRECT_URL   "$OAUTH_GITHUB_REDIRECT_URL"
   env_set OAUTH_GOOGLE_REDIRECT_URL   "$OAUTH_GOOGLE_REDIRECT_URL"
 
-  # Email (enabled flag + from address; API key goes to Vault only)
+  # REQUIRED / Bootstrap passwords
+  env_set POSTGRES_PASSWORD    "$POSTGRES_PASSWORD"
+  env_set REDIS_PASSWORD       "$REDIS_PASSWORD"
+  env_set GRAFANA_ADMIN_PASSWORD "$GRAFANA_ADMIN_PASSWORD"
+  env_set HAPROXY_STATS_PASSWORD "$HAPROXY_STATS_PASSWORD"
+
+  # REQUIRED / Object storage S3 keys
+  env_set SEAWEED_S3_ACCESS_KEY "$SEAWEED_S3_ACCESS_KEY"
+  env_set SEAWEED_S3_SECRET_KEY "$SEAWEED_S3_SECRET_KEY"
+
+  # REQUIRED / Admin email
+  env_set ADMIN_EMAIL          "$ADMIN_EMAIL"
+
+  # OPTIONAL / Admin user and setup token
+  env_set ADMIN_USERNAME       "$ADMIN_USERNAME"
+  env_set SETUP_TOKEN          "$SETUP_TOKEN"
+
+  # INTEGRATIONS / Email
   env_set RESEND_ENABLED       "$RESEND_ENABLED"
   env_set RESEND_FROM_EMAIL    "$RESEND_FROM_EMAIL"
+  env_set RESEND_FROM_NAME     "$RESEND_FROM_NAME"
   env_set VERIFY_EMAILS        "$RESEND_ENABLED"
 
-  # Monitoring
+  # INTEGRATIONS / OAuth providers
+  env_set OAUTH_GITHUB_CLIENT_ID      "$OAUTH_GITHUB_CLIENT_ID"
+  env_set OAUTH_GOOGLE_CLIENT_ID      "$OAUTH_GOOGLE_CLIENT_ID"
+
+  # INTEGRATIONS / Telegram alerts
   env_set TELEGRAM_BOT_TOKEN   "$TELEGRAM_BOT_TOKEN"
   env_set TELEGRAM_CHAT_ID     "$TELEGRAM_CHAT_ID"
 
-  # HAProxy & TLS
+  # DEFAULTS / Platform identity
+  env_set APP_NAME             "$APP_NAME"
+  env_set APP_VERSION          "$APP_VERSION"
+  env_set JWT_ISSUER           "$JWT_ISSUER"
+  env_set VITE_APP_NAME        "$VITE_APP_NAME"
+
+  # DEFAULTS / Postgres
+  env_set POSTGRES_USER        "$POSTGRES_USER"
+  env_set POSTGRES_DB          "$POSTGRES_DB"
+
+  # DEFAULTS / Grafana and HAProxy
+  env_set GRAFANA_ADMIN_USER   "$GRAFANA_ADMIN_USER"
   env_set ADMIN_ALLOWED_IPS    "$ADMIN_ALLOWED_IPS"
   env_set HAPROXY_BEHIND_CDN   "$HAPROXY_BEHIND_CDN"
   env_set TRUSTED_CDN_CIDRS    "$TRUSTED_CDN_CIDRS"
-  env_set ACME_EMAIL           "$ACME_EMAIL"
-  env_set USE_LE_STAGING       "$USE_LE_STAGING"
-  env_set GRAFANA_DOMAIN       "$GRAFANA_DOMAIN"
-  env_set VAULT_DOMAIN         "$VAULT_DOMAIN"
-  env_set S3_DOMAIN            "$S3_DOMAIN"
-  env_set API_DOMAIN           "$API_DOMAIN"
+
+  # DEFAULTS / Board SPA build args
+  env_set VITE_API_BASE_URL    "$VITE_API_BASE_URL"
+  env_set VITE_WS_URL          "$VITE_WS_URL"
+  env_set VITE_SSE_URL         "$VITE_SSE_URL"
 
   chmod 600 "$ENV_FILE"
   echo ""
@@ -1450,7 +1458,7 @@ print_success() {
     printf "  %-12s %s\n" "Grafana:" "SSH tunnel -> localhost:3000"
   fi
   if [ -n "$s3_domain" ]; then
-    printf "  %-12s %s\n" "S3 UI:" "https://${s3_domain}"
+    printf "  %-12s %s\n" "S3/Admin:" "https://${s3_domain}"
   fi
   printf "  %-12s %s\n" "Vault:" "SSH tunnel -> localhost:8200"
   printf "  %-12s %s\n" "HAProxy:" "SSH tunnel -> localhost:8405/stats"
@@ -1536,7 +1544,7 @@ do_uninstall() {
   red "  NUCLEAR: full uninstall of CTF Platform.\n"
   red "    - All data (DB, Vault, Grafana, SeaweedFS, LE certs)\n"
   red "    - All generated configs\n"
-  red "    - Locally built images (backend, frontend, seaweedfs-ui)\n"
+  red "    - Locally built images (backend, frontend)\n"
   red "    - Host cron (/etc/cron.d/ctf-platform-cleanup, needs sudo)\n"
   if [ "$all_images" = "--all-images" ]; then
     red "    - Pulled images (vault, postgres, redis, prometheus, grafana, ...)\n"

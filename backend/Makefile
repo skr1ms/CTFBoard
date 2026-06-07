@@ -1,9 +1,6 @@
 ifneq ($(wildcard ../.env.local),)
 include ../.env.local
 export
-else ifneq ($(wildcard ../.env.local.example),)
-include ../.env.local.example
-export
 endif
 
 POSTGRES_DSN ?= postgres://user:password@localhost:5432/ctf_platform?sslmode=disable
@@ -22,7 +19,7 @@ help: ## Display this help screen
 compose-up: compose-infra
 
 compose-infra: ## Start infrastructure only (db, redis, seaweedfs, monitoring)
-	$(BASE_STACK) up --build -d postgres redis seaweedfs postgres-exporter redis-exporter prometheus loki promtail grafana cadvisor
+	$(BASE_STACK) up --build -d postgres redis seaweedfs postgres-exporter redis-exporter prometheus loki alloy grafana cadvisor
 	@echo "Infrastructure started"
 
 compose-full: ## Start full stack (infra + backend + vault)
@@ -267,7 +264,10 @@ clean: ## Clean generated files
 ##@ Tests
 
 TEST_RACE_TIMEOUT ?= 15m
-BENCH_PKGS = ./internal/scoring/... ./pkg/crypto/... ./internal/websocket/... ./internal/usecase/competition/...
+TEST_LOAD_SHORT_TIMEOUT ?= 20m
+TEST_LOAD_TIMEOUT ?= 30m
+TEST_LOAD_REPORT_DIR ?= $(CURDIR)/load-test/reports
+BENCH_PKGS = ./internal/scoring/... ./internal/cache/... ./internal/controller/restapi/v1/response/... ./internal/websocket/... ./internal/usecase/competition/... ./pkg/crypto/... ./pkg/slug/...
 BENCH_TIME  ?= 3s
 BENCH_COUNT ?= 1
 
@@ -293,7 +293,7 @@ test-fast-race: ## Run fast local tests with race detection
 
 test-no-race: test ## Alias for test (no race)
 
-bench: ## Run benchmark tests (scoring, crypto, websocket, competition)
+bench: ## Run benchmark tests for hot backend paths
 	@echo "Running benchmarks..."
 	@go test -run='^$$' -bench=. -benchtime=$(BENCH_TIME) -count=$(BENCH_COUNT) -benchmem $(BENCH_PKGS)
 
@@ -335,11 +335,11 @@ test-e2e-race: ## Run E2E tests with race detection
 
 test-load: ## Run load tests (spins up testcontainers)
 	@echo "Running load tests..."
-	@go test -tags load -v -timeout 30m -count=1 ./load-test/...
+	@go test -tags load -v -timeout $(TEST_LOAD_TIMEOUT) -count=1 ./load-test/...
 
 test-load-short: ## Run load tests excluding the soak test
 	@echo "Running load tests (short)..."
-	@go test -tags load -v -short -timeout 10m -count=1 ./load-test/...
+	@go test -tags load -v -short -timeout $(TEST_LOAD_SHORT_TIMEOUT) -count=1 ./load-test/...
 
 test-load-race: ## Run load tests with race detection (slower)
 	@echo "Running load tests (race)..."
@@ -347,13 +347,13 @@ test-load-race: ## Run load tests with race detection (slower)
 
 test-load-report: ## Run load tests (short mode) and write JSON reports to load-test/reports/
 	@echo "Running load tests with JSON reports (short)..."
-	@mkdir -p load-test/reports
-	@LOAD_TEST_REPORT_DIR=load-test/reports go test -tags load -v -short -timeout 15m -count=1 ./load-test/...
+	@mkdir -p "$(TEST_LOAD_REPORT_DIR)"
+	@LOAD_TEST_REPORT_DIR="$(TEST_LOAD_REPORT_DIR)" go test -tags load -v -short -timeout 15m -count=1 ./load-test/...
 
 test-load-report-full: ## Run full load tests including soak and write JSON reports
 	@echo "Running full load tests with JSON reports..."
-	@mkdir -p load-test/reports
-	@LOAD_TEST_REPORT_DIR=load-test/reports go test -tags load -v -timeout 45m -count=1 ./load-test/...
+	@mkdir -p "$(TEST_LOAD_REPORT_DIR)"
+	@LOAD_TEST_REPORT_DIR="$(TEST_LOAD_REPORT_DIR)" go test -tags load -v -timeout 45m -count=1 ./load-test/...
 
 test-usecase: ## Run all usecase tests with race
 	@echo "Running usecase tests (race)..."
