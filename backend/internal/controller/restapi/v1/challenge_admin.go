@@ -13,7 +13,7 @@ import (
 
 // (POST /admin/challenges/recalc-points).
 func (h *Server) PostAdminChallengesRecalcPoints(w http.ResponseWriter, r *http.Request) {
-	if err := h.challenge.ChallengeUC.RecalcAllDynamicPoints(r.Context()); h.OnError(w, r, err, "PostAdminChallengesRecalcPoints", "RecalcAllDynamicPoints") {
+	if err := h.challenge.AdminUC.RecalcAllDynamicPoints(r.Context()); h.OnError(w, r, err, "PostAdminChallengesRecalcPoints", "RecalcAllDynamicPoints") {
 		return
 	}
 
@@ -34,7 +34,7 @@ func (h *Server) PostAdminChallenges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	challenge, err := h.challenge.ChallengeUC.Create(r.Context(), params)
+	challenge, err := h.challenge.AdminUC.Create(r.Context(), params)
 	if h.OnError(w, r, err, "PostAdminChallenges", "Create") {
 		return
 	}
@@ -56,7 +56,7 @@ func (h *Server) DeleteAdminChallengesID(w http.ResponseWriter, r *http.Request,
 
 	clientIP := helper.ClientIP(r)
 
-	err := h.challenge.ChallengeUC.Delete(r.Context(), challengeIDParsed, user.ID, clientIP)
+	err := h.challenge.AdminUC.Delete(r.Context(), challengeIDParsed, user.ID, clientIP)
 	if h.OnError(w, r, err, "DeleteAdminChallengesID", "Delete") {
 		return
 	}
@@ -83,7 +83,7 @@ func (h *Server) PutAdminChallengesID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	challenge, err := h.challenge.ChallengeUC.Update(r.Context(), challengeIDParsed, params)
+	challenge, err := h.challenge.AdminUC.Update(r.Context(), challengeIDParsed, params)
 	if h.OnError(w, r, err, "PutAdminChallengesID", "Update") {
 		return
 	}
@@ -105,7 +105,7 @@ func (h *Server) PostAdminChallengesChallengeIDSolution(w http.ResponseWriter, r
 		return
 	}
 
-	solution, err := h.challenge.ChallengeUC.AdminUpsertSolution(r.Context(), challengeIDParsed, request.AdminUpsertSolutionRequestToParams(&req))
+	solution, err := h.challenge.AdminUC.AdminUpsertSolution(r.Context(), challengeIDParsed, request.AdminUpsertSolutionRequestToParams(&req))
 	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDSolution", "AdminUpsertSolution") {
 		return
 	}
@@ -125,7 +125,7 @@ func (h *Server) DeleteAdminChallengesChallengeIDSolution(w http.ResponseWriter,
 		return
 	}
 
-	err := h.challenge.ChallengeUC.AdminDeleteSolution(r.Context(), challengeIDParsed)
+	err := h.challenge.AdminUC.AdminDeleteSolution(r.Context(), challengeIDParsed)
 	if h.OnError(w, r, err, "DeleteAdminChallengesChallengeIDSolution", "AdminDeleteSolution") {
 		return
 	}
@@ -140,7 +140,7 @@ func (h *Server) GetAdminChallengesChallengeIDFlags(w http.ResponseWriter, r *ht
 		return
 	}
 
-	flags, err := h.challenge.ChallengeUC.GetFlags(r.Context(), challengeIDParsed)
+	flags, err := h.challenge.AdminUC.GetFlags(r.Context(), challengeIDParsed)
 	if h.OnError(w, r, err, "GetAdminChallengesChallengeIDFlags", "GetFlags") {
 		return
 	}
@@ -167,7 +167,7 @@ func (h *Server) PutAdminChallengesChallengeIDRequirements(w http.ResponseWriter
 		return
 	}
 
-	err = h.challenge.ChallengeUC.SetRequirements(r.Context(), challengeIDParsed, requirementIDs)
+	err = h.challenge.AdminUC.SetRequirements(r.Context(), challengeIDParsed, requirementIDs)
 	if h.OnError(w, r, err, "PutAdminChallengesChallengeIDRequirements", "SetRequirements") {
 		return
 	}

@@ -31,7 +31,7 @@ func (h *Server) PostAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, ID 
 	}
 
 	reason, banMembers := request.BanTeamRequestToParams(&req)
-	if h.OnError(w, r, h.team.TeamUC.BanTeam(r.Context(), teamIDParsed, reason, banMembers, user.ID), "PostAdminTeamsIDBan", "BanTeam") {
+	if h.OnError(w, r, h.team.AdminUC.BanTeam(r.Context(), teamIDParsed, reason, banMembers, user.ID), "PostAdminTeamsIDBan", "BanTeam") {
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *Server) DeleteAdminTeamsIDBan(w http.ResponseWriter, r *http.Request, I
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.UnbanTeam(r.Context(), teamIDParsed, user.ID), "DeleteAdminTeamsIDBan", "UnbanTeam") {
+	if h.OnError(w, r, h.team.AdminUC.UnbanTeam(r.Context(), teamIDParsed, user.ID), "DeleteAdminTeamsIDBan", "UnbanTeam") {
 		return
 	}
 
@@ -76,7 +76,7 @@ func (h *Server) PatchAdminTeamsIDHidden(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.SetHidden(r.Context(), teamIDParsed, *hidden), "PatchAdminTeamsIDHidden", "SetHidden") {
+	if h.OnError(w, r, h.team.AdminUC.SetHidden(r.Context(), teamIDParsed, *hidden), "PatchAdminTeamsIDHidden", "SetHidden") {
 		return
 	}
 
@@ -92,7 +92,7 @@ func (h *Server) GetAdminTeams(w http.ResponseWriter, r *http.Request, params op
 
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
-	result, err := h.team.TeamUC.AdminListTeams(r.Context(), searchQ, page, perPage)
+	result, err := h.team.AdminUC.AdminListTeams(r.Context(), searchQ, page, perPage)
 	if h.OnError(w, r, err, "GetAdminTeams", "AdminListTeams") {
 		return
 	}
@@ -119,12 +119,12 @@ func (h *Server) PatchAdminTeamsID(w http.ResponseWriter, r *http.Request, ID st
 		return
 	}
 
-	team, err := h.team.TeamUC.AdminUpdate(r.Context(), teamIDParsed, name, captainID, bracketID, isHidden)
+	team, err := h.team.AdminUC.AdminUpdate(r.Context(), teamIDParsed, name, captainID, bracketID, isHidden)
 	if h.OnError(w, r, err, "PatchAdminTeamsID", "AdminUpdate") {
 		return
 	}
 
-	members, err := h.team.TeamUC.AdminGetMembers(r.Context(), teamIDParsed)
+	members, err := h.team.AdminUC.AdminGetMembers(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "PatchAdminTeamsID", "AdminGetMembers") {
 		return
 	}
@@ -139,7 +139,7 @@ func (h *Server) DeleteAdminTeamsID(w http.ResponseWriter, r *http.Request, ID s
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.AdminDelete(r.Context(), teamIDParsed), "DeleteAdminTeamsID", "AdminDelete") {
+	if h.OnError(w, r, h.team.AdminUC.AdminDelete(r.Context(), teamIDParsed), "DeleteAdminTeamsID", "AdminDelete") {
 		return
 	}
 
@@ -153,7 +153,7 @@ func (h *Server) GetAdminTeamsIDMembers(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	members, err := h.team.TeamUC.AdminGetMembers(r.Context(), teamIDParsed)
+	members, err := h.team.AdminUC.AdminGetMembers(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetAdminTeamsIDMembers", "AdminGetMembers") {
 		return
 	}
@@ -168,7 +168,7 @@ func (h *Server) GetAdminTeamsIDMissingChallenges(w http.ResponseWriter, r *http
 		return
 	}
 
-	challenges, err := h.challenge.ChallengeUC.GetMissingChallengesByTeamID(r.Context(), teamIDParsed)
+	challenges, err := h.challenge.AdminUC.GetMissingChallengesByTeamID(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetAdminTeamsIDMissingChallenges", "GetMissingChallengesByTeamID") {
 		return
 	}
@@ -195,7 +195,7 @@ func (h *Server) PostAdminTeamsIDMembers(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.AdminAddMember(r.Context(), teamIDParsed, userID), "PostAdminTeamsIDMembers", "AdminAddMember") {
+	if h.OnError(w, r, h.team.AdminUC.AdminAddMember(r.Context(), teamIDParsed, userID), "PostAdminTeamsIDMembers", "AdminAddMember") {
 		return
 	}
 
@@ -214,7 +214,7 @@ func (h *Server) DeleteAdminTeamsIDMembersUserID(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.AdminRemoveMember(r.Context(), teamIDParsed, memberIDParsed), "DeleteAdminTeamsIDMembersUserID", "AdminRemoveMember") {
+	if h.OnError(w, r, h.team.AdminUC.AdminRemoveMember(r.Context(), teamIDParsed, memberIDParsed), "DeleteAdminTeamsIDMembersUserID", "AdminRemoveMember") {
 		return
 	}
 

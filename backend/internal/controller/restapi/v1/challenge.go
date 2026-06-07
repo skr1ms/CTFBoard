@@ -45,7 +45,7 @@ func (h *Server) GetChallenges(w http.ResponseWriter, r *http.Request, params op
 		}
 	}
 
-	challenges, err := h.challenge.ChallengeUC.GetAll(r.Context(), user.TeamID, tagID)
+	challenges, err := h.challenge.ReadUC.GetAll(r.Context(), user.TeamID, tagID)
 	if h.OnError(w, r, err, "GetChallenges", "GetAll") {
 		return
 	}
@@ -78,7 +78,7 @@ func (h *Server) PostChallengesChallengeIDSubmit(w http.ResponseWriter, r *http.
 	}
 
 	clientIP := helper.ClientIP(r)
-	valid, submitErr := h.challenge.ChallengeUC.SubmitFlag(r.Context(), request.ChallengeSubmitParams(challengeIDParsed, flag, user.ID, user.TeamID, clientIP))
+	valid, submitErr := h.challenge.SubmitUC.SubmitFlag(r.Context(), request.ChallengeSubmitParams(challengeIDParsed, flag, user.ID, user.TeamID, clientIP))
 
 	if h.OnError(w, r, submitErr, "PostChallengesChallengeIDSubmit", "SubmitFlag") {
 		return
@@ -111,7 +111,7 @@ func (h *Server) GetChallengesChallengeID(w http.ResponseWriter, r *http.Request
 		teamID = user.TeamID
 	}
 
-	detail, err := h.challenge.ChallengeUC.GetDetail(r.Context(), challengeIDParsed, teamID)
+	detail, err := h.challenge.ReadUC.GetDetail(r.Context(), challengeIDParsed, teamID)
 	if h.OnError(w, r, err, "GetChallengesChallengeID", "GetDetail") {
 		return
 	}
@@ -128,7 +128,7 @@ func (h *Server) GetChallengesChallengeIDSolves(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	solves, err := h.challenge.ChallengeUC.GetSolves(r.Context(), challengeIDParsed)
+	solves, err := h.challenge.ReadUC.GetSolves(r.Context(), challengeIDParsed)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDSolves", "GetSolves") {
 		return
 	}
@@ -153,7 +153,7 @@ func (h *Server) GetChallengesChallengeIDTags(w http.ResponseWriter, r *http.Req
 
 // (GET /challenges/types).
 func (h *Server) GetChallengesTypes(w http.ResponseWriter, r *http.Request) {
-	types, err := h.challenge.ChallengeUC.GetTypes(r.Context())
+	types, err := h.challenge.ReadUC.GetTypes(r.Context())
 	if h.OnError(w, r, err, "GetChallengesTypes", "GetTypes") {
 		return
 	}
@@ -169,7 +169,7 @@ func (h *Server) GetChallengesChallengeIDRequirements(w http.ResponseWriter, r *
 		return
 	}
 
-	requirements, err := h.challenge.ChallengeUC.GetRequirements(r.Context(), challengeIDParsed)
+	requirements, err := h.challenge.ReadUC.GetRequirements(r.Context(), challengeIDParsed)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDRequirements", "GetRequirements") {
 		return
 	}

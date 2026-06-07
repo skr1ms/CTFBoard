@@ -17,7 +17,7 @@ func (h *Server) GetTeamsMy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, members, minTeamSize, meetsMinSize, err := h.team.TeamUC.GetMyTeam(r.Context(), user.ID)
+	team, members, minTeamSize, meetsMinSize, err := h.team.SelfUC.GetMyTeam(r.Context(), user.ID)
 	if h.OnError(w, r, err, "GetTeamsMy", "GetMyTeam") {
 		return
 	}
@@ -42,7 +42,7 @@ func (h *Server) GetTeamsMeSolves(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	solves, err := h.team.TeamUC.GetTeamSolves(r.Context(), teamID)
+	solves, err := h.team.ReadUC.GetTeamSolves(r.Context(), teamID)
 	if h.OnError(w, r, err, "GetTeamsMeSolves", "GetTeamSolves") {
 		return
 	}
@@ -64,7 +64,7 @@ func (h *Server) GetTeamsMeFails(w http.ResponseWriter, r *http.Request, params 
 
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
-	fails, err := h.team.TeamUC.GetTeamFails(r.Context(), teamID, page, perPage)
+	fails, err := h.team.ReadUC.GetTeamFails(r.Context(), teamID, page, perPage)
 	if h.OnError(w, r, err, "GetTeamsMeFails", "GetTeamFails") {
 		return
 	}
@@ -84,7 +84,7 @@ func (h *Server) GetTeamsMeAwards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	awards, err := h.team.TeamUC.GetTeamAwards(r.Context(), teamID)
+	awards, err := h.team.ReadUC.GetTeamAwards(r.Context(), teamID)
 	if h.OnError(w, r, err, "GetTeamsMeAwards", "GetTeamAwards") {
 		return
 	}

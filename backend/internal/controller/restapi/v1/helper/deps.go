@@ -17,16 +17,20 @@ import (
 type SetupUseCase = usecase.SetupUseCase
 
 type ChallengeDeps struct {
-	ChallengeUC usecase.ChallengeUseCase
-	HintUC      usecase.HintUseCase
-	FileUC      usecase.FileUseCase
-	TagUC       usecase.TagUseCase
-	CommentUC   usecase.CommentUseCase
-	RatingUC    usecase.RatingUseCase
+	ReadUC    usecase.ChallengeReadUseCase
+	SubmitUC  usecase.ChallengeSubmitUseCase
+	AdminUC   usecase.ChallengeAdminUseCase
+	HintUC    usecase.HintUseCase
+	FileUC    usecase.FileUseCase
+	TagUC     usecase.TagUseCase
+	CommentUC usecase.CommentUseCase
+	RatingUC  usecase.RatingUseCase
 }
 
 type TeamDeps struct {
-	TeamUC  usecase.TeamUseCase
+	ReadUC  usecase.TeamReadUseCase
+	SelfUC  usecase.TeamSelfUseCase
+	AdminUC usecase.TeamAdminUseCase
 	AwardUC usecase.AwardUseCase
 }
 

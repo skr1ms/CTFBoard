@@ -12,7 +12,7 @@ import (
 )
 
 func (h *Server) requirePublicTeamStatsVisible(w http.ResponseWriter, r *http.Request, teamID uuid.UUID, op string) bool {
-	team, err := h.team.TeamUC.GetByID(r.Context(), teamID)
+	team, err := h.team.ReadUC.GetByID(r.Context(), teamID)
 	if h.OnError(w, r, err, op, "GetByID") {
 		return false
 	}
@@ -39,7 +39,7 @@ func (h *Server) GetTeamsID(w http.ResponseWriter, r *http.Request, ID string) {
 		return
 	}
 
-	team, err := h.team.TeamUC.GetByID(r.Context(), teamIDParsed)
+	team, err := h.team.ReadUC.GetByID(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetTeamsID", "GetByID") {
 		return
 	}
@@ -62,7 +62,7 @@ func (h *Server) GetTeams(w http.ResponseWriter, r *http.Request, params openapi
 
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
-	result, err := h.team.TeamUC.ListTeams(r.Context(), search, page, perPage)
+	result, err := h.team.ReadUC.ListTeams(r.Context(), search, page, perPage)
 	if h.OnError(w, r, err, "GetTeams", "ListTeams") {
 		return
 	}
@@ -81,7 +81,7 @@ func (h *Server) GetTeamsIDSolves(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	solves, err := h.team.TeamUC.GetTeamSolves(r.Context(), teamIDParsed)
+	solves, err := h.team.ReadUC.GetTeamSolves(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetTeamsIDSolves", "GetTeamSolves") {
 		return
 	}
@@ -102,7 +102,7 @@ func (h *Server) GetTeamsIDFails(w http.ResponseWriter, r *http.Request, ID stri
 
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
-	fails, err := h.team.TeamUC.GetTeamFails(r.Context(), teamIDParsed, page, perPage)
+	fails, err := h.team.ReadUC.GetTeamFails(r.Context(), teamIDParsed, page, perPage)
 	if h.OnError(w, r, err, "GetTeamsIDFails", "GetTeamFails") {
 		return
 	}
@@ -121,7 +121,7 @@ func (h *Server) GetTeamsIDAwards(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	awards, err := h.team.TeamUC.GetTeamAwards(r.Context(), teamIDParsed)
+	awards, err := h.team.ReadUC.GetTeamAwards(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "GetTeamsIDAwards", "GetTeamAwards") {
 		return
 	}

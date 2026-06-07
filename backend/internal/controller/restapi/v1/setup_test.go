@@ -15,7 +15,7 @@ func validSetupRequest() openapi.SetupRequest {
 
 	return openapi.SetupRequest{
 		CtfName:                "Astro CTF",
-		Mode:                   openapi.Flexible,
+		Mode:                   openapi.SetupRequestModeTeamsOnly,
 		ChallengeVisibility:    openapi.SetupRequestChallengeVisibilityPrivate,
 		ScoreVisibility:        openapi.SetupRequestScoreVisibilityPublic,
 		AccountVisibility:      openapi.SetupRequestAccountVisibilityPublic,
@@ -51,6 +51,15 @@ func TestSetupRequestValidation_ValidVisibility(t *testing.T) {
 	req := validSetupRequest()
 
 	assert.NoError(t, validateSetupRequest(t, req))
+}
+
+func TestSetupRequestValidation_FlexibleModeRejected(t *testing.T) {
+	t.Parallel()
+
+	req := validSetupRequest()
+	req.Mode = "flexible"
+
+	assert.Error(t, validateSetupRequest(t, req))
 }
 
 func TestSetupRequestValidation_ScoreVisibilityAdminsOnly(t *testing.T) {

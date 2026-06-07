@@ -17,6 +17,7 @@ func FromTeam(t *domain.Team) openapi.TeamResponse {
 		InviteToken: new(t.InviteToken.String()),
 		CaptainID:   new(t.CaptainID.String()),
 		CreatedAt:   timePtr(&t.CreatedAt),
+		IsSolo:      new(t.IsSolo),
 		AvatarURL:   t.AvatarURL,
 	}
 }
@@ -31,6 +32,7 @@ func FromTeamWithoutToken(t *domain.Team) openapi.TeamResponse {
 		Name:      new(t.Name),
 		CaptainID: new(t.CaptainID.String()),
 		CreatedAt: timePtr(&t.CreatedAt),
+		IsSolo:    new(t.IsSolo),
 		AvatarURL: t.AvatarURL,
 	}
 }
@@ -53,6 +55,7 @@ func FromTeamWithMembers(t *domain.Team, members []*domain.User, minTeamSize int
 		InviteToken:  new(t.InviteToken.String()),
 		CaptainID:    new(t.CaptainID.String()),
 		CreatedAt:    timePtr(&t.CreatedAt),
+		IsSolo:       new(t.IsSolo),
 		Members:      &memberResponses,
 		IsBanned:     new(t.IsBanned),
 		MinTeamSize:  new(minTeamSize),

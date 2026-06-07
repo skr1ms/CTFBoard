@@ -1,7 +1,17 @@
 /scoreboard:
   get:
     operationId: GetScoreboard
-    description: Returns current scoreboard state sorted by points descending. Optional bracket (category ID) filters by team category. When competition is frozen, returns frozen view unless live=true and requester is admin. Requires authentication (scoreboard visibility applies).
+    description: |
+      Returns current scoreboard state. Score is accepted solve `points_at_solve`
+      plus active awards for each team. Public rows exclude banned, hidden, and
+      deleted teams; solves and awards soft-banned for moderation are also
+      excluded. Rows are ordered by points descending, last counted solve time
+      ascending, then team ID ascending. Teams without counted solves sort after
+      teams with counted solves at the same score. Award timestamps only affect
+      freeze inclusion; awards do not participate in the tie-break timestamp.
+      Optional bracket (category ID) filters by team category. When competition
+      is frozen, returns the frozen view unless live=true and requester is admin.
+      Requires authentication (scoreboard visibility applies).
     parameters:
       - name: bracket
         in: query

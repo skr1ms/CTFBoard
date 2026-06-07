@@ -26,11 +26,11 @@ func (h *Server) GetChallengesSolutions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if _, ok := helper.RequireUnbannedTeam(w, r, h.team.TeamUC, *user.TeamID, h.OnError, "GetChallengesSolutions"); !ok {
+	if _, ok := helper.RequireUnbannedTeam(w, r, h.team.ReadUC, *user.TeamID, h.OnError, "GetChallengesSolutions"); !ok {
 		return
 	}
 
-	entries, err := h.challenge.ChallengeUC.ListSolutions(r.Context(), *user.TeamID)
+	entries, err := h.challenge.ReadUC.ListSolutions(r.Context(), *user.TeamID)
 	if h.OnError(w, r, err, "GetChallengesSolutions", "ListSolutions") {
 		return
 	}
@@ -59,11 +59,11 @@ func (h *Server) GetChallengesChallengeIDSolution(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !helper.CheckOptionalTeamBan(w, r, h.team.TeamUC, user.TeamID, h.OnError, "GetChallengesChallengeIDSolution") {
+	if !helper.CheckOptionalTeamBan(w, r, h.team.ReadUC, user.TeamID, h.OnError, "GetChallengesChallengeIDSolution") {
 		return
 	}
 
-	solution, err := h.challenge.ChallengeUC.GetSolution(r.Context(), challengeIDParsed, user.TeamID)
+	solution, err := h.challenge.ReadUC.GetSolution(r.Context(), challengeIDParsed, user.TeamID)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDSolution", "GetSolution") {
 		return
 	}

@@ -115,7 +115,12 @@
 /challenges/{challengeID}/submit:
   post:
     operationId: PostChallengesChallengeIDSubmit
-    description: "Verifies flag for challenge. Rate limit: 5 attempts per minute"
+    description: |
+      Verifies the submitted flag against the challenge's single answer definition.
+      The answer is either a fixed flag hash or an encrypted regex flag. The v1
+      answer model has no multi-flag groups or partial submission state: a
+      submission is correct or incorrect, while ratelimited/discarded attempts
+      remain audit/status records. Rate limit: 5 attempts per minute.
     parameters:
       - description: Challenge ID
         in: path
@@ -756,7 +761,7 @@
 "/admin/challenges/{challengeID}/flags":
   get:
     operationId: GetAdminChallengesChallengeIDFlags
-    description: Returns flags for a challenge. Admin only.
+    description: Returns the challenge's single answer configuration for admin verification. Fixed flags are returned as hashes, regex flags as regex metadata; plaintext flags are never exposed. Admin only.
     parameters:
       - description: Challenge ID
         in: path
@@ -855,7 +860,7 @@
 /admin/challenges:
   post:
     operationId: PostAdminChallenges
-    description: Creates new challenge. Admin only
+    description: Creates a new challenge with one v1 answer definition, either a fixed flag or a regex flag. Multi-flag groups and partial submissions are not part of the v1 answer model. Admin only.
     requestBody:
       content:
         application/json:
@@ -897,7 +902,7 @@
 "/admin/challenges/{ID}":
   put:
     operationId: PutAdminChallengesID
-    description: Updates challenge data. Admin only
+    description: Updates challenge data and its single v1 answer definition. Multi-flag groups and partial submissions are not part of the v1 answer model. Admin only.
     parameters:
       - name: ID
         in: path

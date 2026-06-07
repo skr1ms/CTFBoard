@@ -89,15 +89,19 @@ func ProvideServerDeps(
 
 	return &helper.ServerDeps{
 		Challenge: helper.ChallengeDeps{
-			ChallengeUC: challengeUC,
-			HintUC:      hintUC,
-			FileUC:      fileUC,
-			TagUC:       tagUC,
-			CommentUC:   commentUC,
-			RatingUC:    ratingUC,
+			ReadUC:    challengeUC,
+			SubmitUC:  challengeUC,
+			AdminUC:   challengeUC,
+			HintUC:    hintUC,
+			FileUC:    fileUC,
+			TagUC:     tagUC,
+			CommentUC: commentUC,
+			RatingUC:  ratingUC,
 		},
 		Team: helper.TeamDeps{
-			TeamUC:  teamUC,
+			ReadUC:  teamUC,
+			SelfUC:  teamUC,
+			AdminUC: teamUC,
 			AwardUC: awardUC,
 		},
 		User: helper.UserDeps{

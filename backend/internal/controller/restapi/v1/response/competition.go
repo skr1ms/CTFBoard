@@ -6,6 +6,8 @@ import (
 )
 
 func FromCompetition(c *domain.Competition) openapi.CompetitionResponse {
+	mode := openapi.CompetitionResponseMode(c.Mode)
+
 	return openapi.CompetitionResponse{
 		ID:                           new(c.ID),
 		Name:                         new(c.Name),
@@ -17,7 +19,7 @@ func FromCompetition(c *domain.Competition) openapi.CompetitionResponse {
 		IsPublic:                     new(c.IsPublic),
 		KeepScoreboardFrozenAfterEnd: new(c.KeepScoreboardFrozenAfterEnd),
 		Status:                       new(string(c.GetStatus())),
-		Mode:                         new(string(c.Mode)),
+		Mode:                         &mode,
 		AllowTeamSwitch:              new(c.AllowTeamSwitch),
 		MinTeamSize:                  new(c.MinTeamSize),
 		MaxTeamSize:                  new(c.MaxTeamSize),
@@ -26,15 +28,20 @@ func FromCompetition(c *domain.Competition) openapi.CompetitionResponse {
 }
 
 func FromCompetitionStatus(c *domain.Competition) openapi.CompetitionStatusResponse {
+	mode := openapi.CompetitionStatusResponseMode(c.Mode)
+
 	return openapi.CompetitionStatusResponse{
 		Status:                       new(string(c.GetStatus())),
 		Name:                         new(c.Name),
-		Mode:                         new(string(c.Mode)),
+		Mode:                         &mode,
 		StartTime:                    timePtr(c.StartTime),
 		EndTime:                      timePtr(c.EndTime),
 		FreezeTime:                   timePtr(c.FreezeTime),
 		PausedAt:                     timePtr(c.PausedAt),
 		KeepScoreboardFrozenAfterEnd: new(c.KeepScoreboardFrozenAfterEnd),
+		AllowTeamSwitch:              new(c.AllowTeamSwitch),
+		MinTeamSize:                  new(c.MinTeamSize),
+		MaxTeamSize:                  new(c.MaxTeamSize),
 		SubmissionAllowed:            new(c.IsSubmissionAllowed()),
 	}
 }

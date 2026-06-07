@@ -118,11 +118,11 @@ func (h *Server) PatchAdminTeamsIDBracket(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.SetBracket(r.Context(), teamIDParsed, bracketID), "PatchAdminTeamsIDBracket", "SetBracket") {
+	if h.OnError(w, r, h.team.AdminUC.SetBracket(r.Context(), teamIDParsed, bracketID), "PatchAdminTeamsIDBracket", "SetBracket") {
 		return
 	}
 
-	team, err := h.team.TeamUC.GetByID(r.Context(), teamIDParsed)
+	team, err := h.team.ReadUC.GetByID(r.Context(), teamIDParsed)
 	if h.OnError(w, r, err, "PatchAdminTeamsIDBracket", "GetByID") {
 		return
 	}

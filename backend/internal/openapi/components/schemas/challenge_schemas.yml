@@ -102,6 +102,7 @@ schemas:
         x-oapi-codegen-extra-tags:
           validate: "required,challenge_description"
       flag:
+        description: Single v1 answer for the challenge. When `is_regex` is false this value is hashed; when `is_regex` is true this value is stored as encrypted regex material.
         example: CTF{flag_here}
         type: string
         x-oapi-codegen-extra-tags:
@@ -180,6 +181,7 @@ schemas:
         x-oapi-codegen-extra-tags:
           validate: "required,challenge_description"
       flag:
+        description: Single v1 answer for the challenge. When `is_regex` is false this value is hashed; when `is_regex` is true this value is stored as encrypted regex material.
         example: CTF{new_flag}
         type: string
         x-oapi-codegen-extra-tags:
@@ -266,6 +268,7 @@ schemas:
   request.SubmitFlagRequest:
     properties:
       flag:
+        description: Submitted candidate for the challenge's single v1 answer. Partial submissions and multi-flag groups are not supported in v1.
         example: CTF{flag_here}
         maxLength: 200
         type: string
@@ -606,7 +609,7 @@ schemas:
   response.ChallengeFlagsResponse:
     properties:
       flags:
-        description: Hashes of challenge flags (not plaintext); used for admin verification
+        description: Hashes of the challenge's single fixed flag answer, when the challenge is not regex-based; plaintext flags are not returned
         items:
           type: string
         type: array
@@ -623,8 +626,10 @@ schemas:
   response.SubmitFlagResponse:
     properties:
       correct:
+        description: True only when the submitted flag completes the challenge answer; v1 has no partial state.
         type: boolean
       message:
+        description: Human-readable submit outcome.
         type: string
     required:
       - correct

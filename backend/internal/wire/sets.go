@@ -10,6 +10,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cleanup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/email"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
@@ -168,5 +169,5 @@ var CleanupSet = wire.NewSet(
 	wire.Bind(new(repo.TeamRepository), new(*persistent.TeamRepo)),
 	wire.Bind(new(repo.FileRepository), new(*persistent.FileRepo)),
 	wire.Bind(new(repo.TrackingRepository), new(*persistent.TrackingRepo)),
-	wire.Bind(new(usecase.Cleaner), new(*usecase.CleanupUseCase)),
+	wire.Bind(new(usecase.Cleaner), new(*cleanup.CleanupUseCase)),
 )

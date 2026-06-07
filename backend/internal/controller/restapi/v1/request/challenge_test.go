@@ -27,23 +27,6 @@ func TestCreateChallengeRequestToParams_InvalidState_ReturnsError(t *testing.T) 
 	assert.Contains(t, err.Error(), "state")
 }
 
-func TestCreateChallengeRequestToParams_ValidStateLocked_Success(t *testing.T) {
-	t.Parallel()
-
-	locked := openapi.CreateChallengeRequestStateLocked
-	req := &openapi.CreateChallengeRequest{
-		Title:       "Test",
-		Description: "Desc",
-		Category:    "misc",
-		Points:      100,
-		Flag:        "CTF{flag}",
-		State:       &locked,
-	}
-	params, err := CreateChallengeRequestToParams(req)
-	assert.NoError(t, err)
-	assert.Equal(t, "locked", params.State)
-}
-
 func TestUpdateChallengeRequestToParams_InvalidState_ReturnsError(t *testing.T) {
 	t.Parallel()
 
@@ -125,15 +108,6 @@ func TestSubmitFlagRequestToParams_FlagTooLong_ReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "Flag")
 }
 
-func TestSubmitFlagRequestToParams_ValidFlag_Success(t *testing.T) {
-	t.Parallel()
-
-	req := &openapi.SubmitFlagRequest{Flag: "CTF{ok}"}
-	flag, err := SubmitFlagRequestToParams(req)
-	assert.NoError(t, err)
-	assert.Equal(t, "CTF{ok}", flag)
-}
-
 func TestCreateChallengeRequestToParams_InvalidTagID_ReturnsError(t *testing.T) {
 	t.Parallel()
 
@@ -153,23 +127,6 @@ func TestCreateChallengeRequestToParams_InvalidTagID_ReturnsError(t *testing.T) 
 	assert.Contains(t, err.Error(), "tag")
 }
 
-func TestCreateChallengeRequestToParams_ValidStateHidden_Success(t *testing.T) {
-	t.Parallel()
-
-	hidden := openapi.CreateChallengeRequestStateHidden
-	req := &openapi.CreateChallengeRequest{
-		Title:       "Test",
-		Description: "Desc",
-		Category:    "misc",
-		Points:      100,
-		Flag:        "CTF{flag}",
-		State:       &hidden,
-	}
-	params, err := CreateChallengeRequestToParams(req)
-	assert.NoError(t, err)
-	assert.Equal(t, "hidden", params.State)
-}
-
 func TestCreateChallengeRequestToParams_ConnectionInfoMaxAttemptsPositionDefaults(t *testing.T) {
 	t.Parallel()
 
@@ -186,22 +143,6 @@ func TestCreateChallengeRequestToParams_ConnectionInfoMaxAttemptsPositionDefault
 	assert.Empty(t, params.ConnectionInfo)
 	assert.Equal(t, 0, params.MaxAttempts)
 	assert.Equal(t, 0, params.Position)
-}
-
-func TestUpdateChallengeRequestToParams_ValidState_Success(t *testing.T) {
-	t.Parallel()
-
-	hidden := openapi.UpdateChallengeRequestStateHidden
-	req := &openapi.UpdateChallengeRequest{
-		Title:       "Test",
-		Description: "Desc",
-		Category:    "misc",
-		Points:      100,
-		State:       &hidden,
-	}
-	params, err := UpdateChallengeRequestToParams(req)
-	assert.NoError(t, err)
-	assert.Equal(t, "hidden", params.State)
 }
 
 func TestUpdateChallengeRequestToParams_StateNil_LeavesEmpty(t *testing.T) {

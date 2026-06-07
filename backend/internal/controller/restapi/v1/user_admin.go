@@ -174,7 +174,7 @@ func (h *Server) GetAdminUsersIDMissingChallenges(w http.ResponseWriter, r *http
 		return
 	}
 
-	challenges, err := h.challenge.ChallengeUC.GetMissingChallengesByUserID(r.Context(), userIDParsed)
+	challenges, err := h.challenge.AdminUC.GetMissingChallengesByUserID(r.Context(), userIDParsed)
 	if h.OnError(w, r, err, "GetAdminUsersIDMissingChallenges", "GetMissingChallengesByUserID") {
 		return
 	}

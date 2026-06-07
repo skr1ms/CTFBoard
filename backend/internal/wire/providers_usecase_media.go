@@ -10,9 +10,9 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/avatar"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cleanup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/storageadmin"
 )
 
@@ -47,8 +47,8 @@ func ProvideCleanupUseCase(
 	fileRepo repo.FileRepository,
 	trackingRepo repo.TrackingRepository,
 	storageProvider storage.Provider,
-) *usecase.CleanupUseCase {
-	return usecase.NewCleanupUseCase(usecase.CleanupDeps{
+) *cleanup.CleanupUseCase {
+	return cleanup.NewCleanupUseCase(cleanup.CleanupDeps{
 		UserRepo:     userRepo,
 		TeamRepo:     teamRepo,
 		FileRepo:     fileRepo,

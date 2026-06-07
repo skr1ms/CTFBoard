@@ -82,32 +82,49 @@ type (
 		ClientIP    string
 	}
 
-	// ChallengeUseCase handles challenge CRUD, flag submission, solve management, and scoreboard cache.
-	ChallengeUseCase interface {
+	// ChallengeReadUseCase exposes participant-facing challenge reads.
+	ChallengeReadUseCase interface {
 		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*ChallengeWithTags, error)
 		GetByID(ctx context.Context, challengeID uuid.UUID) (*domain.Challenge, error)
 		GetDetail(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) (*ChallengeDetail, error)
 		GetSolves(ctx context.Context, challengeID uuid.UUID) ([]*domain.SolveWithDetails, error)
 		GetTags(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error)
 		GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error)
-		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
 		GetSolution(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) (*domain.ChallengeSolution, error)
 		ListSolutions(ctx context.Context, teamID uuid.UUID) ([]*domain.ChallengeSolutionEntry, error)
+		GetTypes(ctx context.Context) ([]string, error)
+	}
+
+	// ChallengeSubmitUseCase exposes flag submission.
+	ChallengeSubmitUseCase interface {
+		SubmitFlag(ctx context.Context, params ChallengeSubmitParams) (bool, error)
+	}
+
+	// ChallengeAdminUseCase exposes administrative challenge mutations and views.
+	ChallengeAdminUseCase interface {
+		GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error)
+		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
 		AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, content string) (*domain.ChallengeSolution, error)
 		AdminDeleteSolution(ctx context.Context, challengeID uuid.UUID) error
 		GetFlags(ctx context.Context, challengeID uuid.UUID) (*domain.ChallengeFlags, error)
-		GetTypes(ctx context.Context) ([]string, error)
 		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error)
 		GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Challenge, error)
 		Create(ctx context.Context, params ChallengeCreateParams) (*domain.Challenge, error)
 		Update(ctx context.Context, ID uuid.UUID, params ChallengeUpdateParams) (*domain.Challenge, error)
 		Delete(ctx context.Context, ID, actorID uuid.UUID, clientIP string) error
-		SubmitFlag(ctx context.Context, params ChallengeSubmitParams) (bool, error)
+		RecalcAllDynamicPoints(ctx context.Context) error
+	}
+
+	// ChallengeUseCase keeps the legacy aggregate contract for internal implementations.
+	ChallengeUseCase interface {
+		ChallengeReadUseCase
+		ChallengeSubmitUseCase
+		ChallengeAdminUseCase
+
 		InvalidateScoreboardCache(ctx context.Context)
 		InvalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID)
 		AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error
 		AdminDeleteSolve(ctx context.Context, teamID, challengeID uuid.UUID) error
-		RecalcAllDynamicPoints(ctx context.Context) error
 	}
 )
 

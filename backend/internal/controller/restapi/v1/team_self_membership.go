@@ -27,7 +27,7 @@ func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 
 	name, confirmReset := request.CreateTeamRequestToParams(&req)
 	if confirmReset {
-		team, err := h.team.TeamUC.ConfirmCreate(r.Context(), name, user.ID, false)
+		team, err := h.team.SelfUC.ConfirmCreate(r.Context(), name, user.ID, false)
 		if h.OnError(w, r, err, "PostTeams", "ConfirmCreate") {
 			return
 		}
@@ -37,7 +37,7 @@ func (h *Server) PostTeams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.team.TeamUC.TryCreate(r.Context(), name, user.ID, false)
+	result, err := h.team.SelfUC.TryCreate(r.Context(), name, user.ID, false)
 	if h.OnError(w, r, err, "PostTeams", "TryCreate") {
 		return
 	}
@@ -72,7 +72,7 @@ func (h *Server) PostTeamsJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.team.TeamUC.Join(r.Context(), inviteTokenID, user.ID, confirmReset)
+	team, err := h.team.SelfUC.Join(r.Context(), inviteTokenID, user.ID, confirmReset)
 	if h.OnError(w, r, err, "PostTeamsJoin", "Join") {
 		return
 	}
@@ -87,7 +87,7 @@ func (h *Server) PostTeamsLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.Leave(r.Context(), user.ID), "PostTeamsLeave", "Leave") {
+	if h.OnError(w, r, h.team.SelfUC.Leave(r.Context(), user.ID), "PostTeamsLeave", "Leave") {
 		return
 	}
 
@@ -101,7 +101,7 @@ func (h *Server) DeleteTeamsMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.DisbandTeam(r.Context(), user.ID), "DeleteTeamsMe", "DisbandTeam") {
+	if h.OnError(w, r, h.team.SelfUC.DisbandTeam(r.Context(), user.ID), "DeleteTeamsMe", "DisbandTeam") {
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *Server) PostTeamsSolo(w http.ResponseWriter, r *http.Request) {
 
 	confirmReset := request.CreateSoloTeamRequestToParams(&req)
 
-	team, err := h.team.TeamUC.CreateSoloTeam(r.Context(), user.ID, confirmReset)
+	team, err := h.team.SelfUC.CreateSoloTeam(r.Context(), user.ID, confirmReset)
 	if h.OnError(w, r, err, "PostTeamsSolo", "CreateSoloTeam") {
 		return
 	}

@@ -28,7 +28,7 @@ func setupProtectedRoutes(
 	notUserBanned func(http.Handler) http.Handler,
 	scoreboardVis func(http.Handler) http.Handler,
 ) {
-	notBanned := restapimiddleware.RequireTeamNotBanned(deps.Team.TeamUC, sharedCache)
+	notBanned := restapimiddleware.RequireTeamNotBanned(deps.Team.ReadUC, sharedCache)
 	setupConditionalPublicRoutes(router, deps, wrapper, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned)
 	setupBannedAccessibleRoutes(router, deps, wrapper, sharedCache, ipTracking)
 	setupBasicAuthRoutes(router, deps, wrapper, verifyEmails, rateLimitCache, sharedCache, ipTracking, notBanned, notUserBanned)

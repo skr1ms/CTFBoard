@@ -23,7 +23,7 @@ func (h *Server) DeleteTeamsMembersID(w http.ResponseWriter, r *http.Request, ID
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.KickMember(r.Context(), user.ID, memberIDParsed), "DeleteTeamsMembersID", "KickMember") {
+	if h.OnError(w, r, h.team.SelfUC.KickMember(r.Context(), user.ID, memberIDParsed), "DeleteTeamsMembersID", "KickMember") {
 		return
 	}
 
@@ -49,7 +49,7 @@ func (h *Server) PostTeamsTransferCaptain(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if h.OnError(w, r, h.team.TeamUC.TransferCaptain(r.Context(), user.ID, newCaptainID), "PostTeamsTransferCaptain", "TransferCaptain") {
+	if h.OnError(w, r, h.team.SelfUC.TransferCaptain(r.Context(), user.ID, newCaptainID), "PostTeamsTransferCaptain", "TransferCaptain") {
 		return
 	}
 
@@ -70,7 +70,7 @@ func (h *Server) PatchTeamsMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.team.TeamUC.UpdateMyTeam(r.Context(), user.ID, request.UpdateTeamRequestToParams(&req))
+	team, err := h.team.SelfUC.UpdateMyTeam(r.Context(), user.ID, request.UpdateTeamRequestToParams(&req))
 	if h.OnError(w, r, err, "PatchTeamsMe", "UpdateMyTeam") {
 		return
 	}
@@ -85,7 +85,7 @@ func (h *Server) GetTeamsMeInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.team.TeamUC.GetInviteToken(r.Context(), user.ID)
+	team, err := h.team.SelfUC.GetInviteToken(r.Context(), user.ID)
 	if h.OnError(w, r, err, "GetTeamsMeInvite", "GetInviteToken") {
 		return
 	}
@@ -100,7 +100,7 @@ func (h *Server) PostTeamsMeInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	team, err := h.team.TeamUC.RegenerateInviteToken(r.Context(), user.ID)
+	team, err := h.team.SelfUC.RegenerateInviteToken(r.Context(), user.ID)
 	if h.OnError(w, r, err, "PostTeamsMeInvite", "RegenerateInviteToken") {
 		return
 	}

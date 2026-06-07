@@ -94,7 +94,7 @@ func (h *Server) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, ID s
 	}
 
 	// File access control: banned teams cannot download
-	if !helper.CheckOptionalTeamBan(w, r, h.team.TeamUC, user.TeamID, h.OnError, "GetFilesIDDownload") {
+	if !helper.CheckOptionalTeamBan(w, r, h.team.ReadUC, user.TeamID, h.OnError, "GetFilesIDDownload") {
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *Server) downloadByPathAndToken(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	if !helper.CheckOptionalTeamBan(w, r, h.team.TeamUC, user.TeamID, h.OnError, "Download") {
+	if !helper.CheckOptionalTeamBan(w, r, h.team.ReadUC, user.TeamID, h.OnError, "Download") {
 		return
 	}
 
