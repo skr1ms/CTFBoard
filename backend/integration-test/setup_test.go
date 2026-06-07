@@ -176,7 +176,7 @@ func truncateTablesCtx(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 func seedCompetition(ctx context.Context, pool *pgxpool.Pool) error {
-	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time, mode, allow_team_switch) VALUES (1, 'CTF Competition', now() - INTERVAL '1 hour', now() + INTERVAL '24 hours', 'flexible', true) ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, mode = 'flexible', allow_team_switch = true, updated_at = NOW()`)
+	_, err := pool.Exec(ctx, `INSERT INTO competition (id, name, start_time, end_time, mode, allow_team_switch) VALUES (1, 'CTF Competition', now() - INTERVAL '1 hour', now() + INTERVAL '24 hours', 'teams_only', true) ON CONFLICT (id) DO UPDATE SET start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, mode = EXCLUDED.mode, allow_team_switch = true, updated_at = NOW()`)
 
 	return err
 }

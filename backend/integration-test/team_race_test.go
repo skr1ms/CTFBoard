@@ -15,12 +15,14 @@ import (
 )
 
 func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
-	t.Parallel()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
+
+	t.Cleanup(func() { f.ResetCompetition(t) })
+
 	ctx := context.Background()
 
-	_, err := f.Pool.Exec(ctx, "UPDATE competition SET allow_team_switch = true, mode = 'flexible' WHERE id = 1")
+	_, err := f.Pool.Exec(ctx, "UPDATE competition SET allow_team_switch = true, mode = 'teams_only' WHERE id = 1")
 	require.NoError(t, err)
 
 	guard := competition.NewGuard(f.CompetitionRepo)
@@ -96,12 +98,14 @@ func TestTeamUseCase_Create_Concurrent_DuplicateName(t *testing.T) {
 }
 
 func TestTeamUseCase_Join_Concurrent_MaxCapacity(t *testing.T) {
-	t.Parallel()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
+
+	t.Cleanup(func() { f.ResetCompetition(t) })
+
 	ctx := context.Background()
 
-	_, err := f.Pool.Exec(ctx, "UPDATE competition SET max_team_size = 2, allow_team_switch = true, mode = 'flexible' WHERE id = 1")
+	_, err := f.Pool.Exec(ctx, "UPDATE competition SET max_team_size = 2, allow_team_switch = true, mode = 'teams_only' WHERE id = 1")
 	require.NoError(t, err)
 
 	guard := competition.NewGuard(f.CompetitionRepo)

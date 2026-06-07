@@ -20,6 +20,8 @@ func TestSolveUseCase_Create_Concurrent_DuplicateSubmission(t *testing.T) {
 	t.Parallel()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
+	f.ResetCompetition(t)
+
 	ctx := context.Background()
 
 	db, redisClient := redismock.NewClientMock()
@@ -82,6 +84,8 @@ func TestSolveUseCase_Create_Concurrent_DynamicDecay(t *testing.T) {
 	t.Parallel()
 	pool := SetupTestPool(t)
 	f := NewTestFixture(pool.Pool)
+	f.ResetCompetition(t)
+
 	ctx := context.Background()
 
 	db, redisClient := redismock.NewClientMock()
