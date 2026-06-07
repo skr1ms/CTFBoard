@@ -14,7 +14,7 @@ func TestE2E_CompetitionStateBlocksAndRestoresSubmit(t *testing.T) {
 
 	admin := s.registerAdmin("state_admin")
 	player := s.registerUser("state_player")
-	s.createSoloTeam(&player)
+	s.createTeam(&player, "State team "+e2eUID("state_team"))
 	challengeID := s.createChallenge(admin, "State challenge "+e2eUID("state"), "flag{state_ok}", 100)
 
 	now := time.Now().UTC()
