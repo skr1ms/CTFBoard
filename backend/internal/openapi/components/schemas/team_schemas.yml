@@ -10,6 +10,8 @@ schemas:
       invite_token:
         type: string
         nullable: true
+      is_solo:
+        type: boolean
       name:
         type: string
       avatar_url:
@@ -26,6 +28,8 @@ schemas:
       invite_token:
         type: string
         nullable: true
+      is_solo:
+        type: boolean
       members:
         items:
           $ref: "#/schemas/response.UserResponse"
@@ -39,11 +43,11 @@ schemas:
       banned_reason:
         type: string
       min_team_size:
-        description: Minimum team size required to submit flags (0 means not enforced).
+        description: Minimum configured team size required to submit flags. Solo participants are exempt.
         type: integer
         minimum: 0
       meets_min_size:
-        description: True if the team has at least min_team_size members (or min is not set).
+        description: True if the non-solo team has at least min_team_size members. Solo participants are always eligible.
         type: boolean
       avatar_url:
         type: string

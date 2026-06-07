@@ -40,8 +40,8 @@ const (
 	CompetitionStatusEnded CompetitionStatus = "ended"
 )
 
-// CompetitionMode is a string-backed enum controlling who may participate
-// Valid values: solo_only, teams_only, flexible.
+// CompetitionMode is a string-backed enum controlling who may participate.
+// Valid values: solo_only, teams_only.
 type CompetitionMode string
 
 const (
@@ -49,14 +49,14 @@ const (
 	ModeSoloOnly CompetitionMode = "solo_only"
 	// ModeTeamsOnly restricts participation to teams only.
 	ModeTeamsOnly CompetitionMode = "teams_only"
-	// ModeFlexible allows both solo players and teams to compete.
-	ModeFlexible CompetitionMode = "flexible"
+	// DefaultCompetitionMode is the conservative default for serious CTF events.
+	DefaultCompetitionMode CompetitionMode = ModeTeamsOnly
 )
 
-// IsValid returns true if m is one of the three recognized competition modes.
+// IsValid returns true if m is one of the recognized competition modes.
 func (m CompetitionMode) IsValid() bool {
 	switch m {
-	case ModeSoloOnly, ModeTeamsOnly, ModeFlexible:
+	case ModeSoloOnly, ModeTeamsOnly:
 		return true
 	}
 
@@ -64,15 +64,13 @@ func (m CompetitionMode) IsValid() bool {
 }
 
 // AllowsSolo returns true if solo players may participate under this mode.
-// An unset (empty) mode is treated as ModeFlexible.
 func (m CompetitionMode) AllowsSolo() bool {
-	return m != ModeTeamsOnly
+	return m == ModeSoloOnly
 }
 
 // AllowsTeams returns true if teams may participate under this mode.
-// An unset (empty) mode is treated as ModeFlexible.
 func (m CompetitionMode) AllowsTeams() bool {
-	return m != ModeSoloOnly
+	return m == ModeTeamsOnly
 }
 
 // getStatusAt evaluates the competition state machine at an arbitrary point in

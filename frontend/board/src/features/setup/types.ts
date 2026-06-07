@@ -1,4 +1,4 @@
-export type CompetitionMode = 'teams_only' | 'solo_only' | 'flexible'
+export type CompetitionMode = 'teams_only' | 'solo_only'
 export type Visibility = 'public' | 'private' | 'hidden' | 'admins_only' | 'admins'
 
 export interface SetupFormData {

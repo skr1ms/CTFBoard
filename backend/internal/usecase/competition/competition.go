@@ -113,7 +113,7 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competiti
 		}
 
 		if comp.Mode != "" && !comp.Mode.IsValid() {
-			return apperr.NewValidationErrorf("invalid competition mode %q: must be solo_only, teams_only, or flexible", comp.Mode)
+			return apperr.NewValidationErrorf("invalid competition mode %q: must be solo_only or teams_only", comp.Mode)
 		}
 
 		if err := uc.validateActiveConstraints(comp, current, status); err != nil {
@@ -224,7 +224,7 @@ func (uc *CompetitionUseCase) mergeDefaults(comp, current *domain.Competition, o
 }
 
 // validateCompetitionFields validates scalar competition fields: name length,
-// optional flag_regex length, non-negative team sizes, and the constraint that
+// optional flag_regex length, positive team sizes, and the constraint that
 // min_team_size must not exceed max_team_size when both are set.
 func (uc *CompetitionUseCase) validateCompetitionFields(comp *domain.Competition) error {
 	if len(comp.Name) == 0 || len(comp.Name) > maxCompetitionNameLen {
@@ -235,15 +235,15 @@ func (uc *CompetitionUseCase) validateCompetitionFields(comp *domain.Competition
 		return apperr.NewValidationErrorf("flag_regex must be at most 500 characters")
 	}
 
-	if comp.MinTeamSize < 0 {
-		return apperr.NewValidationErrorf("min_team_size must be >= 0")
+	if comp.MinTeamSize < 1 {
+		return apperr.NewValidationErrorf("min_team_size must be >= 1")
 	}
 
-	if comp.MaxTeamSize < 0 {
-		return apperr.NewValidationErrorf("max_team_size must be >= 0")
+	if comp.MaxTeamSize < 1 {
+		return apperr.NewValidationErrorf("max_team_size must be >= 1")
 	}
 
-	if comp.MinTeamSize > 0 && comp.MaxTeamSize > 0 && comp.MinTeamSize > comp.MaxTeamSize {
+	if comp.MinTeamSize > comp.MaxTeamSize {
 		return apperr.NewValidationErrorf("min_team_size must be <= max_team_size")
 	}
 

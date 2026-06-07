@@ -1,3 +1,5 @@
+import { participantCopy } from '@/features/competition/participation'
+import { useCompetitionStatus } from '@/features/competition/useCompetitionStatus'
 import type { ScoreboardEntry } from '@/features/scoreboard/useScoreboard'
 import { useBrackets, useScoreboard, useScoreboardGraph } from '@/features/scoreboard/useScoreboard'
 import { avatarSrc } from '@/shared/lib/utils'
@@ -41,9 +43,10 @@ interface RowProps {
   entry: ScoreboardEntry
   rank: number
   onClick: () => void
+  unknownLabel: string
 }
 
-function ScoreboardRow({ entry, rank, onClick }: RowProps) {
+function ScoreboardRow({ entry, rank, onClick, unknownLabel }: RowProps) {
   const isTop3 = rank <= 3
 
   return (
@@ -61,7 +64,7 @@ function ScoreboardRow({ entry, rank, onClick }: RowProps) {
         <MedalOrRank rank={rank} />
       </td>
 
-      {/* Team */}
+      {/* Participant */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3 min-w-0">
           <Avatar
@@ -70,7 +73,7 @@ function ScoreboardRow({ entry, rank, onClick }: RowProps) {
             size="sm"
           />
           <span className="text-sm font-medium text-text-primary group-hover:text-cosmic-blue transition-colors truncate">
-            {entry.team_name ?? 'Unknown team'}
+            {entry.team_name ?? unknownLabel}
           </span>
         </div>
       </td>
@@ -189,9 +192,11 @@ export function ScoreboardPage() {
   const { data: entries, isLoading } = useScoreboard(selectedBracket ?? undefined)
   const { data: brackets } = useBrackets()
   const { data: graphData } = useScoreboardGraph(10)
+  const { data: compStatus } = useCompetitionStatus()
 
   const hasBrackets = (brackets?.length ?? 0) > 0
   const graphTeams = graphData?.teams ?? []
+  const labels = participantCopy(compStatus?.mode)
 
   return (
     <VisibilityGate configKey="score_visibility">
@@ -206,7 +211,7 @@ export function ScoreboardPage() {
           </h1>
           {!isLoading && entries && entries.length > 0 && (
             <span className="text-sm text-text-muted">
-              {entries.length} team{entries.length !== 1 ? 's' : ''}
+              {entries.length} {entries.length === 1 ? labels.singularLower : labels.pluralLower}
             </span>
           )}
         </div>
@@ -244,7 +249,7 @@ export function ScoreboardPage() {
                   #
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">
-                  Team
+                  {labels.singular}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-text-muted uppercase tracking-wide">
                   Score
@@ -260,7 +265,7 @@ export function ScoreboardPage() {
               ) : !entries || entries.length === 0 ? (
                 <tr>
                   <td colSpan={4}>
-                    <EmptyState message="No teams on the scoreboard yet." />
+                    <EmptyState message={`No ${labels.pluralLower} on the scoreboard yet.`} />
                   </td>
                 </tr>
               ) : (
@@ -269,6 +274,7 @@ export function ScoreboardPage() {
                     key={entry.team_id ?? i}
                     entry={entry}
                     rank={i + 1}
+                    unknownLabel={labels.unknown}
                     onClick={() => entry.team_id && navigate(`/teams/${entry.team_id}`)}
                   />
                 ))

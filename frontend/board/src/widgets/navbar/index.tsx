@@ -1,4 +1,9 @@
 import { type PublicConfigs, usePublicConfigs } from '@/features/auth/usePublicConfigs'
+import {
+  normalizeCompetitionMode,
+  participantCopy,
+} from '@/features/competition/participation'
+import { useCompetitionStatus } from '@/features/competition/useCompetitionStatus'
 import { useUnreadCount } from '@/features/notifications/useNotifications'
 import { env } from '@/shared/config/env'
 import { avatarSrc, cn } from '@/shared/lib/utils'
@@ -17,9 +22,11 @@ interface NavLinkItem {
 function getNavLinks(
   role: 'guest' | 'user' | 'admin',
   configs: PublicConfigs | undefined,
+  mode?: string,
 ): NavLinkItem[] {
   const isPublic = (key: keyof PublicConfigs) => (configs?.[key] ?? 'public') === 'public'
   const links: NavLinkItem[] = []
+  const labels = participantCopy(mode)
 
   if (role !== 'guest') {
     links.push({ label: 'Challenges', href: '/challenges' })
@@ -28,7 +35,7 @@ function getNavLinks(
     links.push({ label: 'Scoreboard', href: '/scoreboard' })
   }
   if (role !== 'guest' || isPublic('account_visibility')) {
-    links.push({ label: 'Teams', href: '/teams' })
+    links.push({ label: labels.plural, href: '/teams' })
   }
   if (role === 'admin') {
     links.push({ label: 'Users', href: '/users' })
@@ -46,15 +53,20 @@ export function Navbar() {
   const { user, isAuthenticated, isAdmin, logout } = useAuthStore()
   const { mobileMenuOpen, toggleMobileMenu, setMobileMenuOpen } = useUiStore()
   const { data: publicConfigs } = usePublicConfigs()
+  const { data: competitionStatus } = useCompetitionStatus()
   const navLinks = getNavLinks(
     isAdmin ? 'admin' : isAuthenticated ? 'user' : 'guest',
     publicConfigs,
+    competitionStatus?.mode,
   )
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const unreadCountRaw = useUnreadCount()
   const unreadCount = isAuthenticated ? unreadCountRaw : 0
+  const mode = normalizeCompetitionMode(competitionStatus?.mode)
+  const myParticipationLabel = mode === 'solo_only' ? 'My Profile' : 'My Team'
+  const enrollLabel = mode === 'solo_only' ? 'Start Solo' : 'Join / Create Team'
 
   useEffect(() => {
     setMobileMenuOpen(false)
@@ -193,7 +205,7 @@ export function Navbar() {
                             onClick={() => setUserMenuOpen(false)}
                             className="block px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-space-border transition-colors"
                           >
-                            My Team
+                            {myParticipationLabel}
                           </Link>
                         </li>
                       ) : (
@@ -203,7 +215,7 @@ export function Navbar() {
                             onClick={() => setUserMenuOpen(false)}
                             className="block px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-space-border transition-colors"
                           >
-                            Join / Create Team
+                            {enrollLabel}
                           </Link>
                         </li>
                       )}

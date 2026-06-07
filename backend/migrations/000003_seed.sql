@@ -1,12 +1,12 @@
 -- +goose Up
-INSERT INTO competition (id, name) VALUES (1, 'CTF Competition') ON CONFLICT (id) DO NOTHING;
+INSERT INTO competition (id, name, mode) VALUES (1, 'CTF Competition', 'teams_only') ON CONFLICT (id) DO NOTHING;
 INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO configs (key, value, value_type, description, category) VALUES
 ('ctf_name', 'CTF Platform', 'string', 'CTF competition name', 'general'),
 ('ctf_description', '', 'string', 'CTF competition description (Markdown)', 'general'),
 ('ctf_logo', '', 'string', 'CTF logo URL', 'general'),
-('user_mode', 'teams', 'string', 'Participation mode: teams or users', 'general'),
+('user_mode', 'teams_only', 'string', 'Participation mode: teams_only or solo_only', 'general'),
 ('theme_color_primary', '#6366f1', 'string', 'Primary theme color (hex)', 'theme'),
 ('theme_color_secondary', '#4f46e5', 'string', 'Secondary theme color (hex)', 'theme'),
 ('theme_header_html', '', 'string', 'Custom HTML for <head>', 'theme'),

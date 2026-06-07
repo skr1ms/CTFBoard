@@ -17,7 +17,7 @@ CREATE TABLE competition (
     paused_at TIMESTAMPTZ NULL,
     is_public BOOLEAN NOT NULL DEFAULT TRUE,
     flag_regex TEXT,
-    mode VARCHAR(20) NOT NULL DEFAULT 'flexible' CONSTRAINT chk_competition_mode CHECK (mode IN ('solo_only', 'teams_only', 'flexible')),
+    mode VARCHAR(20) NOT NULL DEFAULT 'teams_only' CONSTRAINT chk_competition_mode CHECK (mode IN ('solo_only', 'teams_only')),
     allow_team_switch BOOLEAN NOT NULL DEFAULT TRUE,
     min_team_size INT NOT NULL DEFAULT 1 CONSTRAINT chk_competition_min_team_size CHECK (min_team_size >= 1),
     max_team_size INT NOT NULL DEFAULT 10 CONSTRAINT chk_competition_max_team_size CHECK (max_team_size >= 1),

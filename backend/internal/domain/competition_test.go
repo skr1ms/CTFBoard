@@ -9,37 +9,41 @@ import (
 
 func TestCompetitionMode_IsValid_Success(t *testing.T) {
 	t.Parallel()
-	assert.True(t, ModeFlexible.IsValid())
 	assert.True(t, ModeSoloOnly.IsValid())
 	assert.True(t, ModeTeamsOnly.IsValid())
+	assert.Equal(t, ModeTeamsOnly, DefaultCompetitionMode)
 }
 
 func TestCompetitionMode_IsValid_Error(t *testing.T) {
 	t.Parallel()
 	assert.False(t, CompetitionMode("").IsValid())
+	assert.False(t, CompetitionMode("flexible").IsValid())
 	assert.False(t, CompetitionMode("invalid").IsValid())
 }
 
 func TestCompetitionMode_AllowsSolo_Success(t *testing.T) {
 	t.Parallel()
 	assert.True(t, ModeSoloOnly.AllowsSolo())
-	assert.True(t, ModeFlexible.AllowsSolo())
 }
 
 func TestCompetitionMode_AllowsSolo_Error(t *testing.T) {
 	t.Parallel()
 	assert.False(t, ModeTeamsOnly.AllowsSolo())
+	assert.False(t, CompetitionMode("").AllowsSolo())
+	assert.False(t, CompetitionMode("invalid").AllowsSolo())
 }
 
 func TestCompetitionMode_AllowsTeams_Success(t *testing.T) {
 	t.Parallel()
 	assert.True(t, ModeTeamsOnly.AllowsTeams())
-	assert.True(t, ModeFlexible.AllowsTeams())
 }
 
 func TestCompetitionMode_AllowsTeams_Error(t *testing.T) {
 	t.Parallel()
 	assert.False(t, ModeSoloOnly.AllowsTeams())
+	assert.False(t, CompetitionMode("").AllowsTeams())
+	assert.False(t, CompetitionMode("flexible").AllowsTeams())
+	assert.False(t, CompetitionMode("invalid").AllowsTeams())
 }
 
 func TestCompetition_GetStatus_Success(t *testing.T) {

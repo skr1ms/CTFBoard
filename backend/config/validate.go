@@ -66,7 +66,7 @@ func validate(raw *rawConfig) error {
 	}
 
 	if !domain.CompetitionMode(raw.CompetitionMode).IsValid() {
-		return fmt.Errorf("invalid COMPETITION_MODE %q: must be solo_only, teams_only, or flexible", raw.CompetitionMode)
+		return fmt.Errorf("invalid COMPETITION_MODE %q: must be solo_only or teams_only", raw.CompetitionMode)
 	}
 
 	if raw.MinTeamSize < 1 || raw.MaxTeamSize < raw.MinTeamSize {

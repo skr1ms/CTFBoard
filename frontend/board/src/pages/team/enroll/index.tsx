@@ -1,4 +1,5 @@
 import { useCompetitionStatus } from '@/features/competition/useCompetitionStatus'
+import { normalizeCompetitionMode } from '@/features/competition/participation'
 import { api, apiErrorMessage, isApiError } from '@/shared/api/client'
 import { useAuthStore } from '@/shared/stores/authStore'
 import type { components } from '@/shared/api/schema.d'
@@ -388,8 +389,18 @@ function SoloCard() {
 // ---------------------------------------------------------------------------
 export function TeamEnrollPage() {
   const { data: competitionStatus } = useCompetitionStatus()
-  const mode = (competitionStatus as (typeof competitionStatus & { mode?: string }) | undefined)
-    ?.mode
+  const mode = normalizeCompetitionMode(competitionStatus?.mode)
+
+  const pageCopy = {
+    teams_only: {
+      title: 'Join the competition',
+      description: 'Create a team or join one with an invite code.',
+    },
+    solo_only: {
+      title: 'Start solo participation',
+      description: 'Create your player entry before solving challenges.',
+    },
+  }[mode]
 
   const showCreate = mode !== 'solo_only'
   const showJoin = mode !== 'solo_only'
@@ -405,11 +416,9 @@ export function TeamEnrollPage() {
             className="text-3xl font-black text-text-primary"
             style={{ fontFamily: 'var(--font-display)' }}
           >
-            Join the competition
+            {pageCopy.title}
           </h1>
-          <p className="text-text-muted mt-2 text-sm">
-            Create a team, join an existing one, or compete solo.
-          </p>
+          <p className="text-text-muted mt-2 text-sm">{pageCopy.description}</p>
         </div>
 
         <div

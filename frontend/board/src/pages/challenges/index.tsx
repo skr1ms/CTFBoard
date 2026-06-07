@@ -1,5 +1,6 @@
 import type { ChallengeResponse } from '@/features/challenges/useChallenges'
 import { useChallenges, useTags } from '@/features/challenges/useChallenges'
+import { normalizeCompetitionMode } from '@/features/competition/participation'
 import { useCompetitionStatus } from '@/features/competition/useCompetitionStatus'
 import { useAuthStore } from '@/shared/stores/authStore'
 import { Badge } from '@/shared/ui/badge'
@@ -344,6 +345,17 @@ export function ChallengesPage() {
 
   const totalChallenges = challenges?.length ?? 0
   const solvedChallenges = challenges?.filter((c) => c.solved).length ?? 0
+  const competitionMode = normalizeCompetitionMode(compStatus?.mode)
+  const enrollPrompt = {
+    teams_only: {
+      text: 'Join or create a team to start solving challenges.',
+      action: 'Join / Create Team',
+    },
+    solo_only: {
+      text: 'Start solo participation to solve challenges.',
+      action: 'Start Solo',
+    },
+  }[competitionMode]
 
   return (
     <VisibilityGate configKey="challenge_visibility">
@@ -383,17 +395,15 @@ export function ChallengesPage() {
         {/* Tag filter */}
         <TagFilterBar tags={tags ?? []} selected={selectedTag} onSelect={setSelectedTag} />
 
-        {/* Team-needed banner (flexible / teams_only mode, user has no team) */}
-        {!isLoading && !user?.team_id && compStatus?.status === 'running' && (
+        {/* Participation-needed banner */}
+        {!isLoading && !user?.team_id && compStatus?.submission_allowed && (
           <div className="rounded-[var(--radius-lg)] border border-solar-yellow/30 bg-solar-yellow/5 p-4 flex items-center justify-between gap-4">
-            <p className="text-sm text-text-primary">
-              Join or create a team to start solving challenges.
-            </p>
+            <p className="text-sm text-text-primary">{enrollPrompt.text}</p>
             <Link
               to="/team/enroll"
               className="shrink-0 px-3 py-1.5 rounded text-xs font-medium bg-solar-yellow/20 text-solar-yellow hover:bg-solar-yellow/30 transition-colors"
             >
-              Join / Create Team
+              {enrollPrompt.action}
             </Link>
           </div>
         )}

@@ -128,6 +128,25 @@ func TestNew_Error_MissingFlagKey(t *testing.T) {
 	assert.Contains(t, err.Error(), "flag encryption key")
 }
 
+func TestNew_Error_FlexibleCompetitionMode(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":       "u",
+		"POSTGRES_PASSWORD":   "p",
+		"POSTGRES_DB":         "d",
+		"JWT_ACCESS_SECRET":   jwtSecret32,
+		"JWT_REFRESH_SECRET":  jwtSecret32,
+		"REDIS_PASSWORD":      "rp",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"COMPETITION_MODE":    "flexible",
+	})
+
+	_, err := New()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be solo_only or teams_only")
+}
+
 func TestNew_ShutdownTimeout_Default(t *testing.T) {
 	disableVaultForTest(t)
 

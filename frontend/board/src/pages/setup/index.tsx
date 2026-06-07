@@ -140,7 +140,7 @@ function getStepSubtitle(step: SetupStep): string {
     case 0:
       return 'Name your competition and add a short description.'
     case 1:
-      return 'Choose how participants compete - as individuals, teams, or both.'
+      return 'Choose the primary competition format.'
     case 2:
       return 'Configure visibility and access defaults for your platform.'
     case 3:

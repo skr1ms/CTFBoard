@@ -23,8 +23,7 @@ import (
 // secret with the fixed label "download-url-signing". The Postgres DSN is
 // constructed programmatically to avoid injection via url.URL. SecureCookies is
 // forced true when API_BASE_URL starts with https://. Post-assembly warnings are
-// emitted for known configuration anti-patterns (solo_only with MinTeamSize>1,
-// flexible with MinTeamSize>1).
+// emitted for known configuration anti-patterns such as solo_only with MinTeamSize>1.
 func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 	jwtAccessKeys, err := parseJWTKeys("JWT_ACCESS_KEYS", raw.JWTAccessKeysStr, raw.JWTAccessSecret)
 	if err != nil {
@@ -228,10 +227,6 @@ func warnCompetitionConfig(competition Competition, l logkit.Logger) {
 			logkit.Fields{"min_team_size": competition.MinTeamSize})
 	}
 
-	if competition.Mode == string(domain.ModeFlexible) && competition.MinTeamSize > 1 {
-		l.Warn("Config: COMPETITION_MODE=flexible with MIN_TEAM_SIZE>1; MinTeamSize applies only to multi-member teams",
-			logkit.Fields{"min_team_size": competition.MinTeamSize})
-	}
 }
 
 func buildOAuth(raw *rawConfig) OAuth {

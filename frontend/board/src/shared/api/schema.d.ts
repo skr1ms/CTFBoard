@@ -3546,8 +3546,11 @@ export interface components {
         SetupRequest: {
             ctf_name: string;
             ctf_description?: string;
-            /** @enum {string} */
-            mode: "teams_only" | "solo_only" | "flexible";
+            /**
+             * @description Competition participation mode. teams_only is the recommended default for serious team CTF events, and solo_only is for individual events.
+             * @enum {string}
+             */
+            mode: "teams_only" | "solo_only";
             max_team_size?: number;
             /** @enum {string} */
             challenge_visibility: "public" | "private" | "hidden" | "admins";
@@ -3852,6 +3855,7 @@ export interface components {
             created_at?: string;
             id?: string;
             invite_token?: string | null;
+            is_solo?: boolean;
             name?: string;
             avatar_url?: string;
         };
@@ -3884,14 +3888,15 @@ export interface components {
             created_at?: string;
             id?: string;
             invite_token?: string | null;
+            is_solo?: boolean;
             members?: components["schemas"]["UserResponse"][];
             name?: string;
             is_banned?: boolean;
             banned_at?: string;
             banned_reason?: string;
-            /** @description Minimum team size required to submit flags (0 means not enforced). */
+            /** @description Minimum configured team size required to submit flags. Solo participants are exempt. */
             min_team_size?: number;
-            /** @description True if the team has at least min_team_size members (or min is not set). */
+            /** @description True if the non-solo team has at least min_team_size members. Solo participants are always eligible. */
             meets_min_size?: boolean;
             avatar_url?: string;
         };
@@ -4107,7 +4112,14 @@ export interface components {
             end_time?: string;
             freeze_time?: string;
             keep_scoreboard_frozen_after_end?: boolean;
-            mode?: string;
+            allow_team_switch?: boolean;
+            min_team_size?: number;
+            max_team_size?: number;
+            /**
+             * @description Current participation mode for the competition.
+             * @enum {string}
+             */
+            mode?: "teams_only" | "solo_only";
             name?: string;
             paused_at?: string;
             start_time?: string;
@@ -4189,7 +4201,11 @@ export interface components {
             end_time?: string;
             freeze_time?: string;
             is_paused?: boolean;
-            mode?: string;
+            /**
+             * @description Competition participation mode.
+             * @enum {string}
+             */
+            mode?: "teams_only" | "solo_only";
         };
         Hint: {
             id?: string;
@@ -4415,7 +4431,11 @@ export interface components {
             is_paused?: boolean;
             is_public?: boolean;
             keep_scoreboard_frozen_after_end?: boolean;
-            mode?: string;
+            /**
+             * @description Participation mode for the competition.
+             * @enum {string}
+             */
+            mode?: "teams_only" | "solo_only";
             name?: string;
             paused_at?: string;
             start_time?: string;
@@ -4439,7 +4459,11 @@ export interface components {
             keep_scoreboard_frozen_after_end?: boolean;
             max_team_size?: number;
             min_team_size?: number;
-            mode?: string;
+            /**
+             * @description Competition participation mode. teams_only is the recommended default for serious team CTF events, and solo_only is for individual events.
+             * @enum {string}
+             */
+            mode?: "teams_only" | "solo_only";
             name: string;
             /** Format: date-time */
             start_time?: string;

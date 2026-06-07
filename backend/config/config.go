@@ -197,7 +197,7 @@ type rawConfig struct {
 	S3Region                    string `env:"STORAGE_S3_REGION"                env-default:"us-east-1"`
 	S3UseSSL                    bool   `env:"STORAGE_S3_USE_SSL"               env-default:"false"`
 	StoragePresignedExpiryMin   int    `env:"STORAGE_PRESIGNED_EXPIRY_MINUTES" env-default:"60"`
-	CompetitionMode             string `env:"COMPETITION_MODE"                 env-default:"flexible"`
+	CompetitionMode             string `env:"COMPETITION_MODE"                 env-default:"teams_only"`
 	AllowTeamSwitch             bool   `env:"ALLOW_TEAM_SWITCH"                env-default:"true"`
 	MinTeamSize                 int    `env:"MIN_TEAM_SIZE"                    env-default:"1"`
 	MaxTeamSize                 int    `env:"MAX_TEAM_SIZE"                    env-default:"10"`

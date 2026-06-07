@@ -39,7 +39,7 @@ func newGuardCompetition(mode string, allowTeamSwitch bool) *domain.Competition 
 func TestGuard_Get_Success(t *testing.T) {
 	t.Parallel()
 	d := newGuardTestDeps(t)
-	comp := newGuardCompetition("flexible", true)
+	comp := newGuardCompetition("teams_only", true)
 	d.repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
 	got, err := d.createGuard().Get(context.Background())
@@ -62,7 +62,7 @@ func TestGuard_Get_Error(t *testing.T) {
 func TestGuard_RequireTeamSwitch_Success(t *testing.T) {
 	t.Parallel()
 	d := newGuardTestDeps(t)
-	comp := newGuardCompetition("flexible", true)
+	comp := newGuardCompetition("teams_only", true)
 	d.repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
 	got, err := d.createGuard().RequireTeamSwitch(context.Background())
@@ -74,7 +74,7 @@ func TestGuard_RequireTeamSwitch_Success(t *testing.T) {
 func TestGuard_RequireTeamSwitch_Error(t *testing.T) {
 	t.Parallel()
 	d := newGuardTestDeps(t)
-	comp := newGuardCompetition("flexible", false)
+	comp := newGuardCompetition("teams_only", false)
 	d.repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
 	got, err := d.createGuard().RequireTeamSwitch(context.Background())
@@ -87,7 +87,7 @@ func TestGuard_RequireTeamSwitch_Error(t *testing.T) {
 func TestGuard_RequireTeamSwitch_Paused_Error(t *testing.T) {
 	t.Parallel()
 	d := newGuardTestDeps(t)
-	comp := newGuardCompetition("flexible", true)
+	comp := newGuardCompetition("teams_only", true)
 	comp.IsPaused = true
 	past := time.Now().Add(-time.Hour)
 	future := time.Now().Add(time.Hour)
@@ -105,7 +105,7 @@ func TestGuard_RequireTeamSwitch_Paused_Error(t *testing.T) {
 func TestGuard_RequireTeamSwitchAndTeamsMode_Success(t *testing.T) {
 	t.Parallel()
 	d := newGuardTestDeps(t)
-	comp := newGuardCompetition("flexible", true)
+	comp := newGuardCompetition("teams_only", true)
 	d.repo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
 
 	got, err := d.createGuard().RequireTeamSwitchAndTeamsMode(context.Background())

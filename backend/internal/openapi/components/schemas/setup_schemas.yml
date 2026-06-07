@@ -24,9 +24,12 @@ schemas:
           validate: "omitempty,max=5000"
       mode:
         type: string
-        enum: [teams_only, solo_only, flexible]
+        description: >
+          Competition participation mode. teams_only is the recommended default
+          for serious team CTF events, and solo_only is for individual events.
+        enum: [teams_only, solo_only]
         x-oapi-codegen-extra-tags:
-          validate: "required,oneof=teams_only solo_only flexible"
+          validate: "required,oneof=teams_only solo_only"
       max_team_size:
         type: integer
         minimum: 0

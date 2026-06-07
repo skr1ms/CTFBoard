@@ -61,6 +61,10 @@ func (uc *SetupUseCase) Complete(ctx context.Context, req *usecase.SetupRequest)
 		return nil, apperr.ErrSetupAlreadyComplete
 	}
 
+	if _, err := setupCompetitionMode(req.Mode); err != nil {
+		return nil, err
+	}
+
 	adminUser, err := uc.deps.UserUC.AdminCreate(ctx, req.AdminUsername, req.AdminEmail, req.AdminPassword, "admin")
 	if err != nil {
 		return nil, fmt.Errorf("SetupUseCase - Complete - AdminCreate: %w", err)
@@ -120,9 +124,12 @@ func (uc *SetupUseCase) applyCompetition(ctx context.Context, req *usecase.Setup
 	comp.EndTime = req.EndTime
 	comp.FreezeTime = req.FreezeTime
 
-	if mode := domain.CompetitionMode(req.Mode); mode.IsValid() {
-		comp.Mode = mode
+	mode, err := setupCompetitionMode(req.Mode)
+	if err != nil {
+		return err
 	}
+
+	comp.Mode = mode
 
 	if req.MaxTeamSize > 0 {
 		comp.MaxTeamSize = req.MaxTeamSize
@@ -135,11 +142,20 @@ func (uc *SetupUseCase) applyCompetition(ctx context.Context, req *usecase.Setup
 	return nil
 }
 
+func setupCompetitionMode(raw string) (domain.CompetitionMode, error) {
+	mode := domain.CompetitionMode(raw)
+	if !mode.IsValid() {
+		return "", apperr.NewValidationErrorf("invalid competition mode %q: must be solo_only or teams_only", raw)
+	}
+
+	return mode, nil
+}
+
 func (uc *SetupUseCase) applyConfigs(ctx context.Context, req *usecase.SetupRequest, adminUser *domain.User) error {
 	params := []*domain.CompetitionParam{
 		{Key: "ctf_name", Value: req.CTFName, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "CTF competition name"},
 		{Key: "ctf_description", Value: req.CTFDescription, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "CTF competition description (Markdown)"},
-		{Key: "user_mode", Value: req.Mode, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "Participation mode: teams or users"},
+		{Key: "user_mode", Value: req.Mode, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryGeneral, Description: "Participation mode: teams_only or solo_only"},
 		{Key: "challenge_visibility", Value: req.ChallengeVisibility, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryVisibility, Description: "Challenge visibility: public, private, admins"},
 		{Key: "score_visibility", Value: req.ScoreVisibility, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryVisibility, Description: "Scoreboard visibility: public, private, hidden, admins, admins_only"},
 		{Key: "account_visibility", Value: req.AccountVisibility, ValueType: domain.CompetitionParamTypeString, Category: domain.ConfigCategoryVisibility, Description: "User/team account visibility: public, private, admins"},

@@ -15,6 +15,8 @@ schemas:
         type: boolean
       mode:
         type: string
+        description: Participation mode for the competition.
+        enum: [teams_only, solo_only]
       name:
         type: string
       paused_at:
@@ -40,8 +42,16 @@ schemas:
         type: string
       keep_scoreboard_frozen_after_end:
         type: boolean
+      allow_team_switch:
+        type: boolean
+      min_team_size:
+        type: integer
+      max_team_size:
+        type: integer
       mode:
         type: string
+        description: Current participation mode for the competition.
+        enum: [teams_only, solo_only]
       name:
         type: string
       paused_at:
@@ -69,6 +79,8 @@ schemas:
         type: boolean
       mode:
         type: string
+        description: Competition participation mode.
+        enum: [teams_only, solo_only]
     type: object
   request.UpdateCompetitionRequest:
     properties:
@@ -94,16 +106,24 @@ schemas:
         type: boolean
       max_team_size:
         type: integer
-        minimum: 0
+        minimum: 1
         x-oapi-codegen-extra-tags:
-          validate: "omitempty,min=0"
+          validate: "omitempty,min=1"
       min_team_size:
         type: integer
-        minimum: 0
+        minimum: 1
         x-oapi-codegen-extra-tags:
-          validate: "omitempty,min=0"
+          validate: "omitempty,min=1"
       mode:
         type: string
+        description: >
+          Competition participation mode. teams_only is the recommended default
+          for serious team CTF events, and solo_only is for individual events.
+        enum:
+          - teams_only
+          - solo_only
+        x-oapi-codegen-extra-tags:
+          validate: "omitempty,oneof=teams_only solo_only"
       name:
         type: string
       start_time:

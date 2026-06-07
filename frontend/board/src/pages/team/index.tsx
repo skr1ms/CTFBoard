@@ -29,10 +29,12 @@ function TeamAvatarSection({
   avatarUrl,
   teamName,
   isCaptain,
+  isSolo,
 }: {
   avatarUrl?: string
   teamName: string
   isCaptain: boolean
+  isSolo: boolean
 }) {
   const qc = useQueryClient()
   const [preview, setPreview] = useState<string | null>(null)
@@ -59,7 +61,7 @@ function TeamAvatarSection({
         return
       }
       void qc.invalidateQueries({ queryKey: ['my-team'] })
-      toast.success('Team avatar updated')
+      toast.success(isSolo ? 'Profile avatar updated' : 'Team avatar updated')
     } catch {
       toast.error('Avatar upload failed')
       setPreview(null)
@@ -77,7 +79,7 @@ function TeamAvatarSection({
       }
       setPreview(null)
       void qc.invalidateQueries({ queryKey: ['my-team'] })
-      toast.success('Team avatar removed')
+      toast.success(isSolo ? 'Profile avatar removed' : 'Team avatar removed')
     } catch {
       toast.error('Failed to remove avatar')
     }
@@ -92,7 +94,7 @@ function TeamAvatarSection({
             onFile={handleFile}
             accept="image/jpeg,image/png,image/webp,image/gif"
             maxSizeMb={5}
-            label="Change team avatar (JPEG, PNG, WebP, GIF static · max 5 MB)"
+            label={`${isSolo ? 'Change profile avatar' : 'Change team avatar'} (JPEG, PNG, WebP, GIF static · max 5 MB)`}
             disabled={uploading}
           />
           {(avatarUrl || preview) && (
@@ -115,7 +117,15 @@ function TeamAvatarSection({
 // ---------------------------------------------------------------------------
 // Team name section with inline edit
 // ---------------------------------------------------------------------------
-function TeamNameSection({ name, isCaptain }: { name: string; isCaptain: boolean }) {
+function TeamNameSection({
+  name,
+  isCaptain,
+  isSolo,
+}: {
+  name: string
+  isCaptain: boolean
+  isSolo: boolean
+}) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(name)
   const { mutate, isPending } = useUpdateTeamName()
@@ -129,7 +139,7 @@ function TeamNameSection({ name, isCaptain }: { name: string; isCaptain: boolean
     mutate(value.trim(), {
       onSuccess: () => {
         setEditing(false)
-        toast.success('Team name updated')
+        toast.success(isSolo ? 'Display name updated' : 'Team name updated')
       },
       onError: (err) => toast.error(apiErrorMessage(err, 'Failed to update name')),
     })
@@ -178,7 +188,7 @@ function TeamNameSection({ name, isCaptain }: { name: string; isCaptain: boolean
         <button
           onClick={() => setEditing(true)}
           className="shrink-0 p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-space-border transition-colors"
-          aria-label="Edit team name"
+          aria-label={isSolo ? 'Edit display name' : 'Edit team name'}
         >
           <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
             <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z" />
@@ -252,9 +262,17 @@ interface MembersListProps {
   currentUserId?: string
   isCaptain: boolean
   frozen: boolean
+  showTeamActions: boolean
 }
 
-function MembersList({ members, captainId, currentUserId, isCaptain, frozen }: MembersListProps) {
+function MembersList({
+  members,
+  captainId,
+  currentUserId,
+  isCaptain,
+  frozen,
+  showTeamActions,
+}: MembersListProps) {
   const { mutate: kick, isPending: kicking } = useKickMember()
   const { mutate: transfer, isPending: transferring } = useTransferCaptain()
   const [confirmKick, setConfirmKick] = useState<string | null>(null)
@@ -314,7 +332,7 @@ function MembersList({ members, captainId, currentUserId, isCaptain, frozen }: M
               {m.username ?? 'Unknown'}
             </span>
             <div className="flex items-center gap-1.5 shrink-0">
-              {isMemberCaptain && (
+              {showTeamActions && isMemberCaptain && (
                 <span className="text-base" title="Captain" aria-label="Captain">
                   👑
                 </span>
@@ -324,7 +342,8 @@ function MembersList({ members, captainId, currentUserId, isCaptain, frozen }: M
                   You
                 </span>
               )}
-              {isCaptain &&
+              {showTeamActions &&
+                isCaptain &&
                 !isMe &&
                 !frozen &&
                 (isConfirming ? (
@@ -359,7 +378,7 @@ function MembersList({ members, captainId, currentUserId, isCaptain, frozen }: M
       })}
 
       {/* Transfer Captain button (captain only, requires ≥2 members) */}
-      {isCaptain && otherMembers.length > 0 && !frozen && (
+      {showTeamActions && isCaptain && otherMembers.length > 0 && !frozen && (
         <div className="px-3 pt-2 pb-1">
           {transferOpen ? (
             <div className="flex flex-col gap-1.5">
@@ -521,6 +540,7 @@ export function TeamPage() {
   const user = useAuthStore((s) => s.user)
   const isCaptain = !!user?.id && user.id === team?.captain_id
   const frozen = team?.is_banned ?? false
+  const isSolo = team?.is_solo ?? false
 
   if (isLoading) {
     return (
@@ -542,7 +562,7 @@ export function TeamPage() {
   if (!team) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-text-muted">
-        <p className="text-sm">You are not in a team.</p>
+        <p className="text-sm">You have not selected a participation mode.</p>
       </div>
     )
   }
@@ -559,23 +579,24 @@ export function TeamPage() {
             {...(avatarUrl ? { avatarUrl } : {})}
             teamName={team.name ?? ''}
             isCaptain={isCaptain}
+            isSolo={isSolo}
           />
         )
       })()}
 
       {/* Team name */}
-      <TeamNameSection name={team.name ?? ''} isCaptain={isCaptain} />
+      <TeamNameSection name={team.name ?? ''} isCaptain={isCaptain} isSolo={isSolo} />
 
       {/* Invite link (captain only) */}
-      <InviteLinkSection isCaptain={isCaptain} />
+      {!isSolo && <InviteLinkSection isCaptain={isCaptain} />}
 
       {/* Members */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
-            Members ({members.length})
+            {isSolo ? 'Player' : `Members (${members.length})`}
           </h3>
-          {team.min_team_size && team.min_team_size > 0 && (
+          {!isSolo && team.min_team_size && team.min_team_size > 0 && (
             <span
               className={`text-xs font-medium ${team.meets_min_size ? 'text-stellar-green' : 'text-nova-red'}`}
             >
@@ -595,13 +616,14 @@ export function TeamPage() {
               {...(user?.id ? { currentUserId: user.id } : {})}
               isCaptain={isCaptain}
               frozen={frozen}
+              showTeamActions={!isSolo}
             />
           )}
         </div>
       </div>
 
       {/* Danger zone */}
-      <DangerZone isCaptain={isCaptain} frozen={frozen} />
+      {!isSolo && <DangerZone isCaptain={isCaptain} frozen={frozen} />}
     </div>
   )
 }

@@ -39,8 +39,8 @@ var configRegistry = map[string]ConfigDef{
 		Category: ConfigCategoryGeneral, Description: "CTF logo URL",
 	},
 	"user_mode": {
-		Key: "user_mode", DefaultValue: "teams", ValueType: CompetitionParamTypeString,
-		Category: ConfigCategoryGeneral, Description: "Participation mode: teams or users",
+		Key: "user_mode", DefaultValue: string(DefaultCompetitionMode), ValueType: CompetitionParamTypeString,
+		Category: ConfigCategoryGeneral, Description: "Participation mode: teams_only or solo_only",
 	},
 	"theme_color_primary": {
 		Key: "theme_color_primary", DefaultValue: "#6366f1", ValueType: CompetitionParamTypeString,

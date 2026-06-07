@@ -101,6 +101,60 @@ func (e ChallengeResponseState) Valid() bool {
 	}
 }
 
+// Defines values for CompetitionMode.
+const (
+	CompetitionModeSoloOnly  CompetitionMode = "solo_only"
+	CompetitionModeTeamsOnly CompetitionMode = "teams_only"
+)
+
+// Valid indicates whether the value is a known member of the CompetitionMode enum.
+func (e CompetitionMode) Valid() bool {
+	switch e {
+	case CompetitionModeSoloOnly:
+		return true
+	case CompetitionModeTeamsOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CompetitionResponseMode.
+const (
+	CompetitionResponseModeSoloOnly  CompetitionResponseMode = "solo_only"
+	CompetitionResponseModeTeamsOnly CompetitionResponseMode = "teams_only"
+)
+
+// Valid indicates whether the value is a known member of the CompetitionResponseMode enum.
+func (e CompetitionResponseMode) Valid() bool {
+	switch e {
+	case CompetitionResponseModeSoloOnly:
+		return true
+	case CompetitionResponseModeTeamsOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CompetitionStatusResponseMode.
+const (
+	CompetitionStatusResponseModeSoloOnly  CompetitionStatusResponseMode = "solo_only"
+	CompetitionStatusResponseModeTeamsOnly CompetitionStatusResponseMode = "teams_only"
+)
+
+// Valid indicates whether the value is a known member of the CompetitionStatusResponseMode enum.
+func (e CompetitionStatusResponseMode) Valid() bool {
+	switch e {
+	case CompetitionStatusResponseModeSoloOnly:
+		return true
+	case CompetitionStatusResponseModeTeamsOnly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateChallengeRequestState.
 const (
 	CreateChallengeRequestStateHidden  CreateChallengeRequestState = "hidden"
@@ -346,19 +400,16 @@ func (e SetupRequestChallengeVisibility) Valid() bool {
 
 // Defines values for SetupRequestMode.
 const (
-	Flexible  SetupRequestMode = "flexible"
-	SoloOnly  SetupRequestMode = "solo_only"
-	TeamsOnly SetupRequestMode = "teams_only"
+	SetupRequestModeSoloOnly  SetupRequestMode = "solo_only"
+	SetupRequestModeTeamsOnly SetupRequestMode = "teams_only"
 )
 
 // Valid indicates whether the value is a known member of the SetupRequestMode enum.
 func (e SetupRequestMode) Valid() bool {
 	switch e {
-	case Flexible:
+	case SetupRequestModeSoloOnly:
 		return true
-	case SoloOnly:
-		return true
-	case TeamsOnly:
+	case SetupRequestModeTeamsOnly:
 		return true
 	default:
 		return false
@@ -446,6 +497,24 @@ func (e UpdateChallengeRequestState) Valid() bool {
 	case UpdateChallengeRequestStateLocked:
 		return true
 	case UpdateChallengeRequestStateVisible:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateCompetitionRequestMode.
+const (
+	SoloOnly  UpdateCompetitionRequestMode = "solo_only"
+	TeamsOnly UpdateCompetitionRequestMode = "teams_only"
+)
+
+// Valid indicates whether the value is a known member of the UpdateCompetitionRequestMode enum.
+func (e UpdateCompetitionRequestMode) Valid() bool {
+	switch e {
+	case SoloOnly:
+		return true
+	case TeamsOnly:
 		return true
 	default:
 		return false
@@ -1045,7 +1114,7 @@ type ChallengeFlagsResponse struct {
 	FlagFormatRegex *string `json:"flag_format_regex,omitempty"`
 	FlagRegex       *string `json:"flag_regex,omitempty"`
 
-	// Flags Hashes of challenge flags (not plaintext); used for admin verification
+	// Flags Hashes of the challenge's single fixed flag answer, when the challenge is not regex-based; plaintext flags are not returned
 	Flags             *[]string `json:"flags,omitempty"`
 	IsCaseInsensitive *bool     `json:"is_case_insensitive,omitempty"`
 	IsRegex           *bool     `json:"is_regex,omitempty"`
@@ -1137,10 +1206,15 @@ type Competition struct {
 	FreezeTime *string `json:"freeze_time,omitempty"`
 	ID         *int    `json:"id,omitempty"`
 	IsPaused   *bool   `json:"is_paused,omitempty"`
-	Mode       *string `json:"mode,omitempty"`
-	Name       *string `json:"name,omitempty"`
-	StartTime  *string `json:"start_time,omitempty"`
+
+	// Mode Competition participation mode.
+	Mode      *CompetitionMode `json:"mode,omitempty"`
+	Name      *string          `json:"name,omitempty"`
+	StartTime *string          `json:"start_time,omitempty"`
 }
+
+// CompetitionMode Competition participation mode.
+type CompetitionMode string
 
 // CompetitionResponse defines model for CompetitionResponse.
 type CompetitionResponse struct {
@@ -1154,25 +1228,38 @@ type CompetitionResponse struct {
 	KeepScoreboardFrozenAfterEnd *bool   `json:"keep_scoreboard_frozen_after_end,omitempty"`
 	MaxTeamSize                  *int    `json:"max_team_size,omitempty"`
 	MinTeamSize                  *int    `json:"min_team_size,omitempty"`
-	Mode                         *string `json:"mode,omitempty"`
-	Name                         *string `json:"name,omitempty"`
-	PausedAt                     *string `json:"paused_at,omitempty"`
-	StartTime                    *string `json:"start_time,omitempty"`
-	Status                       *string `json:"status,omitempty"`
+
+	// Mode Participation mode for the competition.
+	Mode      *CompetitionResponseMode `json:"mode,omitempty"`
+	Name      *string                  `json:"name,omitempty"`
+	PausedAt  *string                  `json:"paused_at,omitempty"`
+	StartTime *string                  `json:"start_time,omitempty"`
+	Status    *string                  `json:"status,omitempty"`
 }
+
+// CompetitionResponseMode Participation mode for the competition.
+type CompetitionResponseMode string
 
 // CompetitionStatusResponse defines model for CompetitionStatusResponse.
 type CompetitionStatusResponse struct {
+	AllowTeamSwitch              *bool   `json:"allow_team_switch,omitempty"`
 	EndTime                      *string `json:"end_time,omitempty"`
 	FreezeTime                   *string `json:"freeze_time,omitempty"`
 	KeepScoreboardFrozenAfterEnd *bool   `json:"keep_scoreboard_frozen_after_end,omitempty"`
-	Mode                         *string `json:"mode,omitempty"`
-	Name                         *string `json:"name,omitempty"`
-	PausedAt                     *string `json:"paused_at,omitempty"`
-	StartTime                    *string `json:"start_time,omitempty"`
-	Status                       *string `json:"status,omitempty"`
-	SubmissionAllowed            *bool   `json:"submission_allowed,omitempty"`
+	MaxTeamSize                  *int    `json:"max_team_size,omitempty"`
+	MinTeamSize                  *int    `json:"min_team_size,omitempty"`
+
+	// Mode Current participation mode for the competition.
+	Mode              *CompetitionStatusResponseMode `json:"mode,omitempty"`
+	Name              *string                        `json:"name,omitempty"`
+	PausedAt          *string                        `json:"paused_at,omitempty"`
+	StartTime         *string                        `json:"start_time,omitempty"`
+	Status            *string                        `json:"status,omitempty"`
+	SubmissionAllowed *bool                          `json:"submission_allowed,omitempty"`
 }
+
+// CompetitionStatusResponseMode Current participation mode for the competition.
+type CompetitionStatusResponseMode string
 
 // ConfigCategoryItem defines model for ConfigCategoryItem.
 type ConfigCategoryItem struct {
@@ -1232,7 +1319,9 @@ type CreateChallengeRequest struct {
 	ConnectionInfo *string `json:"connection_info,omitempty"`
 	Decay          *int    `json:"decay,omitempty" validate:"omitempty,min=0"`
 	Description    string  `json:"description" validate:"required,challenge_description"`
-	Flag           string  `json:"flag" validate:"required,challenge_flag"`
+
+	// Flag Single v1 answer for the challenge. When `is_regex` is false this value is hashed; when `is_regex` is true this value is stored as encrypted regex material.
+	Flag string `json:"flag" validate:"required,challenge_flag"`
 
 	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
 	FlagFormatRegex   *string `json:"flag_format_regex,omitempty" validate:"omitempty,max=1024"`
@@ -1717,22 +1806,24 @@ type SetupCompleteResponse struct {
 
 // SetupRequest defines model for SetupRequest.
 type SetupRequest struct {
-	AccountVisibility         SetupRequestAccountVisibility      `json:"account_visibility" validate:"required,oneof=public private hidden admins"`
-	AdminEmail                string                             `json:"admin_email" validate:"required,custom_email"`
-	AdminPassword             string                             `json:"admin_password" validate:"required,min=12,strong_password"`
-	AdminUsername             string                             `json:"admin_username" validate:"required,custom_username"`
-	ChallengeVisibility       SetupRequestChallengeVisibility    `json:"challenge_visibility" validate:"required,oneof=public private hidden admins"`
-	CtfDescription            *string                            `json:"ctf_description,omitempty" validate:"omitempty,max=5000"`
-	CtfName                   string                             `json:"ctf_name" validate:"required,max=100"`
-	EmailVerificationRequired *bool                              `json:"email_verification_required,omitempty"`
-	EndTime                   *time.Time                         `json:"end_time,omitempty"`
-	FreezeTime                *time.Time                         `json:"freeze_time,omitempty"`
-	MaxTeamSize               *int                               `json:"max_team_size,omitempty" validate:"omitempty,min=0"`
-	Mode                      SetupRequestMode                   `json:"mode" validate:"required,oneof=teams_only solo_only flexible"`
-	RegistrationVisibility    SetupRequestRegistrationVisibility `json:"registration_visibility" validate:"required,oneof=public private"`
-	ScoreVisibility           SetupRequestScoreVisibility        `json:"score_visibility" validate:"required,oneof=public private hidden admins admins_only"`
-	StartTime                 *time.Time                         `json:"start_time,omitempty"`
-	Timezone                  *string                            `json:"timezone,omitempty" validate:"omitempty,max=128"`
+	AccountVisibility         SetupRequestAccountVisibility   `json:"account_visibility" validate:"required,oneof=public private hidden admins"`
+	AdminEmail                string                          `json:"admin_email" validate:"required,custom_email"`
+	AdminPassword             string                          `json:"admin_password" validate:"required,min=12,strong_password"`
+	AdminUsername             string                          `json:"admin_username" validate:"required,custom_username"`
+	ChallengeVisibility       SetupRequestChallengeVisibility `json:"challenge_visibility" validate:"required,oneof=public private hidden admins"`
+	CtfDescription            *string                         `json:"ctf_description,omitempty" validate:"omitempty,max=5000"`
+	CtfName                   string                          `json:"ctf_name" validate:"required,max=100"`
+	EmailVerificationRequired *bool                           `json:"email_verification_required,omitempty"`
+	EndTime                   *time.Time                      `json:"end_time,omitempty"`
+	FreezeTime                *time.Time                      `json:"freeze_time,omitempty"`
+	MaxTeamSize               *int                            `json:"max_team_size,omitempty" validate:"omitempty,min=0"`
+
+	// Mode Competition participation mode. teams_only is the recommended default for serious team CTF events, and solo_only is for individual events.
+	Mode                   SetupRequestMode                   `json:"mode" validate:"required,oneof=teams_only solo_only"`
+	RegistrationVisibility SetupRequestRegistrationVisibility `json:"registration_visibility" validate:"required,oneof=public private"`
+	ScoreVisibility        SetupRequestScoreVisibility        `json:"score_visibility" validate:"required,oneof=public private hidden admins admins_only"`
+	StartTime              *time.Time                         `json:"start_time,omitempty"`
+	Timezone               *string                            `json:"timezone,omitempty" validate:"omitempty,max=128"`
 }
 
 // SetupRequestAccountVisibility defines model for SetupRequest.AccountVisibility.
@@ -1741,7 +1832,7 @@ type SetupRequestAccountVisibility string
 // SetupRequestChallengeVisibility defines model for SetupRequest.ChallengeVisibility.
 type SetupRequestChallengeVisibility string
 
-// SetupRequestMode defines model for SetupRequest.Mode.
+// SetupRequestMode Competition participation mode. teams_only is the recommended default for serious team CTF events, and solo_only is for individual events.
 type SetupRequestMode string
 
 // SetupRequestRegistrationVisibility defines model for SetupRequest.RegistrationVisibility.
@@ -1855,12 +1946,16 @@ type SubmissionTimeSeriesResponse struct {
 
 // SubmitFlagRequest defines model for SubmitFlagRequest.
 type SubmitFlagRequest struct {
+	// Flag Submitted candidate for the challenge's single v1 answer. Partial submissions and multi-flag groups are not supported in v1.
 	Flag string `json:"flag" validate:"required,challenge_flag"`
 }
 
 // SubmitFlagResponse defines model for SubmitFlagResponse.
 type SubmitFlagResponse struct {
-	Correct bool   `json:"correct"`
+	// Correct True only when the submitted flag completes the challenge answer; v1 has no partial state.
+	Correct bool `json:"correct"`
+
+	// Message Human-readable submit outcome.
 	Message string `json:"message"`
 }
 
@@ -1898,6 +1993,7 @@ type TeamResponse struct {
 	CreatedAt   *string `json:"created_at,omitempty"`
 	ID          *string `json:"id,omitempty"`
 	InviteToken *string `json:"invite_token,omitempty"`
+	IsSolo      *bool   `json:"is_solo,omitempty"`
 	Name        *string `json:"name,omitempty"`
 }
 
@@ -1918,12 +2014,13 @@ type TeamWithMembersResponse struct {
 	ID           *string `json:"id,omitempty"`
 	InviteToken  *string `json:"invite_token,omitempty"`
 	IsBanned     *bool   `json:"is_banned,omitempty"`
+	IsSolo       *bool   `json:"is_solo,omitempty"`
 
-	// MeetsMinSize True if the team has at least min_team_size members (or min is not set).
+	// MeetsMinSize True if the non-solo team has at least min_team_size members. Solo participants are always eligible.
 	MeetsMinSize *bool           `json:"meets_min_size,omitempty"`
 	Members      *[]UserResponse `json:"members,omitempty"`
 
-	// MinTeamSize Minimum team size required to submit flags (0 means not enforced).
+	// MinTeamSize Minimum configured team size required to submit flags. Solo participants are exempt.
 	MinTeamSize *int    `json:"min_team_size,omitempty"`
 	Name        *string `json:"name,omitempty"`
 }
@@ -2022,7 +2119,9 @@ type UpdateChallengeRequest struct {
 	ConnectionInfo *string `json:"connection_info,omitempty"`
 	Decay          *int    `json:"decay,omitempty" validate:"omitempty,min=0"`
 	Description    string  `json:"description" validate:"required,challenge_description"`
-	Flag           *string `json:"flag,omitempty" validate:"omitempty,challenge_flag"`
+
+	// Flag Single v1 answer for the challenge. When `is_regex` is false this value is hashed; when `is_regex` is true this value is stored as encrypted regex material.
+	Flag *string `json:"flag,omitempty" validate:"omitempty,challenge_flag"`
 
 	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
 	FlagFormatRegex   *string `json:"flag_format_regex,omitempty" validate:"omitempty,max=1024"`
@@ -2063,12 +2162,17 @@ type UpdateCompetitionRequest struct {
 	IsPaused                     *bool      `json:"is_paused,omitempty"`
 	IsPublic                     *bool      `json:"is_public,omitempty"`
 	KeepScoreboardFrozenAfterEnd *bool      `json:"keep_scoreboard_frozen_after_end,omitempty"`
-	MaxTeamSize                  *int       `json:"max_team_size,omitempty" validate:"omitempty,min=0"`
-	MinTeamSize                  *int       `json:"min_team_size,omitempty" validate:"omitempty,min=0"`
-	Mode                         *string    `json:"mode,omitempty"`
-	Name                         string     `json:"name"`
-	StartTime                    *time.Time `json:"start_time,omitempty"`
+	MaxTeamSize                  *int       `json:"max_team_size,omitempty" validate:"omitempty,min=1"`
+	MinTeamSize                  *int       `json:"min_team_size,omitempty" validate:"omitempty,min=1"`
+
+	// Mode Competition participation mode. teams_only is the recommended default for serious team CTF events, and solo_only is for individual events.
+	Mode      *UpdateCompetitionRequestMode `json:"mode,omitempty" validate:"omitempty,oneof=teams_only solo_only"`
+	Name      string                        `json:"name"`
+	StartTime *time.Time                    `json:"start_time,omitempty"`
 }
+
+// UpdateCompetitionRequestMode Competition participation mode. teams_only is the recommended default for serious team CTF events, and solo_only is for individual events.
+type UpdateCompetitionRequestMode string
 
 // UpdateFieldRequest defines model for UpdateFieldRequest.
 type UpdateFieldRequest struct {

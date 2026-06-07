@@ -51,7 +51,7 @@ func activeComp() *domain.Competition {
 	return &domain.Competition{
 		StartTime: &start,
 		EndTime:   &end,
-		Mode:      domain.ModeFlexible,
+		Mode:      domain.ModeSoloOnly,
 	}
 }
 
@@ -155,7 +155,7 @@ func TestValidateSubmissionEligibility_BelowMinTeamSize(t *testing.T) {
 	team := &domain.Team{ID: uuid.New(), IsSolo: false}
 
 	start := time.Now().Add(-time.Hour)
-	comp := &domain.Competition{StartTime: &start, Mode: domain.ModeFlexible, MinTeamSize: 3}
+	comp := &domain.Competition{StartTime: &start, Mode: domain.ModeTeamsOnly, MinTeamSize: 3}
 	counter := &stubCounter{count: 1}
 
 	err := ValidateSubmissionEligibility(context.Background(), user, team, comp, counter)
@@ -170,7 +170,7 @@ func TestValidateSubmissionEligibility_MinTeamSizeMet(t *testing.T) {
 	team := &domain.Team{ID: uuid.New(), IsSolo: false}
 
 	start := time.Now().Add(-time.Hour)
-	comp := &domain.Competition{StartTime: &start, Mode: domain.ModeFlexible, MinTeamSize: 2}
+	comp := &domain.Competition{StartTime: &start, Mode: domain.ModeTeamsOnly, MinTeamSize: 2}
 	counter := &stubCounter{count: 3}
 
 	err := ValidateSubmissionEligibility(context.Background(), user, team, comp, counter)
@@ -185,7 +185,7 @@ func TestValidateSubmissionEligibility_CounterError(t *testing.T) {
 	team := &domain.Team{ID: uuid.New(), IsSolo: false}
 
 	start := time.Now().Add(-time.Hour)
-	comp := &domain.Competition{StartTime: &start, Mode: domain.ModeFlexible, MinTeamSize: 2}
+	comp := &domain.Competition{StartTime: &start, Mode: domain.ModeTeamsOnly, MinTeamSize: 2}
 	counter := &stubCounter{count: 0, err: errors.New("db error")}
 
 	err := ValidateSubmissionEligibility(context.Background(), user, team, comp, counter)

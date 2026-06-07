@@ -1,3 +1,5 @@
+import { participantCopy } from '@/features/competition/participation'
+import { useCompetitionStatus } from '@/features/competition/useCompetitionStatus'
 import {
   type SubmissionResponse,
   type TeamResponse,
@@ -217,6 +219,8 @@ export function TeamPublicProfilePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: team, isLoading } = useTeamProfile(id ?? '')
+  const { data: compStatus } = useCompetitionStatus()
+  const labels = participantCopy(compStatus?.mode)
 
   if (!id) return null
 
@@ -233,7 +237,7 @@ export function TeamPublicProfilePage() {
             clipRule="evenodd"
           />
         </svg>
-        Back to teams
+        Back to {labels.pluralLower}
       </button>
 
       {/* Profile header */}
@@ -257,8 +261,9 @@ export function TeamPublicProfilePage() {
               className="text-2xl font-black text-text-primary"
               style={{ fontFamily: 'var(--font-display)' }}
             >
-              {team.name ?? 'Unknown team'}
+              {team.name ?? labels.unknown}
             </h1>
+            {team.is_solo && <Badge variant="cyan">Solo</Badge>}
             {team.created_at && (
               <p className="text-xs text-text-muted">
                 Created{' '}
@@ -319,9 +324,12 @@ function TeamRow({ team, onClick }: { team: TeamResponse; onClick?: () => void }
             {...(team.name ? { alt: team.name } : {})}
             size="sm"
           />
-          <span className="text-sm font-medium text-text-primary group-hover:text-cosmic-blue transition-colors">
-            {team.name ?? '-'}
-          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-medium text-text-primary group-hover:text-cosmic-blue transition-colors truncate">
+              {team.name ?? '-'}
+            </span>
+            {team.is_solo && <Badge variant="cyan">Solo</Badge>}
+          </div>
         </div>
       </td>
       <td className="px-4 py-3 text-sm text-text-muted hidden sm:table-cell">
@@ -344,8 +352,10 @@ export function TeamsPage() {
   const debouncedSearch = useDebounce(search, 400)
 
   const { data, isLoading, isFetching } = useTeamsList(debouncedSearch, page)
+  const { data: compStatus } = useCompetitionStatus()
   const teams = data?.data ?? []
   const meta = data?.meta
+  const labels = participantCopy(compStatus?.mode)
 
   const handleSearchChange = (val: string) => {
     setSearch(val)
@@ -361,7 +371,7 @@ export function TeamsPage() {
             className="text-2xl font-black text-text-primary"
             style={{ fontFamily: 'var(--font-display)' }}
           >
-            Teams
+            {labels.plural}
           </h1>
           {meta?.total !== undefined && (
             <span className="text-sm text-text-muted">{meta.total} total</span>
@@ -381,7 +391,7 @@ export function TeamsPage() {
             type="text"
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search by team name…"
+            placeholder={`Search by ${labels.singularLower} name...`}
             className="w-full h-10 pl-9 pr-4 rounded-[var(--radius-md)] border border-space-border bg-space-dark text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-cosmic-blue/50 focus:border-cosmic-blue"
           />
           {isFetching && !isLoading && (
@@ -397,7 +407,7 @@ export function TeamsPage() {
             <thead>
               <tr className="border-b border-space-border bg-space-dark/60">
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">
-                  Team
+                  {labels.singular}
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wide hidden sm:table-cell">
                   Created
@@ -422,7 +432,7 @@ export function TeamsPage() {
               ) : teams.length === 0 ? (
                 <tr>
                   <td colSpan={2} className="px-4 py-12 text-center text-text-muted text-sm">
-                    No teams found.
+                    No {labels.pluralLower} found.
                   </td>
                 </tr>
               ) : (

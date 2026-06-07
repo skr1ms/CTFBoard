@@ -1,4 +1,9 @@
+import {
+  type CompetitionMode,
+  normalizeCompetitionMode,
+} from '@/features/competition/participation'
 import { api, isApiError } from '@/shared/api/client'
+import type { components } from '@/shared/api/schema.d'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { DateTimePicker } from '@/shared/ui/date-time-picker'
@@ -28,7 +33,22 @@ type CompetitionData = {
   paused_at?: string
 }
 
-type CompetitionMode = 'teams' | 'solo' | 'flexible'
+const MODE_OPTIONS: Array<{
+  value: CompetitionMode
+  label: string
+  description: string
+}> = [
+  {
+    value: 'teams_only',
+    label: 'Teams only',
+    description: 'Recommended default for serious team CTF events.',
+  },
+  {
+    value: 'solo_only',
+    label: 'Solo only',
+    description: 'Each player competes individually.',
+  },
+]
 
 // ---------------------------------------------------------------------------
 // Hooks
@@ -48,22 +68,7 @@ function useCompetition() {
 function useUpdateCompetition() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: {
-      name: string
-      start_time?: string
-      end_time?: string
-      freeze_time?: string
-      clear_end_time?: boolean
-      clear_freeze_time?: boolean
-      is_paused?: boolean
-      is_public?: boolean
-      mode?: string
-      min_team_size?: number
-      max_team_size?: number
-      flag_regex?: string
-      allow_team_switch?: boolean
-      keep_scoreboard_frozen_after_end?: boolean
-    }) => {
+    mutationFn: async (body: components['schemas']['UpdateCompetitionRequest']) => {
       const { data, error } = await api.PUT('/admin/competition', { body })
       if (error) throw error
       return data
@@ -187,7 +192,7 @@ function CompetitionForm({ comp }: { comp: CompetitionData }) {
 
   // General
   const [name, setName] = useState(comp.name ?? '')
-  const [mode, setMode] = useState<CompetitionMode>((comp.mode as CompetitionMode) ?? 'teams')
+  const [mode, setMode] = useState<CompetitionMode>(normalizeCompetitionMode(comp.mode))
   const [isPublic, setIsPublic] = useState(comp.is_public ?? false)
   const [isPaused, setIsPaused] = useState(comp.is_paused ?? false)
 
@@ -219,7 +224,7 @@ function CompetitionForm({ comp }: { comp: CompetitionData }) {
   if (prevComp !== comp) {
     setPrevComp(comp)
     setName(comp.name ?? '')
-    setMode((comp.mode as CompetitionMode) ?? 'teams')
+    setMode(normalizeCompetitionMode(comp.mode))
     setIsPublic(comp.is_public ?? false)
     setIsPaused(comp.is_paused ?? false)
     setStartTime(comp.start_time ? new Date(comp.start_time) : undefined)
@@ -270,6 +275,23 @@ function CompetitionForm({ comp }: { comp: CompetitionData }) {
   const inputCls =
     'h-9 w-full rounded-[var(--radius-md)] border border-space-border bg-space-dark px-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-cosmic-blue/40'
 
+  const renderModeOption = (option: (typeof MODE_OPTIONS)[number]) => (
+    <label key={option.value} className="flex items-start gap-2 cursor-pointer max-w-[14rem]">
+      <input
+        type="radio"
+        name="mode"
+        value={option.value}
+        checked={mode === option.value}
+        onChange={() => setMode(option.value)}
+        className="mt-0.5 accent-cosmic-blue"
+      />
+      <span className="flex flex-col">
+        <span className="text-sm text-text-primary">{option.label}</span>
+        <span className="text-xs text-text-muted">{option.description}</span>
+      </span>
+    </label>
+  )
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {/* General */}
@@ -286,19 +308,7 @@ function CompetitionForm({ comp }: { comp: CompetitionData }) {
 
         <FieldRow label="Mode" hint="How participants compete">
           <div className="flex gap-4 flex-wrap">
-            {(['teams', 'solo', 'flexible'] as const).map((m) => (
-              <label key={m} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="mode"
-                  value={m}
-                  checked={mode === m}
-                  onChange={() => setMode(m)}
-                  className="accent-cosmic-blue"
-                />
-                <span className="text-sm text-text-secondary capitalize">{m}</span>
-              </label>
-            ))}
+            {MODE_OPTIONS.map(renderModeOption)}
           </div>
         </FieldRow>
 
@@ -363,42 +373,44 @@ function CompetitionForm({ comp }: { comp: CompetitionData }) {
       </Section>
 
       {/* Team settings */}
-      <Section title="Team settings">
-        <FieldRow label="Team size" hint="Min and max participants per team">
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-muted">Min</label>
-              <input
-                type="number"
-                min={1}
-                max={maxTeamSize}
-                value={minTeamSize}
-                onChange={(e) => setMinTeamSize(Number(e.target.value))}
-                className="h-9 w-24 rounded-[var(--radius-md)] border border-space-border bg-space-dark px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-cosmic-blue/40"
-              />
+      {mode !== 'solo_only' && (
+        <Section title="Team settings">
+          <FieldRow label="Team size" hint="Min and max participants per team">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-text-muted">Min</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={maxTeamSize}
+                  value={minTeamSize}
+                  onChange={(e) => setMinTeamSize(Number(e.target.value))}
+                  className="h-9 w-24 rounded-[var(--radius-md)] border border-space-border bg-space-dark px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-cosmic-blue/40"
+                />
+              </div>
+              <span className="text-text-muted mt-5">-</span>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-text-muted">Max</label>
+                <input
+                  type="number"
+                  min={minTeamSize}
+                  value={maxTeamSize}
+                  onChange={(e) => setMaxTeamSize(Number(e.target.value))}
+                  className="h-9 w-24 rounded-[var(--radius-md)] border border-space-border bg-space-dark px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-cosmic-blue/40"
+                />
+              </div>
             </div>
-            <span className="text-text-muted mt-5">-</span>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-muted">Max</label>
-              <input
-                type="number"
-                min={minTeamSize}
-                value={maxTeamSize}
-                onChange={(e) => setMaxTeamSize(Number(e.target.value))}
-                className="h-9 w-24 rounded-[var(--radius-md)] border border-space-border bg-space-dark px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-cosmic-blue/40"
-              />
-            </div>
-          </div>
-        </FieldRow>
+          </FieldRow>
 
-        <FieldRow label="Team switching">
-          <Toggle
-            checked={allowTeamSwitch}
-            onChange={setAllowTeamSwitch}
-            label="Allow participants to switch teams"
-          />
-        </FieldRow>
-      </Section>
+          <FieldRow label="Team switching">
+            <Toggle
+              checked={allowTeamSwitch}
+              onChange={setAllowTeamSwitch}
+              label="Allow participants to switch teams"
+            />
+          </FieldRow>
+        </Section>
+      )}
 
       {/* Scoreboard */}
       <Section title="Scoreboard">

@@ -23,7 +23,7 @@ export function validateStep(step: SetupStep, data: SetupFormData): ValidationEr
       break
 
     case 1: // Mode
-      if (!['teams_only', 'solo_only', 'flexible'].includes(data.mode)) {
+      if (!['teams_only', 'solo_only'].includes(data.mode)) {
         errors.mode = 'Please select a valid mode'
       }
       if (data.mode !== 'solo_only') {
