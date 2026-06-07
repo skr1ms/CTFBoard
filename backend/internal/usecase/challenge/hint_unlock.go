@@ -54,9 +54,9 @@ func (uc *HintUseCase) UnlockHint(ctx context.Context, userID, teamID, challenge
 
 		var errHint error
 
-		hint, errHint = uc.deps.HintRepo.GetByID(ctx, hintID)
+		hint, errHint = uc.deps.HintRepo.GetByIDForUpdate(ctx, hintID)
 		if errHint != nil {
-			return fmt.Errorf("HintUseCase - UnlockHint - HintRepo.GetByID: %w", errHint)
+			return fmt.Errorf("HintUseCase - UnlockHint - HintRepo.GetByIDForUpdate: %w", errHint)
 		}
 
 		if hint.ChallengeID != challengeID {

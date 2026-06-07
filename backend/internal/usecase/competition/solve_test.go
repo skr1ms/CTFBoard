@@ -247,7 +247,7 @@ func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
 
 	freezeTime := time.Now().Add(-1 * time.Hour)
 	startTime := time.Now().Add(-2 * time.Hour)
-	comp := newTestCompetition("Test", "flexible", true)
+	comp := newTestCompetition("Test", "teams_only", true)
 	comp.StartTime = &startTime
 	comp.FreezeTime = &freezeTime
 	entries := []*repo.ScoreboardEntry{newTestScoreboardEntry(uuid.New(), "Team1", 500)}

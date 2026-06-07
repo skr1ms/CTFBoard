@@ -14,8 +14,11 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
-// submitRecordSolve atomically records a correct solve inside a SERIALIZABLE transaction
-// The strategy inside the transaction is
+// submitRecordSolve atomically records a correct solve inside the transaction manager's
+// default isolation level. The consistency contract is enforced by row locks, the
+// per-team/challenge advisory lock used for max-attempt accounting, and the unique solve
+// constraint rather than by relying on serializable isolation alone. The strategy inside
+// the transaction is
 //  1. Re-read the competition state (GetForUpdate) to detect freeze and re-check the
 //     submission window; returns ErrSubmissionNotAllowed if the window has just closed
 //  2. Lock and re-validate user (still in the team, not banned) and team (not banned,

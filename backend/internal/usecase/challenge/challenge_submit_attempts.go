@@ -62,11 +62,11 @@ func (uc *ChallengeUseCase) countAttempts(ctx context.Context, teamID, challenge
 
 // submitLogIncorrectAndEnforceMaxAttempts records an incorrect submission and enforces the
 // per-team, per-challenge attempt limit. When MaxAttempts is configured it wraps both
-// operations in a serializable transaction protected by an advisory lock so that the
-// count read and the submission insert are atomic: a concurrent submission cannot sneak in
-// between the read and the write. If the count already equals or exceeds MaxAttempts the
-// transaction returns ErrMaxAttemptsReached without inserting. When MaxAttempts is not
-// configured the submission is written directly without a transaction.
+// operations in the transaction manager's default isolation level protected by an
+// advisory lock so that the count read and the submission insert are atomic: a concurrent
+// submission cannot sneak in between the read and the write. If the count already equals
+// or exceeds MaxAttempts the transaction returns ErrMaxAttemptsReached without inserting.
+// When MaxAttempts is not configured the submission is written directly without a transaction.
 func (uc *ChallengeUseCase) submitLogIncorrectAndEnforceMaxAttempts(sc *submitContext, challenge *domain.Challenge) error {
 	sub := &domain.Submission{
 		UserID:        sc.userID,

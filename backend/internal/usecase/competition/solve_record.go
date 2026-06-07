@@ -20,11 +20,10 @@ import (
 // After incrementing the solve count it applies dynamic score decay: the
 // optional decayFn parameter selects the decay algorithm (defaults to
 // scoring.DecayLogarithmic). scoring.ApplySolveScore computes the new
-// challenge point value and updates challenge.Points in the database, then
-// recalculates points for all previous solvers. The points value at the moment
-// of this solve is stored on the Solve record (PointsAtSolve) before it is
-// persisted, so historical scoreboard queries remain accurate even after
-// subsequent decays.
+// challenge point value and updates challenge.Points in the database. The
+// points value assigned to this solve is stored on the Solve record
+// (PointsAtSolve) before it is persisted, so historical scoreboard queries
+// remain accurate even after subsequent decays.
 func RecordSolveInTx(ctx context.Context, solve *domain.Solve, challenge *domain.Challenge, challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, decayFn ...scoring.DecayFunction) (solveCount int, err error) {
 	_, err = solveRepo.GetByTeamAndChallengeForUpdate(ctx, solve.TeamID, solve.ChallengeID)
 	if err == nil {

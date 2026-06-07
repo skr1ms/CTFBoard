@@ -7,9 +7,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 
 	"github.com/chai2010/webp"
@@ -99,7 +99,7 @@ func (p *ImageProcessor) Process(r io.Reader) (*domain.ProcessedAvatar, error) {
 		return nil, apperr.ErrAnimatedImageNotAllowed
 	}
 
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	cfg, err := decodeAvatarConfig(format, bytes.NewReader(data))
 	if err != nil {
 		return nil, apperr.NewValidationErrorf("invalid image file")
 	}
@@ -117,7 +117,7 @@ func (p *ImageProcessor) Process(r io.Reader) (*domain.ProcessedAvatar, error) {
 		return nil, apperr.NewValidationErrorf("image area too large (max %d Mpx)", maxPixels/imageMebibyte)
 	}
 
-	img, _, err := image.Decode(bytes.NewReader(data))
+	img, err := decodeAvatarImage(format, bytes.NewReader(data))
 	if err != nil {
 		return nil, apperr.NewValidationErrorf("failed to decode image")
 	}
@@ -142,6 +142,36 @@ func (p *ImageProcessor) Process(r io.Reader) (*domain.ProcessedAvatar, error) {
 		ThumbnailImage: thumbBuf.Bytes(),
 		SHA256Hash:     hashStr[:avatarHashLen],
 	}, nil
+}
+
+func decodeAvatarConfig(format string, r io.Reader) (image.Config, error) {
+	switch format {
+	case "jpeg":
+		return jpeg.DecodeConfig(r)
+	case "png":
+		return png.DecodeConfig(r)
+	case "gif":
+		return gif.DecodeConfig(r)
+	case "webp":
+		return webp.DecodeConfig(r)
+	default:
+		return image.Config{}, fmt.Errorf("unsupported image format: %s", format)
+	}
+}
+
+func decodeAvatarImage(format string, r io.Reader) (image.Image, error) {
+	switch format {
+	case "jpeg":
+		return jpeg.Decode(r)
+	case "png":
+		return png.Decode(r)
+	case "gif":
+		return gif.Decode(r)
+	case "webp":
+		return webp.Decode(r)
+	default:
+		return nil, fmt.Errorf("unsupported image format: %s", format)
+	}
 }
 
 // detectFormat checks the magic bytes of data and returns the format name

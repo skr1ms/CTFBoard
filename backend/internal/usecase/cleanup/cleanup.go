@@ -1,4 +1,4 @@
-package usecase
+package cleanup
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 type CleanupUseCase struct {
@@ -27,7 +28,7 @@ type CleanupDeps struct {
 	TrackingRepo repo.TrackingRepository
 }
 
-var _ Cleaner = (*CleanupUseCase)(nil)
+var _ usecase.Cleaner = (*CleanupUseCase)(nil)
 
 func NewCleanupUseCase(deps CleanupDeps) *CleanupUseCase {
 	return &CleanupUseCase{deps: deps}

@@ -49,7 +49,12 @@ type TeamDeps struct {
 
 const defaultMaxTeamSize = 10
 
-var _ usecase.TeamUseCase = (*TeamUseCase)(nil)
+var (
+	_ usecase.TeamReadUseCase  = (*TeamUseCase)(nil)
+	_ usecase.TeamSelfUseCase  = (*TeamUseCase)(nil)
+	_ usecase.TeamAdminUseCase = (*TeamUseCase)(nil)
+	_ usecase.TeamUseCase      = (*TeamUseCase)(nil)
+)
 
 func NewTeamUseCase(deps TeamDeps) *TeamUseCase {
 	if deps.DefaultMaxTeamSize <= 0 {

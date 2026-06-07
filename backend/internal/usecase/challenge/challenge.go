@@ -74,7 +74,12 @@ type ChallengeDeps struct {
 	RegexSem        *semaphore.Weighted
 }
 
-var _ usecase.ChallengeUseCase = (*ChallengeUseCase)(nil)
+var (
+	_ usecase.ChallengeReadUseCase   = (*ChallengeUseCase)(nil)
+	_ usecase.ChallengeSubmitUseCase = (*ChallengeUseCase)(nil)
+	_ usecase.ChallengeAdminUseCase  = (*ChallengeUseCase)(nil)
+	_ usecase.ChallengeUseCase       = (*ChallengeUseCase)(nil)
+)
 
 type solveBroadcaster interface {
 	NotifySolve(teamID uuid.UUID, challengeTitle string, points int, isFirstBlood bool)
