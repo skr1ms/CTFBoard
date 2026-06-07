@@ -241,9 +241,11 @@ func seedAppSettings(ctx context.Context, pool *pgxpool.Pool) error {
 
 		_, err = pool.Exec(ctx, `
 			INSERT INTO competition (id, name, is_paused, is_public, mode, allow_team_switch, min_team_size, max_team_size, start_time, end_time)
-			VALUES (1, 'Load Test CTF', false, true, 'flexible', true, 1, 100, $1, $2)
+			VALUES (1, 'Load Test CTF', false, true, 'teams_only', true, 1, 100, $1, $2)
 			ON CONFLICT (id) DO UPDATE
 				SET name = EXCLUDED.name, is_paused = EXCLUDED.is_paused,
+				    mode = EXCLUDED.mode, allow_team_switch = EXCLUDED.allow_team_switch,
+				    min_team_size = EXCLUDED.min_team_size, max_team_size = EXCLUDED.max_team_size,
 				    start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time,
 				    updated_at = NOW()
 		`, time.Now().Add(-2*time.Hour), time.Now().Add(48*time.Hour))

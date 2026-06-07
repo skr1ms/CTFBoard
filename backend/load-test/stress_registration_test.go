@@ -9,6 +9,10 @@ import (
 )
 
 func TestStress_Registration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping registration throughput load test in short mode")
+	}
+
 	require.NotNil(t, Fixture)
 
 	targeter := RegisterTargeter(Fixture)

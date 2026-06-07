@@ -25,6 +25,11 @@ func TestMixed_RealisticCTFTraffic(t *testing.T) {
 	targeter := MixedCTFTargeter(Fixture, emails, passwords)
 
 	p := DefaultMixedProfile
+
+	if testing.Short() {
+		p = MixedProfile{RPS: raceScale(100), Duration: 10 * time.Second}
+	}
+
 	fmt.Printf("\n[mixed] Realistic CTF traffic @ %d RPS for %s:\n", p.RPS, p.Duration)
 
 	r := RunAttack(attacker, "mixed_ctf", p.RPS, p.Duration, targeter)
@@ -40,6 +45,10 @@ func TestMixed_RealisticCTFTraffic(t *testing.T) {
 }
 
 func TestMixed_PeakHour(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping peak-hour mixed load test in short mode")
+	}
+
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
 	require.NotEmpty(t, Fixture.ChallengeIDs)

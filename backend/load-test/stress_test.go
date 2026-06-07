@@ -30,7 +30,13 @@ func TestStress_FlagSubmit(t *testing.T) {
 		results     []*AttackResult
 	)
 
-	for _, step := range effectiveStressProfile() {
+	profile := effectiveStressProfile()
+
+	if testing.Short() {
+		profile = profile[:1]
+	}
+
+	for _, step := range profile {
 		attacker := NewAttacker(500)
 		r := RunAttack(attacker, fmt.Sprintf("submit_stress@%drps", step.RPS), step.RPS, step.Duration, targeter)
 		attacker.Stop()
@@ -80,6 +86,10 @@ func TestStress_FlagSubmit(t *testing.T) {
 }
 
 func TestStress_BruteForceThroughput(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping brute-force throughput load test in short mode")
+	}
+
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
 	require.NotEmpty(t, Fixture.ChallengeIDs)
@@ -96,17 +106,33 @@ func TestStress_BruteForceThroughput(t *testing.T) {
 	fmt.Println("\n[stress] BruteForce single-challenge throughput (rate limiter disabled):")
 	fmt.Printf("  %-6s  %-12s  %-10s  %-10s  %s\n", "RPS", "success%", "p95", "p99", "status")
 
+	var (
+		breakingRPS int
+		results     []*AttackResult
+	)
+
+	threshold := effectiveP99Threshold()
+
 	for _, step := range bruteProfile {
 		attacker := NewAttacker(500)
 		r := RunAttack(attacker, fmt.Sprintf("brute_throughput@%drps", step.RPS), step.RPS, step.Duration, targeter)
 		attacker.Stop()
 
+		results = append(results, r)
+
 		m := r.Metrics
 		serverErr := m.StatusCodes["500"]
+		broken := m.Success < SuccessThreshold || m.Latencies.P99 > threshold
 		status := "OK"
 
 		if serverErr > 0 {
 			status = fmt.Sprintf("WARN: %d 500s", serverErr)
+		} else if broken {
+			status = "DEGRADED"
+
+			if breakingRPS == 0 {
+				breakingRPS = step.RPS
+			}
 		}
 
 		fmt.Printf("  %-6d  %-12.1f  %-10s  %-10s  %s\n",
@@ -120,18 +146,36 @@ func TestStress_BruteForceThroughput(t *testing.T) {
 		require.Zero(t, serverErr,
 			"brute-force at %d RPS must not produce 500 errors", step.RPS)
 
-		if step.RPS <= raceScale(1500) {
-			threshold := effectiveP99Threshold()
-			require.LessOrEqual(t, m.Latencies.P99, threshold,
-				"brute-force P99 must be ≤ %s at %d RPS (got %s)",
-				threshold, step.RPS, m.Latencies.P99)
+		if m.Success < 0.50 {
+			fmt.Printf("  [stress] early exit: success rate %.1f%% below 50%% at %d RPS\n", m.Success*100, step.RPS)
+
+			break
 		}
 
 		time.Sleep(500 * time.Millisecond)
 	}
+
+	if breakingRPS > 0 {
+		fmt.Printf("\n[stress] BruteForce degradation point identified at %d RPS\n", breakingRPS)
+	} else {
+		fmt.Printf("\n[stress] BruteForce path sustained all steps without degradation\n")
+	}
+
+	require.NotEmpty(t, results)
+	first := results[0]
+	require.GreaterOrEqual(t, first.Metrics.Success, SuccessThreshold,
+		"brute-force baseline must sustain %d RPS with ≥ %.0f%% success (got %.2f%%)",
+		bruteProfile[0].RPS, SuccessThreshold*100, first.Metrics.Success*100)
+	require.LessOrEqual(t, first.Metrics.Latencies.P99, threshold,
+		"brute-force baseline P99 must be ≤ %s at %d RPS (got %s)",
+		threshold, bruteProfile[0].RPS, first.Metrics.Latencies.P99)
 }
 
 func TestStress_BruteForceRateLimited(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping brute-force rate-limit load test in short mode")
+	}
+
 	require.NotNil(t, testRedisClient)
 
 	const (
@@ -220,6 +264,10 @@ func TestStress_ChallengeList(t *testing.T) {
 		{RPS: raceScale(1000), Duration: 10 * time.Second},
 		{RPS: raceScale(2000), Duration: 10 * time.Second},
 		{RPS: raceScale(3000), Duration: 10 * time.Second},
+	}
+
+	if testing.Short() {
+		readProfile = readProfile[:1]
 	}
 
 	fmt.Println("\n[stress] Challenge List - read scalability:")

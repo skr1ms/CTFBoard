@@ -9,6 +9,10 @@ import (
 )
 
 func TestSpike_CompetitionStart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping competition-start spike load test in short mode")
+	}
+
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
 
@@ -69,6 +73,10 @@ func TestSpike_CompetitionStart(t *testing.T) {
 }
 
 func TestSpike_EndOfContest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping end-of-contest spike load test in short mode")
+	}
+
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
 	require.NotEmpty(t, Fixture.ChallengeIDs)

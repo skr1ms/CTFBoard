@@ -300,7 +300,9 @@ func seedSingleUser(ctx context.Context, client *openapi.ClientWithResponses, id
 	token := "Bearer " + *loginResp.JSON200.AccessToken
 	authFn := bearerEditor(token)
 
-	teamResp, err := client.PostTeamsSoloWithResponse(ctx, openapi.PostTeamsSoloJSONRequestBody{}, authFn)
+	teamResp, err := client.PostTeamsWithResponse(ctx, openapi.CreateTeamRequest{
+		Name: fmt.Sprintf("lt_team_%04d", idx),
+	}, authFn)
 	if err != nil {
 		return seedResult{err: fmt.Errorf("create team user %d: %w", idx, err)}
 	}
@@ -376,7 +378,9 @@ func seedRaceUser(
 	token := "Bearer " + *loginResp.JSON200.AccessToken
 	authFn := bearerEditor(token)
 
-	teamResp, err := client.PostTeamsSoloWithResponse(ctx, openapi.PostTeamsSoloJSONRequestBody{}, authFn)
+	teamResp, err := client.PostTeamsWithResponse(ctx, openapi.CreateTeamRequest{
+		Name: "lt_race_team",
+	}, authFn)
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("create race team: %w", err)
 	}

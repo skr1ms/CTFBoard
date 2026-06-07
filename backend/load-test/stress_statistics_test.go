@@ -9,6 +9,10 @@ import (
 )
 
 func TestStress_StatisticsEndpoints(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping statistics throughput load test in short mode")
+	}
+
 	require.NotNil(t, Fixture)
 	require.NotEmpty(t, Fixture.Users)
 

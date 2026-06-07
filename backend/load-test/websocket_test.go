@@ -51,7 +51,13 @@ func TestWebSocket_Endurance_Short(t *testing.T) {
 	require.NotEmpty(t, Fixture.Users)
 	require.NotEmpty(t, Fixture.ChallengeIDs)
 
-	runWSEndurance(t, wsEnduranceDurationShort)
+	duration := wsEnduranceDurationShort
+
+	if testing.Short() {
+		duration = 15 * time.Second
+	}
+
+	runWSEndurance(t, duration)
 }
 
 func runWSEndurance(t *testing.T, duration time.Duration) {
