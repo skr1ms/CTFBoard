@@ -49,3 +49,35 @@ func TestE2E_PublicUserStatsFollowScoreVisibility(t *testing.T) {
 	require.NoError(t, err)
 	requireStatus(t, "private user solves", http.StatusUnauthorized, privateSolves.StatusCode(), privateSolves.Body)
 }
+
+func TestE2E_BlockedUserHiddenFromPublicAccountSurfaces(t *testing.T) {
+	s := newE2ESuite(t)
+
+	admin := s.registerAdmin("blocked_public_user_admin")
+	viewer := s.registerUser("blocked_public_user_viewer")
+	player := s.registerUser("blocked_public_user_player")
+	s.createTeam(&player, e2eUID("blocked_public_user_team"))
+	challengeID := s.createChallenge(admin, e2eUID("blocked_public_user_chal"), "flag{blocked_public_user}", 100)
+
+	s.submitFlag(player, challengeID, "flag{blocked_public_user}", true, http.StatusOK)
+	s.setScoreVisibility(admin, "public")
+
+	_, err := TestPool.Exec(context.Background(), "UPDATE users SET was_in_banned_team = true WHERE id = $1", player.UserID)
+	require.NoError(t, err)
+
+	profile, err := s.client.GetUsersIDWithResponse(context.Background(), player.UserID, e2eBearer(viewer.Token))
+	require.NoError(t, err)
+	requireStatus(t, "blocked user profile for regular viewer", http.StatusNotFound, profile.StatusCode(), profile.Body)
+
+	solves, err := s.client.GetUsersIDSolvesWithResponse(context.Background(), player.UserID)
+	require.NoError(t, err)
+	requireStatus(t, "blocked user solves for public viewer", http.StatusNotFound, solves.StatusCode(), solves.Body)
+
+	adminProfile, err := s.client.GetUsersIDWithResponse(context.Background(), player.UserID, e2eBearer(admin.Token))
+	require.NoError(t, err)
+	requireStatus(t, "blocked user profile for admin", http.StatusOK, adminProfile.StatusCode(), adminProfile.Body)
+
+	adminSolves, err := s.client.GetUsersIDSolvesWithResponse(context.Background(), player.UserID, e2eBearer(admin.Token))
+	require.NoError(t, err)
+	requireStatus(t, "blocked user solves for admin", http.StatusOK, adminSolves.StatusCode(), adminSolves.Body)
+}

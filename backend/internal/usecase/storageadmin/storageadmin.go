@@ -15,6 +15,7 @@ import (
 
 type StoragePort interface {
 	List(ctx context.Context, prefix string, limit int) ([]string, error)
+	ListPage(ctx context.Context, prefix, cursor string, limit int) ([]string, string, error)
 	Delete(ctx context.Context, path string) error
 }
 
@@ -41,9 +42,13 @@ func NewUseCase(deps Deps) *UseCase {
 	return &UseCase{storage: deps.Storage, auditLog: deps.AuditLog}
 }
 
-func (uc *UseCase) List(ctx context.Context, params usecase.StorageAdminListParams) ([]string, error) {
+func (uc *UseCase) List(ctx context.Context, params usecase.StorageAdminListParams) (*usecase.StorageAdminListResult, error) {
 	if err := validatePrefix(params.Prefix); err != nil {
 		return nil, fmt.Errorf("StorageAdminUseCase - List - validatePrefix: %w", err)
+	}
+
+	if err := validateCursor(params.Cursor); err != nil {
+		return nil, fmt.Errorf("StorageAdminUseCase - List - validateCursor: %w", err)
 	}
 
 	limit, err := normalizeListLimit(params.Limit)
@@ -51,12 +56,12 @@ func (uc *UseCase) List(ctx context.Context, params usecase.StorageAdminListPara
 		return nil, fmt.Errorf("StorageAdminUseCase - List - normalizeListLimit: %w", err)
 	}
 
-	paths, err := uc.storage.List(ctx, params.Prefix, limit)
+	paths, nextCursor, err := uc.storage.ListPage(ctx, params.Prefix, params.Cursor, limit)
 	if err != nil {
-		return nil, fmt.Errorf("StorageAdminUseCase - List - Storage.List: %w", err)
+		return nil, fmt.Errorf("StorageAdminUseCase - List - Storage.ListPage: %w", err)
 	}
 
-	return paths, nil
+	return &usecase.StorageAdminListResult{Paths: paths, NextCursor: nextCursor}, nil
 }
 
 func (uc *UseCase) Delete(ctx context.Context, params usecase.StorageAdminDeleteParams) error {
@@ -121,6 +126,14 @@ func validatePath(path string) error {
 	}
 
 	return validateStoragePath("path", path)
+}
+
+func validateCursor(cursor string) error {
+	if cursor == "" {
+		return nil
+	}
+
+	return validateStoragePath("cursor", cursor)
 }
 
 func validateStoragePath(name, path string) error {

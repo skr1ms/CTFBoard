@@ -28,6 +28,28 @@ func TestStatisticsRepo_GetGeneralStats_Success(t *testing.T) {
 	require.GreaterOrEqual(t, stats.ChallengeCount, 1)
 }
 
+func TestStatisticsRepo_GetGeneralStats_ExcludesInheritedBannedUsers(t *testing.T) {
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	before, err := f.StatisticsRepo.GetGeneralStats(ctx, nil)
+	require.NoError(t, err)
+
+	user := f.CreateUser(t, "stats_inherited_"+uuid.NewString()[:8])
+
+	afterCreate, err := f.StatisticsRepo.GetGeneralStats(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, before.UserCount+1, afterCreate.UserCount)
+
+	_, err = f.Pool.Exec(ctx, "UPDATE users SET was_in_banned_team = TRUE WHERE id = $1", user.ID)
+	require.NoError(t, err)
+
+	afterInheritedBan, err := f.StatisticsRepo.GetGeneralStats(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, before.UserCount, afterInheritedBan.UserCount)
+}
+
 func TestStatisticsRepo_GetChallengeStats_Error_CancelledContext(t *testing.T) {
 	t.Parallel()
 	pool := SetupTestPool(t)
@@ -98,6 +120,52 @@ func TestStatisticsRepo_GetScoreboardHistory_Success(t *testing.T) {
 	}
 
 	require.True(t, found, "history for team1 not found")
+}
+
+func TestStatisticsRepo_GetScoreboardHistory_TopTeamsUseScoreboardTieBreak(t *testing.T) {
+	t.Parallel()
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	earlyUser := f.CreateUser(t, "history_tie_early")
+	lateUser := f.CreateUser(t, "history_tie_late")
+	earlyTeamID := uuid.New()
+	lateTeamID := uuid.New()
+
+	if earlyTeamID.String() < lateTeamID.String() {
+		earlyTeamID, lateTeamID = lateTeamID, earlyTeamID
+	}
+
+	_, err := f.Pool.Exec(ctx, `
+		INSERT INTO teams (id, name, invite_token, captain_id, created_at)
+		VALUES ($1, $2, $3, $4, now()), ($5, $6, $7, $8, now())
+	`, earlyTeamID, "history_tie_early_"+uuid.NewString()[:8], uuid.New(), earlyUser.ID,
+		lateTeamID, "history_tie_late_"+uuid.NewString()[:8], uuid.New(), lateUser.ID)
+	require.NoError(t, err)
+
+	_, err = f.Pool.Exec(ctx, "UPDATE users SET team_id = $1 WHERE id = $2", earlyTeamID, earlyUser.ID)
+	require.NoError(t, err)
+
+	_, err = f.Pool.Exec(ctx, "UPDATE users SET team_id = $1 WHERE id = $2", lateTeamID, lateUser.ID)
+	require.NoError(t, err)
+
+	earlyChallenge := f.CreateChallenge(t, "history_tie_early_ch", 1_000_000)
+	lateChallenge := f.CreateChallenge(t, "history_tie_late_ch", 1_000_000)
+	earlySolveTime := time.Now().Add(-2 * time.Hour)
+	lateSolveTime := time.Now().Add(-1 * time.Hour)
+
+	_, err = f.Pool.Exec(ctx, `
+		INSERT INTO solves (id, user_id, team_id, challenge_id, solved_at, points_at_solve)
+		VALUES ($1, $2, $3, $4, $5, 1000000), ($6, $7, $8, $9, $10, 1000000)
+	`, uuid.New(), earlyUser.ID, earlyTeamID, earlyChallenge.ID, earlySolveTime,
+		uuid.New(), lateUser.ID, lateTeamID, lateChallenge.ID, lateSolveTime)
+	require.NoError(t, err)
+
+	history, err := f.StatisticsRepo.GetScoreboardHistory(ctx, 1, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, history)
+	assert.Equal(t, earlyTeamID, history[0].TeamID)
 }
 
 func TestStatisticsRepo_GetScoreboardHistory_Error_CancelledContext(t *testing.T) {
@@ -185,7 +253,7 @@ func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
 
 	f.CreateUserWithTeam(t, uuid.New().String())
 
-	series, err := f.StatisticsRepo.GetTeamRegistrationTimeSeries(ctx)
+	series, err := f.StatisticsRepo.GetTeamRegistrationTimeSeries(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, series)
 	require.GreaterOrEqual(t, len(series), 1)
@@ -198,7 +266,7 @@ func TestStatisticsRepo_GetTeamRegistrationTimeSeries_Error_CancelledContext(t *
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.StatisticsRepo.GetTeamRegistrationTimeSeries(ctx)
+	_, err := f.StatisticsRepo.GetTeamRegistrationTimeSeries(ctx, nil)
 	require.Error(t, err)
 }
 
@@ -210,10 +278,35 @@ func TestStatisticsRepo_GetUserRegistrationTimeSeries_Success(t *testing.T) {
 
 	f.CreateUser(t, uuid.New().String())
 
-	series, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx)
+	series, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, series)
 	require.GreaterOrEqual(t, len(series), 1)
+}
+
+func TestStatisticsRepo_GetUserRegistrationTimeSeries_ExcludesInheritedBannedUsers(t *testing.T) {
+	pool := SetupTestPool(t)
+	f := NewTestFixture(pool.Pool)
+	ctx := context.Background()
+
+	today := time.Now().UTC().Format(time.DateOnly)
+	before, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx, nil)
+	require.NoError(t, err)
+
+	beforeCount := registrationCountForDate(before, today)
+
+	user := f.CreateUser(t, "stats_series_inherited_"+uuid.NewString()[:8])
+
+	afterCreate, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, beforeCount+1, registrationCountForDate(afterCreate, today))
+
+	_, err = f.Pool.Exec(ctx, "UPDATE users SET was_in_banned_team = TRUE WHERE id = $1", user.ID)
+	require.NoError(t, err)
+
+	afterInheritedBan, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, beforeCount, registrationCountForDate(afterInheritedBan, today))
 }
 
 func TestStatisticsRepo_GetUserRegistrationTimeSeries_Error_CancelledContext(t *testing.T) {
@@ -223,7 +316,7 @@ func TestStatisticsRepo_GetUserRegistrationTimeSeries_Error_CancelledContext(t *
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx)
+	_, err := f.StatisticsRepo.GetUserRegistrationTimeSeries(ctx, nil)
 	require.Error(t, err)
 }
 
@@ -416,6 +509,7 @@ func TestStatisticsRepo_GetAdminStatisticsFunnel_ScenariosAndFilters(t *testing.
 	bannedUser, bannedTeam := f.CreateUserWithTeam(t, "funnel_banned_team")
 	hiddenUser, hiddenTeam := f.CreateUserWithTeam(t, "funnel_hidden_team")
 	userBanned, userBannedTeam := f.CreateUserWithTeam(t, "funnel_banned_user")
+	userInheritedBanned, userInheritedBannedTeam := f.CreateUserWithTeam(t, "funnel_inherited_banned_user")
 
 	openedChallenge := f.CreateChallenge(t, "funnel_opened_ch", 100)
 	attemptedChallenge := f.CreateChallenge(t, "funnel_attempted_ch", 100)
@@ -431,6 +525,8 @@ func TestStatisticsRepo_GetAdminStatisticsFunnel_ScenariosAndFilters(t *testing.
 	_, err = f.Pool.Exec(ctx, "UPDATE teams SET is_hidden = TRUE WHERE id = $1", hiddenTeam.ID)
 	require.NoError(t, err)
 	_, err = f.Pool.Exec(ctx, "UPDATE users SET is_banned = TRUE WHERE id = $1", userBanned.ID)
+	require.NoError(t, err)
+	_, err = f.Pool.Exec(ctx, "UPDATE users SET was_in_banned_team = TRUE WHERE id = $1", userInheritedBanned.ID)
 	require.NoError(t, err)
 
 	insertChallengeOpenAt(t, f, openedUser.ID, &openedTeam.ID, openedChallenge.ID, now.Add(-6*time.Minute))
@@ -449,6 +545,9 @@ func TestStatisticsRepo_GetAdminStatisticsFunnel_ScenariosAndFilters(t *testing.
 	insertChallengeOpenAt(t, f, userBanned.ID, &userBannedTeam.ID, filteredChallenge.ID, now.Add(-5*time.Minute))
 	insertSubmissionAt(t, f, userBanned.ID, &userBannedTeam.ID, filteredChallenge.ID, false, now.Add(-4*time.Minute), &userBanned.ID, nil)
 	insertSolveAt(t, f, userBanned.ID, userBannedTeam.ID, filteredChallenge.ID, now.Add(-3*time.Minute), 100, &userBanned.ID, nil)
+	insertChallengeOpenAt(t, f, userInheritedBanned.ID, &userInheritedBannedTeam.ID, filteredChallenge.ID, now.Add(-5*time.Minute))
+	insertSubmissionAt(t, f, userInheritedBanned.ID, &userInheritedBannedTeam.ID, filteredChallenge.ID, false, now.Add(-4*time.Minute), &userInheritedBanned.ID, nil)
+	insertSolveAt(t, f, userInheritedBanned.ID, userInheritedBannedTeam.ID, filteredChallenge.ID, now.Add(-3*time.Minute), 100, &userInheritedBanned.ID, nil)
 
 	funnel, err := f.StatisticsRepo.GetAdminStatisticsFunnel(ctx, 1000, nil)
 	require.NoError(t, err)
@@ -511,6 +610,7 @@ func TestStatisticsRepo_GetAdminStatisticsFunnel_ScenariosAndFilters(t *testing.
 	assert.Nil(t, findFunnelTeamRow(funnel, bannedTeam.ID))
 	assert.Nil(t, findFunnelTeamRow(funnel, hiddenTeam.ID))
 	assert.Nil(t, findFunnelUserRow(funnel, userBanned.ID))
+	assert.Nil(t, findFunnelUserRow(funnel, userInheritedBanned.ID))
 }
 
 func TestStatisticsRepo_GetAdminStatisticsFunnel_RespectsFreezeTime(t *testing.T) {
@@ -635,6 +735,16 @@ func findFunnelUserRow(funnel *domain.AdminStatisticsFunnel, userID uuid.UUID) *
 	}
 
 	return nil
+}
+
+func registrationCountForDate(series []*domain.RegistrationTimePoint, date string) int {
+	for _, point := range series {
+		if point.Date == date {
+			return point.Count
+		}
+	}
+
+	return 0
 }
 
 func requireFunnelTeamCell(t *testing.T, funnel *domain.AdminStatisticsFunnel, teamID, challengeID uuid.UUID) *domain.FunnelTeamCell {

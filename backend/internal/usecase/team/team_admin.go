@@ -76,6 +76,8 @@ func toRepoTeamVisibility(visibility usecase.AdminTeamVisibility) repo.TeamAdmin
 // captain is requested the candidate is locked and validated (must be in the team and
 // not banned) before the team row is locked, preventing captain/team lock inversion.
 func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *string, captainID, bracketID *uuid.UUID, isHidden *bool) (*domain.Team, error) {
+	hiddenChanged := false
+
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if captainID != nil {
 			if err := uc.deps.UserRepo.Lock(ctx, *captainID); err != nil {
@@ -112,8 +114,27 @@ func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *
 			}
 		}
 
+		var challengeIDs []uuid.UUID
+
+		if isHidden != nil && *isHidden != currentTeam.IsHidden {
+			hiddenChanged = true
+
+			var err error
+
+			challengeIDs, err = uc.getChallengeIDsForTeam(ctx, teamID)
+			if err != nil {
+				return fmt.Errorf("TeamUseCase - AdminUpdate - getChallengeIDsForTeam: %w", err)
+			}
+		}
+
 		if err := uc.deps.TeamRepo.UpdateAdmin(ctx, teamID, name, captainID, bracketID, isHidden); err != nil {
 			return fmt.Errorf("TeamUseCase - AdminUpdate - TeamRepo.UpdateAdmin: %w", err)
+		}
+
+		if hiddenChanged {
+			if err := uc.adjustSolveCountsForChallenges(ctx, challengeIDs); err != nil {
+				return fmt.Errorf("TeamUseCase - AdminUpdate - adjustSolveCountsForChallenges: %w", err)
+			}
 		}
 
 		return nil
@@ -127,6 +148,11 @@ func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *
 	}
 
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+
+	if hiddenChanged {
+		cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
+	}
+
 	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - AdminUpdate")
 
 	return team, nil

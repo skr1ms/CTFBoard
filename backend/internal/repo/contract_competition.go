@@ -144,8 +144,8 @@ type (
 		GetScoreDistribution(ctx context.Context, freezeTime *time.Time) ([]*domain.ScoreDistributionBucket, error)
 		GetSubmissionTimeSeries(ctx context.Context, freezeTime *time.Time) (*domain.SubmissionTimeSeriesStats, error)
 		GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect bool, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error)
-		GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
-		GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
+		GetTeamRegistrationTimeSeries(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error)
+		GetUserRegistrationTimeSeries(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error)
 		GetSolveMatrix(ctx context.Context, freezeTime *time.Time) ([]*domain.SolveMatrixRow, error)
 		GetAdminStatisticsFunnel(ctx context.Context, limit int, freezeTime *time.Time) (*domain.AdminStatisticsFunnel, error)
 	}

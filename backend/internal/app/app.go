@@ -307,11 +307,9 @@ type ctfNameDefaultReconciler interface {
 	ReconcileCTFNameDefault(ctx context.Context, appName, defaultAppName string) error
 }
 
-// reconcileSettings syncs brand-related env vars (APP_NAME, RESEND_FROM_NAME,
-// RESEND_FROM_EMAIL) into the DB settings rows, but only when the DB still holds
-// the generic migration defaults. This allows a fresh fork install to display the
-// operator's custom CTF name without manual admin-UI intervention, while
-// preserving any admin edits made after first boot.
+// reconcileSettings syncs deploy-time email/OAuth capabilities into DB settings
+// on every boot. APP_NAME is copied only while the DB still holds the generic
+// migration default, preserving later admin edits.
 func reconcileSettings(
 	ctx context.Context,
 	cfg *config.Config,

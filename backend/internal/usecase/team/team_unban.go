@@ -153,10 +153,6 @@ func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUI
 		}
 	}
 
-	if err := uc.adjustSolveCountsForTeam(ctx, teamID); err != nil {
-		return false, fmt.Errorf("TeamUseCase - UnbanTeam - adjustSolveCountsForTeam: %w", err)
-	}
-
 	freeMembers, err = uc.deps.UserRepo.FilterIDsByTeamIDNullAndNotBanned(ctx, *memberIDs)
 	if err != nil {
 		return false, fmt.Errorf("TeamUseCase - UnbanTeam - UserRepo.FilterIDsByTeamIDNullAndNotBanned: %w", err)
@@ -189,6 +185,10 @@ func (uc *TeamUseCase) unbanTeamTx(ctx context.Context, teamID, actorID uuid.UUI
 		}
 
 		uc.deps.Logger.Warn("TeamUseCase - UnbanTeam - no members restored; team set hidden", logkit.Fields{"team_id": teamID.String()})
+	}
+
+	if err := uc.adjustSolveCountsForTeam(ctx, teamID); err != nil {
+		return false, fmt.Errorf("TeamUseCase - UnbanTeam - adjustSolveCountsForTeam: %w", err)
 	}
 
 	if len(*memberIDs) > 0 {

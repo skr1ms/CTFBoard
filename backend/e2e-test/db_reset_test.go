@@ -55,8 +55,8 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 				rate_limit_verify_email_per_minute, rate_limit_oauth_callback_per_minute,
 				updated_at
 			) VALUES (
-				1, 'CTF Platform', TRUE, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
-				FALSE, 'noreply@ctf-platform.local', 'CTF Platform',
+				1, 'CTF Platform', FALSE, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
+				TRUE, 'noreply@ctf-platform.local', 'CTF Platform',
 				24, 1, 500000, 1,
 				TRUE,
 				10000, 10000,
@@ -143,7 +143,7 @@ func resetAppSettingsFull() {
 	ctx := context.Background()
 
 	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET
-		registration_open = TRUE, max_teams = 0,
+		verify_emails = FALSE, registration_open = TRUE, max_teams = 0,
 		submit_limit_per_user = 500000, submit_limit_duration_min = 1,
 		rate_limit_login_per_minute = 10000, rate_limit_register_per_minute = 10000,
 		rate_limit_forgot_password_per_minute = 100000, rate_limit_reset_password_per_minute = 10000,

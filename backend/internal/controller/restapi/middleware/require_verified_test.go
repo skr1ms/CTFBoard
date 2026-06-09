@@ -148,7 +148,7 @@ func TestRequireVerifiedFromSettings_UsesLiveEnabledSettingWhenFallbackEnabled(t
 	require.Equal(t, http.StatusForbidden, rr.Code)
 }
 
-func TestRequireVerifiedFromSettings_FallbackDisabledBypassesLiveEnabledSetting(t *testing.T) {
+func TestRequireVerifiedFromSettings_UsesLiveEnabledSettingWhenFallbackDisabled(t *testing.T) {
 	t.Parallel()
 
 	r := chi.NewRouter()
@@ -166,7 +166,7 @@ func TestRequireVerifiedFromSettings_FallbackDisabledBypassesLiveEnabledSetting(
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 func withUser(ctx context.Context, u *domain.User) context.Context {

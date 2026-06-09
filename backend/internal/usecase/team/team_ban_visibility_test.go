@@ -264,14 +264,39 @@ func TestTeamUseCase_SetHidden_Success(t *testing.T) {
 	d := newTeamTestDeps(t)
 
 	teamID := uuid.New()
+	challengeID := uuid.New()
 	team := &domain.Team{ID: teamID, Name: "Team"}
+	challenge := &domain.Challenge{ID: challengeID, Points: 100}
 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{challengeID}, nil).Once()
 	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
+	d.challengeRepo.EXPECT().RecalculateSolveCounts(mock.Anything, []uuid.UUID{challengeID}).Return(nil).Once()
+	d.challengeRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{challengeID}).Return(map[uuid.UUID]*domain.Challenge{challengeID: challenge}, nil).Once()
+
+	uc := d.createUseCase()
+
+	err := uc.SetHidden(context.Background(), teamID, true)
+
+	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_SetHidden_NoChangeSkipsRecalculation(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	teamID := uuid.New()
+	team := &domain.Team{ID: teamID, Name: "Team", IsHidden: true}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 
 	uc := d.createUseCase()
 
@@ -295,6 +320,7 @@ func TestTeamUseCase_SetHiddenBulk_DedupesAndReportsAffected(t *testing.T) {
 		team := &domain.Team{ID: teamID}
 		d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 		d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+		d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{}, nil).Once()
 		d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
 	}
 
@@ -304,6 +330,33 @@ func TestTeamUseCase_SetHiddenBulk_DedupesAndReportsAffected(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, 2, result.AffectedCount)
+}
+
+func TestTeamUseCase_SetHiddenBulk_ReportsOnlyChangedTeams(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	changedID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	unchangedID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+
+	d.teamRepo.EXPECT().Lock(mock.Anything, changedID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, changedID).Return(&domain.Team{ID: changedID}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, changedID).Return([]uuid.UUID{}, nil).Once()
+	d.teamRepo.EXPECT().SetHidden(mock.Anything, changedID, true).Return(nil).Once()
+
+	d.teamRepo.EXPECT().Lock(mock.Anything, unchangedID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, unchangedID).Return(&domain.Team{ID: unchangedID, IsHidden: true}, nil).Once()
+
+	uc := d.createUseCase()
+	result, err := uc.SetHiddenBulk(context.Background(), []uuid.UUID{unchangedID, changedID}, true)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, 1, result.AffectedCount)
 }
 
 func TestTeamUseCase_SetHidden_Error(t *testing.T) {

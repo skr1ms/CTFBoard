@@ -257,8 +257,8 @@ func (r *StatisticsRepo) GetSubmissionTimeSeriesByType(ctx context.Context, isCo
 	return out, nil
 }
 
-func (r *StatisticsRepo) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-	rows, err := r.Q(ctx).GetTeamRegistrationTimeSeries(ctx)
+func (r *StatisticsRepo) GetTeamRegistrationTimeSeries(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error) {
+	rows, err := r.Q(ctx).GetTeamRegistrationTimeSeries(ctx, pgutil.TimeToTimestamptz(freezeTime))
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetTeamRegistrationTimeSeries: %w", err)
 	}
@@ -280,8 +280,8 @@ func (r *StatisticsRepo) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*
 	return out, nil
 }
 
-func (r *StatisticsRepo) GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-	rows, err := r.Q(ctx).GetUserRegistrationTimeSeries(ctx)
+func (r *StatisticsRepo) GetUserRegistrationTimeSeries(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error) {
+	rows, err := r.Q(ctx).GetUserRegistrationTimeSeries(ctx, pgutil.TimeToTimestamptz(freezeTime))
 	if err != nil {
 		return nil, fmt.Errorf("StatisticsRepo - GetUserRegistrationTimeSeries: %w", err)
 	}

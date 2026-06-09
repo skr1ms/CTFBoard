@@ -19,3 +19,5 @@ schemas:
           $ref: '#/schemas/response.StorageObjectResponse'
       total:
         type: integer
+      next_cursor:
+        type: string

@@ -16,7 +16,7 @@ import (
 func TestFromStorageListKeepsIndependentPathPointers(t *testing.T) {
 	t.Parallel()
 
-	got := FromStorageList([]string{"a.txt", "dir/b.txt"})
+	got := FromStorageList(&usecase.StorageAdminListResult{Paths: []string{"a.txt", "dir/b.txt"}})
 
 	require.NotNil(t, got.Objects)
 	require.NotNil(t, got.Total)
@@ -25,6 +25,19 @@ func TestFromStorageListKeepsIndependentPathPointers(t *testing.T) {
 	assert.Equal(t, "a.txt", *(*got.Objects)[0].Path)
 	assert.Equal(t, "dir/b.txt", *(*got.Objects)[1].Path)
 	assert.NotSame(t, (*got.Objects)[0].Path, (*got.Objects)[1].Path)
+	assert.Nil(t, got.NextCursor)
+}
+
+func TestFromStorageListSetsNonEmptyNextCursor(t *testing.T) {
+	t.Parallel()
+
+	got := FromStorageList(&usecase.StorageAdminListResult{
+		Paths:      []string{"a.txt"},
+		NextCursor: "a.txt",
+	})
+
+	require.NotNil(t, got.NextCursor)
+	assert.Equal(t, "a.txt", *got.NextCursor)
 }
 
 func TestFromUserForMePasswordAndBanSemantics(t *testing.T) {

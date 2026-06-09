@@ -193,7 +193,7 @@ func TestNew_ShutdownTimeout_Custom(t *testing.T) {
 	assert.Equal(t, 30*time.Second, cfg.ShutdownTimeout)
 }
 
-func TestNew_ResendEnabledNoAPIKey_DisablesEmail(t *testing.T) {
+func TestNew_ResendEnabledNoAPIKeyDisablesEmailWhenVerificationOff(t *testing.T) {
 	disableVaultForTest(t)
 
 	setupEnv(t, map[string]string{
@@ -207,7 +207,7 @@ func TestNew_ResendEnabledNoAPIKey_DisablesEmail(t *testing.T) {
 		"SETUP_TOKEN":         setupToken32,
 		"RESEND_ENABLED":      "true",
 		"RESEND_API_KEY":      "",
-		"VERIFY_EMAILS":       "true",
+		"VERIFY_EMAILS":       "false",
 	})
 
 	cfg, err := New()
@@ -215,6 +215,28 @@ func TestNew_ResendEnabledNoAPIKey_DisablesEmail(t *testing.T) {
 	assert.False(t, cfg.Enabled)
 	assert.Empty(t, cfg.APIKey)
 	assert.False(t, cfg.VerifyEmails)
+}
+
+func TestNew_Error_VerifyEmailsRequiresReadyResend(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":       "u",
+		"POSTGRES_PASSWORD":   "p",
+		"POSTGRES_DB":         "d",
+		"JWT_ACCESS_SECRET":   jwtSecret32,
+		"JWT_REFRESH_SECRET":  jwtSecret32,
+		"REDIS_PASSWORD":      "redis_pwd",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         setupToken32,
+		"RESEND_ENABLED":      "true",
+		"RESEND_API_KEY":      "placeholder",
+		"VERIFY_EMAILS":       "true",
+	})
+
+	_, err := New()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "VERIFY_EMAILS=true")
 }
 
 func TestNew_ResendPlaceholder_DisablesEmail(t *testing.T) {

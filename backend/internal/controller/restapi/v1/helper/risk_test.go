@@ -38,6 +38,13 @@ func TestTeamStatsVisibleToViewer(t *testing.T) {
 	}{
 		{name: "nil team", team: nil, viewer: nil, want: false},
 		{name: "public team visible anonymously", team: &domain.Team{ID: teamID}, viewer: nil, want: true},
+		{name: "banned team hidden anonymously", team: &domain.Team{ID: teamID, IsBanned: true}, viewer: nil, want: false},
+		{
+			name:   "banned team visible to admin",
+			team:   &domain.Team{ID: teamID, IsBanned: true},
+			viewer: &domain.User{ID: uuid.New(), Role: domain.RoleAdmin},
+			want:   true,
+		},
 		{name: "hidden team hidden anonymously", team: &domain.Team{ID: teamID, IsHidden: true}, viewer: nil, want: false},
 		{
 			name:   "hidden team visible to admin",
@@ -64,6 +71,37 @@ func TestTeamStatsVisibleToViewer(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, tt.want, TeamStatsVisibleToViewer(tt.team, tt.viewer))
+		})
+	}
+}
+
+func TestUserPublicVisibleToViewer(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		target *domain.User
+		viewer *domain.User
+		want   bool
+	}{
+		{name: "nil user", target: nil, viewer: nil, want: false},
+		{name: "normal user visible anonymously", target: &domain.User{Role: domain.RoleUser}, viewer: nil, want: true},
+		{name: "direct banned user hidden anonymously", target: &domain.User{Role: domain.RoleUser, IsBanned: true}, viewer: nil, want: false},
+		{name: "team inherited banned user hidden anonymously", target: &domain.User{Role: domain.RoleUser, WasInBannedTeam: true}, viewer: nil, want: false},
+		{
+			name:   "blocked user visible to admin",
+			target: &domain.User{Role: domain.RoleUser, WasInBannedTeam: true},
+			viewer: &domain.User{Role: domain.RoleAdmin},
+			want:   true,
+		},
+		{name: "admin target ignores inherited team marker", target: &domain.User{Role: domain.RoleAdmin, WasInBannedTeam: true}, viewer: nil, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, UserPublicVisibleToViewer(tt.target, tt.viewer))
 		})
 	}
 }

@@ -41,7 +41,9 @@ func (q *Queries) ClearUserAvatarURL(ctx context.Context, id uuid.UUID) error {
 const countActiveUsers = `-- name: CountActiveUsers :one
 SELECT COUNT(*)::bigint
 FROM users
-WHERE role = 'user' AND is_banned = false
+WHERE role = 'user'
+  AND is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin')
 `
 
 func (q *Queries) CountActiveUsers(ctx context.Context) (int64, error) {
@@ -55,6 +57,8 @@ const countSearchUsers = `-- name: CountSearchUsers :one
 SELECT COUNT(*)::bigint
 FROM users
 WHERE ($1::text IS NULL OR username ILIKE '%' || $1 || '%')
+  AND is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin')
 `
 
 func (q *Queries) CountSearchUsers(ctx context.Context, search *string) (int64, error) {
@@ -124,6 +128,8 @@ SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1
+  AND u.is_banned = false
+  AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
 `
 
 func (q *Queries) CountSearchUsersByIP(ctx context.Context, ip string) (int64, error) {
@@ -465,6 +471,8 @@ const searchUsers = `-- name: SearchUsers :many
 SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, avatar_url, created_at
 FROM users
 WHERE ($3::text IS NULL OR username ILIKE '%' || $3 || '%')
+  AND is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin')
 ORDER BY created_at ASC
 LIMIT $1 OFFSET $2
 `
@@ -644,6 +652,8 @@ SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1
+  AND u.is_banned = false
+  AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
 ORDER BY u.created_at ASC
 LIMIT $2 OFFSET $3
 `
@@ -737,6 +747,11 @@ UPDATE users SET
     email = COALESCE($3, email),
     role = COALESCE($4, role),
     is_verified = COALESCE($5, is_verified),
+    verified_at = CASE
+        WHEN $5::boolean IS NULL THEN verified_at
+        WHEN $5::boolean = true THEN COALESCE(verified_at, now())
+        ELSE NULL
+    END,
     password_hash = COALESCE($6, password_hash)
 WHERE id = $1
 `

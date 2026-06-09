@@ -139,11 +139,6 @@ function SettingsForm({ settings }: { settings: Settings }) {
   const [oauthGithub, setOauthGithub] = useState(settings.oauth_github_enabled ?? false)
   const [oauthGoogle, setOauthGoogle] = useState(settings.oauth_google_enabled ?? false)
 
-  // Email / Resend
-  const [resendEnabled, setResendEnabled] = useState(settings.resend_enabled ?? false)
-  const [resendFromEmail, setResendFromEmail] = useState(settings.resend_from_email ?? '')
-  const [resendFromName, setResendFromName] = useState(settings.resend_from_name ?? '')
-
   // Pagination
   const [defaultPerPage, setDefaultPerPage] = useState(settings.default_per_page ?? 20)
   const [maxPerPage, setMaxPerPage] = useState(settings.max_per_page ?? 100)
@@ -190,9 +185,6 @@ function SettingsForm({ settings }: { settings: Settings }) {
     setWriteupEnabled(settings.writeup_enabled ?? false)
     setOauthGithub(settings.oauth_github_enabled ?? false)
     setOauthGoogle(settings.oauth_google_enabled ?? false)
-    setResendEnabled(settings.resend_enabled ?? false)
-    setResendFromEmail(settings.resend_from_email ?? '')
-    setResendFromName(settings.resend_from_name ?? '')
     setDefaultPerPage(settings.default_per_page ?? 20)
     setMaxPerPage(settings.max_per_page ?? 100)
     setCsvExportMaxRows(settings.csv_export_max_rows ?? 10000)
@@ -229,9 +221,6 @@ function SettingsForm({ settings }: { settings: Settings }) {
         writeup_enabled: writeupEnabled,
         oauth_github_enabled: oauthGithub,
         oauth_google_enabled: oauthGoogle,
-        resend_enabled: resendEnabled,
-        resend_from_email: resendFromEmail,
-        resend_from_name: resendFromName,
         default_per_page: defaultPerPage,
         max_per_page: maxPerPage,
         csv_export_max_rows: csvExportMaxRows,
@@ -373,29 +362,18 @@ function SettingsForm({ settings }: { settings: Settings }) {
       <Section title="Email (Resend)">
         <FieldRow label="Resend enabled">
           <div className="flex items-center gap-3">
-            <Toggle checked={resendEnabled} onChange={setResendEnabled} />
             <span className="text-sm text-text-secondary">
-              {resendEnabled ? 'Enabled' : 'Disabled'}
+              {settings.resend_enabled ? 'Enabled' : 'Disabled'}
             </span>
           </div>
         </FieldRow>
         <FieldRow label="From email">
-          <input
-            type="email"
-            value={resendFromEmail}
-            onChange={(e) => setResendFromEmail(e.target.value)}
-            className={inputCls}
-            placeholder="noreply@ctf.example.com"
-          />
+          <span className="text-sm text-text-secondary break-all">
+            {settings.resend_from_email || '-'}
+          </span>
         </FieldRow>
         <FieldRow label="From name">
-          <input
-            type="text"
-            value={resendFromName}
-            onChange={(e) => setResendFromName(e.target.value)}
-            className={inputCls}
-            placeholder="CTF Platform"
-          />
+          <span className="text-sm text-text-secondary">{settings.resend_from_name || '-'}</span>
         </FieldRow>
       </Section>
 

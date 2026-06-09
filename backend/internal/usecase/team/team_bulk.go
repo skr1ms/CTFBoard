@@ -114,10 +114,17 @@ func (uc *TeamUseCase) SetHiddenBulk(ctx context.Context, teamIDs []uuid.UUID, h
 		return nil, err
 	}
 
+	changed := 0
+
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		for _, id := range ids {
-			if err := uc.setHiddenTx(ctx, id, hidden); err != nil {
+			didChange, err := uc.setHiddenTx(ctx, id, hidden)
+			if err != nil {
 				return err
+			}
+
+			if didChange {
+				changed++
 			}
 		}
 
@@ -132,9 +139,10 @@ func (uc *TeamUseCase) SetHiddenBulk(ctx context.Context, teamIDs []uuid.UUID, h
 		}
 
 		cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - SetHiddenBulk")
+		cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
 	})
 
-	return &usecase.BulkActionResult{AffectedCount: len(ids)}, nil
+	return &usecase.BulkActionResult{AffectedCount: changed}, nil
 }
 
 func normalizeBulkTeamIDs(ids []uuid.UUID) ([]uuid.UUID, error) {

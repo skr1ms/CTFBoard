@@ -190,8 +190,18 @@ func (uc *BackupUseCase) prepareImportFiles(zr *zip.Reader, files []domain.File,
 
 	prepared := make([]domain.File, 0, len(files))
 	warnings := make([]string, 0)
+	seen := make(map[string]struct{}, len(files))
 
 	for _, file := range files {
+		normalizedFile, normalized, err := normalizeBackupFileMetadata(file)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("skip file %s: %v", file.ID, err))
+
+			continue
+		}
+
+		file = normalizedFile
+
 		zipPath, err := backupFileZIPPath(file)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("skip file %s: %v", file.ID, err))
@@ -204,6 +214,14 @@ func (uc *BackupUseCase) prepareImportFiles(zr *zip.Reader, files []domain.File,
 
 			continue
 		}
+
+		if _, ok := seen[zipPath]; ok {
+			warnings = append(warnings, fmt.Sprintf("skip %s: duplicate backup file path", zipPath))
+
+			continue
+		}
+
+		seen[zipPath] = struct{}{}
 
 		zf, ok := entries[zipPath]
 		if !ok {
@@ -224,6 +242,10 @@ func (uc *BackupUseCase) prepareImportFiles(zr *zip.Reader, files []domain.File,
 
 				continue
 			}
+		}
+
+		if normalized {
+			warnings = append(warnings, fmt.Sprintf("normalize %s: filename rewritten to %s", zipPath, file.Filename))
 		}
 
 		prepared = append(prepared, file)

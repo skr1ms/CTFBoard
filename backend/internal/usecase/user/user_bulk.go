@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 
@@ -12,11 +13,18 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-const maxBulkUserActionIDs = 100
+const (
+	maxBulkUserActionIDs = 100
+	minBulkLockTargets   = 2
+)
 
 func (uc *UserUseCase) BanUsers(ctx context.Context, userIDs []uuid.UUID, reason string, actorID uuid.UUID) (*usecase.BulkActionResult, error) {
 	ids, err := normalizeBulkUserIDs(userIDs)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := rejectBulkSelfAction(ids, actorID); err != nil {
 		return nil, err
 	}
 
@@ -26,11 +34,11 @@ func (uc *UserUseCase) BanUsers(ctx context.Context, userIDs []uuid.UUID, reason
 	)
 
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		for _, id := range ids {
-			if id == actorID {
-				return apperr.ErrAccessDenied
-			}
+		if err := uc.lockBulkUserModerationTargets(ctx, ids); err != nil {
+			return err
+		}
 
+		for _, id := range ids {
 			result, err := uc.banUserTx(ctx, id, reason)
 			if err != nil {
 				return err
@@ -61,17 +69,21 @@ func (uc *UserUseCase) UnbanUsers(ctx context.Context, userIDs []uuid.UUID, acto
 		return nil, err
 	}
 
+	if err := rejectBulkSelfAction(ids, actorID); err != nil {
+		return nil, err
+	}
+
 	var (
 		aggregate userBanRestoreTxResult
 		changed   int
 	)
 
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		for _, id := range ids {
-			if id == actorID {
-				return apperr.ErrAccessDenied
-			}
+		if err := uc.lockBulkUserModerationTargets(ctx, ids); err != nil {
+			return err
+		}
 
+		for _, id := range ids {
 			result, err := uc.restoreUserBanTx(ctx, id, true)
 			if err != nil {
 				return err
@@ -110,4 +122,49 @@ func normalizeBulkUserIDs(ids []uuid.UUID) ([]uuid.UUID, error) {
 	domain.SortUUIDs(normalized)
 
 	return normalized, nil
+}
+
+func rejectBulkSelfAction(ids []uuid.UUID, actorID uuid.UUID) error {
+	if slices.Contains(ids, actorID) {
+		return apperr.ErrAccessDenied
+	}
+
+	return nil
+}
+
+func (uc *UserUseCase) lockBulkUserModerationTargets(ctx context.Context, ids []uuid.UUID) error {
+	if len(ids) < minBulkLockTargets {
+		return nil
+	}
+
+	teamIDs := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if err := uc.deps.UserRepo.Lock(ctx, id); err != nil {
+			return fmt.Errorf("UserUseCase - lockBulkUserModerationTargets - UserRepo.Lock: %w", err)
+		}
+
+		user, err := uc.deps.UserRepo.GetByID(ctx, id)
+		if err != nil {
+			return fmt.Errorf("UserUseCase - lockBulkUserModerationTargets - UserRepo.GetByID: %w", err)
+		}
+
+		if user.TeamID != nil {
+			teamIDs = append(teamIDs, *user.TeamID)
+		}
+	}
+
+	if uc.deps.TeamRepo == nil {
+		return nil
+	}
+
+	teamIDs = domain.UniqueUUIDs(teamIDs)
+	domain.SortUUIDs(teamIDs)
+
+	for _, teamID := range teamIDs {
+		if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
+			return fmt.Errorf("UserUseCase - lockBulkUserModerationTargets - TeamRepo.Lock: %w", err)
+		}
+	}
+
+	return nil
 }

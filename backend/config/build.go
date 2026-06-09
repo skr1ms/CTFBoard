@@ -37,9 +37,12 @@ func buildConfig(raw *rawConfig, l logkit.Logger) (*Config, error) {
 	}
 
 	resend := buildResend(raw)
+	if raw.VerifyEmails && !resend.Enabled {
+		return nil, fmt.Errorf("VERIFY_EMAILS=true requires RESEND_ENABLED=true with a real RESEND_API_KEY")
+	}
 
 	cfg := &Config{
-		App: buildApp(raw, resend.Enabled),
+		App: buildApp(raw),
 		Admin: Admin{
 			Username: raw.AdminUsername,
 			Email:    raw.AdminEmail,
@@ -91,7 +94,7 @@ func parseJWTKeys(envName, rawValue, primarySecret string) ([]JWTKey, error) {
 	return parsed, nil
 }
 
-func buildApp(raw *rawConfig, resendEnabled bool) App {
+func buildApp(raw *rawConfig) App {
 	return App{
 		Name:              raw.AppName,
 		Version:           raw.AppVersion,
@@ -100,7 +103,7 @@ func buildApp(raw *rawConfig, resendEnabled bool) App {
 		SetupToken:        raw.SetupToken,
 		LogLevel:          raw.LogLevel,
 		FlagEncryptionKey: raw.FlagEncryptionKey,
-		VerifyEmails:      raw.VerifyEmails && resendEnabled,
+		VerifyEmails:      raw.VerifyEmails,
 		DebugEnabled:      raw.DebugEnabled,
 	}
 }

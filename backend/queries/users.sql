@@ -58,13 +58,17 @@ UPDATE users SET password_hash = $2 WHERE id = $1;
 SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, avatar_url, created_at
 FROM users
 WHERE (sqlc.narg('search')::text IS NULL OR username ILIKE '%' || sqlc.narg('search') || '%')
+  AND is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin')
 ORDER BY created_at ASC
 LIMIT $1 OFFSET $2;
 
 -- name: CountSearchUsers :one
 SELECT COUNT(*)::bigint
 FROM users
-WHERE (sqlc.narg('search')::text IS NULL OR username ILIKE '%' || sqlc.narg('search') || '%');
+WHERE (sqlc.narg('search')::text IS NULL OR username ILIKE '%' || sqlc.narg('search') || '%')
+  AND is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin');
 
 -- name: SearchUsersAdmin :many
 SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, avatar_url, created_at
@@ -106,6 +110,11 @@ UPDATE users SET
     email = COALESCE(sqlc.narg('email'), email),
     role = COALESCE(sqlc.narg('role'), role),
     is_verified = COALESCE(sqlc.narg('is_verified'), is_verified),
+    verified_at = CASE
+        WHEN sqlc.narg('is_verified')::boolean IS NULL THEN verified_at
+        WHEN sqlc.narg('is_verified')::boolean = true THEN COALESCE(verified_at, now())
+        ELSE NULL
+    END,
     password_hash = COALESCE(sqlc.narg('password_hash'), password_hash)
 WHERE id = $1;
 
@@ -124,6 +133,8 @@ SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1
+  AND u.is_banned = false
+  AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
 ORDER BY u.created_at ASC
 LIMIT $2 OFFSET $3;
 
@@ -131,7 +142,9 @@ LIMIT $2 OFFSET $3;
 SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
-WHERE t.ip = $1;
+WHERE t.ip = $1
+  AND u.is_banned = false
+  AND NOT (u.was_in_banned_team = true AND u.role <> 'admin');
 
 -- name: SearchUsersAdminByIP :many
 SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u.is_verified, u.verified_at, u.is_banned, u.banned_at, u.banned_reason, u.was_in_banned_team, u.avatar_url, u.created_at
@@ -164,7 +177,9 @@ WHERE t.ip = $1
 -- name: CountActiveUsers :one
 SELECT COUNT(*)::bigint
 FROM users
-WHERE role = 'user' AND is_banned = false;
+WHERE role = 'user'
+  AND is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin');
 
 -- name: BanUser :one
 UPDATE users SET is_banned = TRUE, banned_at = $2, banned_reason = $3 WHERE id = $1 RETURNING id;

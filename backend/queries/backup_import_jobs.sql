@@ -56,3 +56,10 @@ SET status = 'failed',
     finished_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
 WHERE status IN ('queued', 'running');
+
+-- name: ListInterruptedBackupImportJobStagingLocations :many
+SELECT staging_location
+FROM backup_import_jobs
+WHERE status IN ('queued', 'running')
+  AND staging_location <> ''
+ORDER BY id;

@@ -182,6 +182,15 @@ func (r *BackupRepo) FailImportJob(ctx context.Context, id uuid.UUID, message st
 	return nil
 }
 
+func (r *BackupRepo) ListInterruptedImportJobStagingLocations(ctx context.Context) ([]string, error) {
+	locations, err := r.Q(ctx).ListInterruptedBackupImportJobStagingLocations(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("BackupRepo - ListInterruptedImportJobStagingLocations: %w", err)
+	}
+
+	return locations, nil
+}
+
 func (r *BackupRepo) FailInterruptedImportJobs(ctx context.Context) error {
 	if err := r.Q(ctx).FailInterruptedBackupImportJobs(ctx); err != nil {
 		return fmt.Errorf("BackupRepo - FailInterruptedImportJobs: %w", err)

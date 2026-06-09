@@ -17,6 +17,18 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 		return nil, apperr.NewValidationErrorf("cors_origins is deploy-time only; update CORS_ORIGINS and restart the backend")
 	}
 
+	if req.ResendEnabled != nil {
+		return nil, apperr.NewValidationErrorf("resend_enabled is deploy-time only; update RESEND_ENABLED and RESEND_API_KEY and restart the backend")
+	}
+
+	if req.ResendFromEmail != nil {
+		return nil, apperr.NewValidationErrorf("resend_from_email is deploy-time only; update RESEND_FROM_EMAIL and restart the backend")
+	}
+
+	if req.ResendFromName != nil {
+		return nil, apperr.NewValidationErrorf("resend_from_name is deploy-time only; update RESEND_FROM_NAME and restart the backend")
+	}
+
 	registrationOpen := current.RegistrationOpen
 	if req.RegistrationOpen != nil {
 		registrationOpen = *req.RegistrationOpen
@@ -29,9 +41,9 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 		VerifyEmails:                     lo.FromPtrOr(req.VerifyEmails, current.VerifyEmails),
 		FrontendURL:                      current.FrontendURL,
 		CORSOrigins:                      current.CORSOrigins,
-		ResendEnabled:                    lo.FromPtrOr(req.ResendEnabled, current.ResendEnabled),
-		ResendFromEmail:                  lo.FromPtrOr(req.ResendFromEmail, current.ResendFromEmail),
-		ResendFromName:                   lo.FromPtrOr(req.ResendFromName, current.ResendFromName),
+		ResendEnabled:                    current.ResendEnabled,
+		ResendFromEmail:                  current.ResendFromEmail,
+		ResendFromName:                   current.ResendFromName,
 		VerifyTTLHours:                   lo.FromPtrOr(req.VerifyTTLHours, current.VerifyTTLHours),
 		ResetTTLHours:                    lo.FromPtrOr(req.ResetTTLHours, current.ResetTTLHours),
 		SubmitLimitPerUser:               lo.FromPtrOr(req.SubmitLimitPerUser, current.SubmitLimitPerUser),

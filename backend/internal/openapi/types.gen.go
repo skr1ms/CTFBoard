@@ -2577,8 +2577,9 @@ type SolveWithDetailsResponse struct {
 
 // StorageListResponse defines model for StorageListResponse.
 type StorageListResponse struct {
-	Objects *[]StorageObjectResponse `json:"objects,omitempty"`
-	Total   *int                     `json:"total,omitempty"`
+	NextCursor *string                  `json:"next_cursor,omitempty"`
+	Objects    *[]StorageObjectResponse `json:"objects,omitempty"`
+	Total      *int                     `json:"total,omitempty"`
 }
 
 // StorageObjectResponse defines model for StorageObjectResponse.
@@ -2808,28 +2809,37 @@ type UpdateAppSettingsRequest struct {
 	OauthGithubEnabled *bool `json:"oauth_github_enabled,omitempty"`
 
 	// OauthGoogleEnabled Allow users to sign in via Google OAuth
-	OauthGoogleEnabled               *bool   `json:"oauth_google_enabled,omitempty"`
-	RateLimitCommentPerMinute        *int    `json:"rate_limit_comment_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitForgotPasswordPerMinute *int    `json:"rate_limit_forgot_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitGeneralIPPerMinute      *int    `json:"rate_limit_general_ip_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitLoginPerMinute          *int    `json:"rate_limit_login_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitLogoutPerMinute         *int    `json:"rate_limit_logout_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitOauthCallbackPerMinute  *int    `json:"rate_limit_oauth_callback_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitOauthRedirectPerMinute  *int    `json:"rate_limit_oauth_redirect_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitRefreshPerMinute        *int    `json:"rate_limit_refresh_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitRegisterPerMinute       *int    `json:"rate_limit_register_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitResetPasswordPerMinute  *int    `json:"rate_limit_reset_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitScoreboardPerMinute     *int    `json:"rate_limit_scoreboard_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitVerifyEmailPerMinute    *int    `json:"rate_limit_verify_email_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RegistrationOpen                 *bool   `json:"registration_open,omitempty"`
-	ResendEnabled                    *bool   `json:"resend_enabled,omitempty"`
-	ResendFromEmail                  *string `json:"resend_from_email,omitempty" validate:"omitempty,max=255"`
-	ResendFromName                   *string `json:"resend_from_name,omitempty" validate:"omitempty,max=100"`
-	ResetTTLHours                    *int    `json:"reset_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
-	SubmitLimitDurationMin           *int    `json:"submit_limit_duration_min,omitempty" validate:"omitempty,min=1"`
-	SubmitLimitPerUser               *int    `json:"submit_limit_per_user,omitempty" validate:"omitempty,min=1"`
-	VerifyEmails                     *bool   `json:"verify_emails,omitempty"`
-	VerifyTTLHours                   *int    `json:"verify_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
+	OauthGoogleEnabled               *bool `json:"oauth_google_enabled,omitempty"`
+	RateLimitCommentPerMinute        *int  `json:"rate_limit_comment_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitForgotPasswordPerMinute *int  `json:"rate_limit_forgot_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitGeneralIPPerMinute      *int  `json:"rate_limit_general_ip_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitLoginPerMinute          *int  `json:"rate_limit_login_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitLogoutPerMinute         *int  `json:"rate_limit_logout_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthCallbackPerMinute  *int  `json:"rate_limit_oauth_callback_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthRedirectPerMinute  *int  `json:"rate_limit_oauth_redirect_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitRefreshPerMinute        *int  `json:"rate_limit_refresh_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitRegisterPerMinute       *int  `json:"rate_limit_register_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitResetPasswordPerMinute  *int  `json:"rate_limit_reset_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitScoreboardPerMinute     *int  `json:"rate_limit_scoreboard_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitVerifyEmailPerMinute    *int  `json:"rate_limit_verify_email_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RegistrationOpen                 *bool `json:"registration_open,omitempty"`
+
+	// ResendEnabled Deploy-time email delivery status; update RESEND_ENABLED/RESEND_API_KEY and restart the backend.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	ResendEnabled *bool `json:"resend_enabled,omitempty"`
+
+	// ResendFromEmail Deploy-time sender email; update RESEND_FROM_EMAIL and restart the backend.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	ResendFromEmail *string `json:"resend_from_email,omitempty" validate:"omitempty,max=255"`
+
+	// ResendFromName Deploy-time sender name; update RESEND_FROM_NAME and restart the backend.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	ResendFromName         *string `json:"resend_from_name,omitempty" validate:"omitempty,max=100"`
+	ResetTTLHours          *int    `json:"reset_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
+	SubmitLimitDurationMin *int    `json:"submit_limit_duration_min,omitempty" validate:"omitempty,min=1"`
+	SubmitLimitPerUser     *int    `json:"submit_limit_per_user,omitempty" validate:"omitempty,min=1"`
+	VerifyEmails           *bool   `json:"verify_emails,omitempty"`
+	VerifyTTLHours         *int    `json:"verify_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
 
 	// WriteupEnabled Whether writeups/solutions are shown to teams after solving a challenge
 	WriteupEnabled *bool `json:"writeup_enabled,omitempty"`
@@ -3174,8 +3184,9 @@ type DeleteAdminStorageParams struct {
 
 // GetAdminStorageParams defines parameters for GetAdminStorage.
 type GetAdminStorageParams struct {
-	Prefix string `form:"prefix" json:"prefix"`
-	Limit  *int   `form:"limit,omitempty" json:"limit,omitempty"`
+	Prefix string  `form:"prefix" json:"prefix"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
 // GetAdminSubmissionsParams defines parameters for GetAdminSubmissions.
@@ -3424,6 +3435,18 @@ type GetStatisticsSubmissionsTypeParams struct {
 
 // GetStatisticsSubmissionsTypeParamsType defines parameters for GetStatisticsSubmissionsType.
 type GetStatisticsSubmissionsTypeParamsType string
+
+// GetStatisticsTeamsParams defines parameters for GetStatisticsTeams.
+type GetStatisticsTeamsParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// GetStatisticsUsersParams defines parameters for GetStatisticsUsers.
+type GetStatisticsUsersParams struct {
+	// Live If true and requester is admin, return live data during freeze.
+	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
 
 // GetTeamsParams defines parameters for GetTeams.
 type GetTeamsParams struct {

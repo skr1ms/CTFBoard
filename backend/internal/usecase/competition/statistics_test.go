@@ -232,10 +232,10 @@ func TestStatisticsUseCase_GetTeamRegistrationTimeSeries_Success(t *testing.T) {
 	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 5}}
 
 	redisClient.ExpectGet("stats:team_registration").SetErr(redis.Nil)
-	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything).Return(data, nil)
+	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything, mock.Anything).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:team_registration", `.*`, 5*time.Minute).SetVal("OK")
 
-	result, err := uc.GetTeamRegistrationTimeSeries(context.Background())
+	result, err := uc.GetTeamRegistrationTimeSeries(context.Background(), false)
 
 	assert.NoError(t, err)
 	require.Len(t, result, 1)
@@ -250,9 +250,9 @@ func TestStatisticsUseCase_GetTeamRegistrationTimeSeries_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:team_registration").SetErr(redis.Nil)
-	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 
-	result, err := uc.GetTeamRegistrationTimeSeries(context.Background())
+	result, err := uc.GetTeamRegistrationTimeSeries(context.Background(), false)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -267,10 +267,10 @@ func TestStatisticsUseCase_GetUserRegistrationTimeSeries_Success(t *testing.T) {
 	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 10}}
 
 	redisClient.ExpectGet("stats:user_registration").SetErr(redis.Nil)
-	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything).Return(data, nil)
+	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything, mock.Anything).Return(data, nil)
 	redisClient.Regexp().ExpectSet("stats:user_registration", `.*`, 5*time.Minute).SetVal("OK")
 
-	result, err := uc.GetUserRegistrationTimeSeries(context.Background())
+	result, err := uc.GetUserRegistrationTimeSeries(context.Background(), false)
 
 	assert.NoError(t, err)
 	require.Len(t, result, 1)
@@ -284,12 +284,75 @@ func TestStatisticsUseCase_GetUserRegistrationTimeSeries_Error(t *testing.T) {
 	uc, redisClient := d.createStatisticsUseCase()
 
 	redisClient.ExpectGet("stats:user_registration").SetErr(redis.Nil)
-	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything).Return(nil, errors.New("db error"))
+	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 
-	result, err := uc.GetUserRegistrationTimeSeries(context.Background())
+	result, err := uc.GetUserRegistrationTimeSeries(context.Background(), false)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+	assert.NoError(t, redisClient.ExpectationsWereMet())
+}
+
+func TestStatisticsUseCase_GetRegistrationTimeSeries_UsesFreezeUnlessForceLive(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	client, redisClient := redismock.NewClientMock()
+	uc := NewStatisticsUseCase(StatisticsDeps{
+		StatsRepo:  d.statsRepo,
+		Cache:      cachekit.New(client),
+		CompGetter: d.competitionRepo,
+	})
+
+	now := time.Now().UTC()
+	startTime := now.Add(-2 * time.Hour)
+	freezeTime := now.Add(-30 * time.Minute)
+	endTime := now.Add(time.Hour)
+	comp := &domain.Competition{
+		ID:         1,
+		Name:       "CTF",
+		StartTime:  &startTime,
+		FreezeTime: &freezeTime,
+		EndTime:    &endTime,
+	}
+	data := []*domain.RegistrationTimePoint{{Date: "2025-01-01", Count: 1}}
+
+	d.competitionRepo.On("Get", mock.Anything).Return(comp, nil).Times(4)
+	redisClient.ExpectGet("stats:team_registration" + statsFrozenSuffix(freezeTime)).SetErr(redis.Nil)
+	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything, mock.MatchedBy(func(ft *time.Time) bool {
+		return ft != nil && ft.Equal(freezeTime)
+	})).Return(data, nil).Once()
+	redisClient.Regexp().ExpectSet("stats:team_registration"+statsFrozenSuffix(freezeTime), `.*`, 5*time.Minute).SetVal("OK")
+	redisClient.ExpectGet("stats:team_registration").SetErr(redis.Nil)
+	d.statsRepo.On("GetTeamRegistrationTimeSeries", mock.Anything, mock.MatchedBy(func(ft *time.Time) bool {
+		return ft == nil
+	})).Return(data, nil).Once()
+	redisClient.Regexp().ExpectSet("stats:team_registration", `.*`, 5*time.Minute).SetVal("OK")
+	redisClient.ExpectGet("stats:user_registration" + statsFrozenSuffix(freezeTime)).SetErr(redis.Nil)
+	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything, mock.MatchedBy(func(ft *time.Time) bool {
+		return ft != nil && ft.Equal(freezeTime)
+	})).Return(data, nil).Once()
+	redisClient.Regexp().ExpectSet("stats:user_registration"+statsFrozenSuffix(freezeTime), `.*`, 5*time.Minute).SetVal("OK")
+	redisClient.ExpectGet("stats:user_registration").SetErr(redis.Nil)
+	d.statsRepo.On("GetUserRegistrationTimeSeries", mock.Anything, mock.MatchedBy(func(ft *time.Time) bool {
+		return ft == nil
+	})).Return(data, nil).Once()
+	redisClient.Regexp().ExpectSet("stats:user_registration", `.*`, 5*time.Minute).SetVal("OK")
+
+	frozen, err := uc.GetTeamRegistrationTimeSeries(context.Background(), false)
+	require.NoError(t, err)
+	require.NotNil(t, frozen)
+
+	live, err := uc.GetTeamRegistrationTimeSeries(context.Background(), true)
+	require.NoError(t, err)
+	require.NotNil(t, live)
+
+	frozenUsers, err := uc.GetUserRegistrationTimeSeries(context.Background(), false)
+	require.NoError(t, err)
+	require.NotNil(t, frozenUsers)
+
+	liveUsers, err := uc.GetUserRegistrationTimeSeries(context.Background(), true)
+	require.NoError(t, err)
+	require.NotNil(t, liveUsers)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 

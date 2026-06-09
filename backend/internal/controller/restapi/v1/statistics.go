@@ -123,8 +123,10 @@ func (h *Server) GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Req
 }
 
 // (GET /statistics/teams).
-func (h *Server) GetStatisticsTeams(w http.ResponseWriter, r *http.Request) {
-	data, err := h.comp.StatsUC.GetTeamRegistrationTimeSeries(r.Context())
+func (h *Server) GetStatisticsTeams(w http.ResponseWriter, r *http.Request, params openapi.GetStatisticsTeamsParams) {
+	forceLive := forceLiveFromParams(r, params.Live)
+
+	data, err := h.comp.StatsUC.GetTeamRegistrationTimeSeries(r.Context(), forceLive)
 	if h.OnError(w, r, err, "GetStatisticsTeams", "GetTeamRegistrationTimeSeries") {
 		return
 	}
@@ -134,8 +136,10 @@ func (h *Server) GetStatisticsTeams(w http.ResponseWriter, r *http.Request) {
 }
 
 // (GET /statistics/users).
-func (h *Server) GetStatisticsUsers(w http.ResponseWriter, r *http.Request) {
-	data, err := h.comp.StatsUC.GetUserRegistrationTimeSeries(r.Context())
+func (h *Server) GetStatisticsUsers(w http.ResponseWriter, r *http.Request, params openapi.GetStatisticsUsersParams) {
+	forceLive := forceLiveFromParams(r, params.Live)
+
+	data, err := h.comp.StatsUC.GetUserRegistrationTimeSeries(r.Context(), forceLive)
 	if h.OnError(w, r, err, "GetStatisticsUsers", "GetUserRegistrationTimeSeries") {
 		return
 	}

@@ -9,12 +9,12 @@ type StorageObject = components['schemas']['StorageObjectResponse']
 // ---------------------------------------------------------------------------
 // Hooks
 // ---------------------------------------------------------------------------
-function useStorageList(prefix: string) {
+function useStorageList(prefix: string, cursor: string) {
   return useQuery({
-    queryKey: ['admin', 'storage', prefix],
+    queryKey: ['admin', 'storage', prefix, cursor],
     queryFn: async () => {
       const { data, error } = await api.GET('/admin/storage', {
-        params: { query: prefix ? { prefix } : {} },
+        params: { query: cursor ? { prefix, cursor } : { prefix } },
       })
       if (error) throw error
       return data
@@ -27,8 +27,8 @@ function useDeleteStorageObject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (path: string) => {
-      const { error } = await api.DELETE('/admin/storage/{path}', {
-        params: { path: { path } },
+      const { error } = await api.DELETE('/admin/storage', {
+        params: { query: { path } },
       })
       if (error) throw error
     },
@@ -116,17 +116,20 @@ function StorageRow({
 // Page
 // ---------------------------------------------------------------------------
 export function AdminStoragePage() {
-  const [prefix, setPrefix] = useState('')
-  const [inputValue, setInputValue] = useState('')
-  const { data, isLoading, isError, error } = useStorageList(prefix)
+  const [prefix, setPrefix] = useState('tasks/')
+  const [inputValue, setInputValue] = useState('tasks/')
+  const [cursor, setCursor] = useState('')
+  const { data, isLoading, isError, error } = useStorageList(prefix, cursor)
   const { mutate: deleteObj, isPending: isDeleting } = useDeleteStorageObject()
 
   const objects = data?.objects ?? []
   const total = data?.total ?? 0
+  const nextCursor = data?.next_cursor ?? ''
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPrefix(inputValue.trim())
+    setCursor('')
   }
 
   return (
@@ -157,8 +160,9 @@ export function AdminStoragePage() {
           <button
             type="button"
             onClick={() => {
-              setPrefix('')
-              setInputValue('')
+              setPrefix('tasks/')
+              setInputValue('tasks/')
+              setCursor('')
             }}
             className="h-9 px-3 text-sm rounded-[var(--radius-md)] border border-space-border text-text-secondary hover:text-text-primary transition-colors"
           >
@@ -182,6 +186,15 @@ export function AdminStoragePage() {
                 {total} object{total !== 1 ? 's' : ''}
                 {prefix ? ` matching "${prefix}"` : ''}
               </span>
+              {nextCursor && (
+                <button
+                  type="button"
+                  onClick={() => setCursor(nextCursor)}
+                  className="h-8 px-3 text-xs rounded-[var(--radius-md)] border border-space-border text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  Next
+                </button>
+              )}
             </div>
             {objects.length === 0 ? (
               <div className="p-6 text-center text-sm text-text-muted">No objects found</div>

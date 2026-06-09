@@ -41,21 +41,52 @@ func backupFileZIPPath(file domain.File) (string, error) {
 }
 
 func backupFileZIPName(file domain.File) (string, error) {
-	filename := filepath.Base(file.Filename)
-	if !isSafeBackupFilename(filename) {
-		filename = storagepath.DownloadFilename(file.Location)
+	filename, _, err := backupFileSafeName(file)
+
+	return filename, err
+}
+
+func backupFileSafeName(file domain.File) (string, bool, error) {
+	if isSafeBackupFilename(file.Filename) {
+		return file.Filename, false, nil
 	}
 
+	filename := storagepath.DownloadFilename(file.Location)
 	if !isSafeBackupFilename(filename) {
-		return "", fmt.Errorf("invalid filename")
+		return "", false, fmt.Errorf("invalid filename")
 	}
 
-	return filename, nil
+	return filename, true, nil
+}
+
+func normalizeBackupFileMetadata(file domain.File) (domain.File, bool, error) {
+	filename, normalized, err := backupFileSafeName(file)
+	if err != nil {
+		return file, false, err
+	}
+
+	if file.Filename != filename {
+		file.Filename = filename
+		normalized = true
+	}
+
+	return file, normalized, nil
 }
 
 func isSafeBackupFilename(filename string) bool {
-	return filename != "" &&
-		filename != "." &&
-		filename != string(filepath.Separator) &&
-		!strings.Contains(filename, "..")
+	if filename == "" ||
+		filename == "." ||
+		filename == string(filepath.Separator) ||
+		strings.Contains(filename, "..") ||
+		strings.ContainsAny(filename, `/\`) {
+		return false
+	}
+
+	for _, r := range filename {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+
+	return true
 }

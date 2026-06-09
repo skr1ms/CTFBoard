@@ -17,7 +17,9 @@ type fakeStorageAdminStorage struct {
 	deletedPath string
 	deleteErr   error
 	listPrefix  string
+	listCursor  string
 	listLimit   int
+	nextCursor  string
 }
 
 func (s *fakeStorageAdminStorage) List(_ context.Context, prefix string, limit int) ([]string, error) {
@@ -25,6 +27,14 @@ func (s *fakeStorageAdminStorage) List(_ context.Context, prefix string, limit i
 	s.listLimit = limit
 
 	return []string{"challenges/file.zip"}, nil
+}
+
+func (s *fakeStorageAdminStorage) ListPage(_ context.Context, prefix, cursor string, limit int) ([]string, string, error) {
+	s.listPrefix = prefix
+	s.listCursor = cursor
+	s.listLimit = limit
+
+	return []string{"challenges/file.zip"}, s.nextCursor, nil
 }
 
 func (s *fakeStorageAdminStorage) Delete(_ context.Context, path string) error {
@@ -127,16 +137,52 @@ func TestUseCase_List_RequiresPrefixAndAppliesDefaultLimit(t *testing.T) {
 	storage := &fakeStorageAdminStorage{}
 	uc := NewUseCase(Deps{Storage: storage, AuditLog: &fakeStorageAdminAuditLogRepo{}})
 
-	paths, err := uc.List(context.Background(), usecase.StorageAdminListParams{Prefix: "challenges/"})
+	result, err := uc.List(context.Background(), usecase.StorageAdminListParams{Prefix: "challenges/"})
 
 	require.NoError(t, err)
-	assert.Equal(t, []string{"challenges/file.zip"}, paths)
+	assert.Equal(t, []string{"challenges/file.zip"}, result.Paths)
 	assert.Equal(t, "challenges/", storage.listPrefix)
 	assert.Equal(t, defaultStorageListLimit, storage.listLimit)
 
 	_, err = uc.List(context.Background(), usecase.StorageAdminListParams{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "prefix is required")
+}
+
+func TestUseCase_List_UsesCursorAndReturnsNextCursor(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStorageAdminStorage{nextCursor: "next-page"}
+	uc := NewUseCase(Deps{Storage: storage, AuditLog: &fakeStorageAdminAuditLogRepo{}})
+
+	result, err := uc.List(context.Background(), usecase.StorageAdminListParams{
+		Prefix: "challenges/",
+		Cursor: "current-page",
+		Limit:  10,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "current-page", storage.listCursor)
+	assert.Equal(t, 10, storage.listLimit)
+	assert.Equal(t, "next-page", result.NextCursor)
+}
+
+func TestUseCase_List_RejectsInvalidCursor(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStorageAdminStorage{}
+	uc := NewUseCase(Deps{Storage: storage, AuditLog: &fakeStorageAdminAuditLogRepo{}})
+
+	result, err := uc.List(context.Background(), usecase.StorageAdminListParams{
+		Prefix: "challenges/",
+		Cursor: "../secrets",
+	})
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid cursor")
+	assert.Empty(t, storage.listPrefix)
 }
 
 func TestUseCase_List_RejectsLimitAboveMax(t *testing.T) {

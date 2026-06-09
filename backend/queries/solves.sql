@@ -60,7 +60,17 @@ UPDATE solves SET banned_team_id = NULL WHERE banned_team_id = $1;
 UPDATE solves SET banned_user_id = user_id WHERE team_id = $1 AND user_id = $2 AND banned_user_id IS NULL;
 
 -- name: RestoreSolvesByBannedUserID :exec
-UPDATE solves SET banned_user_id = NULL WHERE banned_user_id = $1;
+UPDATE solves s
+SET banned_user_id = NULL
+WHERE s.banned_user_id = $1
+  AND NOT EXISTS (
+    SELECT 1
+    FROM solves active
+    WHERE active.team_id = s.team_id
+      AND active.challenge_id = s.challenge_id
+      AND active.banned_team_id IS NULL
+      AND active.banned_user_id IS NULL
+  );
 
 -- name: DeleteSolveByTeamAndChallenge :exec
 DELETE FROM solves WHERE team_id = $1 AND challenge_id = $2;

@@ -54,8 +54,20 @@ func StorageAdminListParams(params openapi.GetAdminStorageParams) (usecase.Stora
 		limit = *params.Limit
 	}
 
+	cursor := ""
+
+	if params.Cursor != nil {
+		cursor = *params.Cursor
+		if cursor != "" {
+			if err := ValidateStoragePath(cursor); err != nil {
+				return usecase.StorageAdminListParams{}, apperr.NewValidationErrorf("invalid cursor")
+			}
+		}
+	}
+
 	return usecase.StorageAdminListParams{
 		Prefix: params.Prefix,
+		Cursor: cursor,
 		Limit:  limit,
 	}, nil
 }

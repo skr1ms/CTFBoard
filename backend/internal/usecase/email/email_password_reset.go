@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/emailaddr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/emailtemplate"
 )
@@ -27,7 +27,7 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 		return nil
 	}
 
-	email = strings.ToLower(strings.TrimSpace(email))
+	email = emailaddr.Normalize(email)
 
 	user, err := uc.deps.UserRepo.GetByEmail(ctx, email)
 	if err != nil {

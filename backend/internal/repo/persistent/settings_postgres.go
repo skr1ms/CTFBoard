@@ -83,9 +83,9 @@ func (r *SettingsRepo) GetForUpdate(ctx context.Context) (*domain.Settings, erro
 	return toDomainAppSettings(s), nil
 }
 
-// ReconcileStartupDefaults syncs environment-derived startup defaults into the
-// singleton app_settings row only while it still contains the migration default
-// app name, preserving later admin edits.
+// ReconcileStartupDefaults syncs deploy-time email/OAuth capabilities into the
+// singleton app_settings row on every boot. The display app name is only copied
+// while the row still contains the migration default, preserving later admin edits.
 func (r *SettingsRepo) ReconcileStartupDefaults(
 	ctx context.Context,
 	appName string,

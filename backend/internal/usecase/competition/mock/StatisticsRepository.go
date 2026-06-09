@@ -745,8 +745,8 @@ func (_c *MockStatisticsRepository_GetSubmissionTimeSeriesByType_Call) RunAndRet
 }
 
 // GetTeamRegistrationTimeSeries provides a mock function for the type MockStatisticsRepository
-func (_mock *MockStatisticsRepository) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockStatisticsRepository) GetTeamRegistrationTimeSeries(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error) {
+	ret := _mock.Called(ctx, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTeamRegistrationTimeSeries")
@@ -754,18 +754,18 @@ func (_mock *MockStatisticsRepository) GetTeamRegistrationTimeSeries(ctx context
 
 	var r0 []*domain.RegistrationTimePoint
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*domain.RegistrationTimePoint, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time) ([]*domain.RegistrationTimePoint, error)); ok {
+		return returnFunc(ctx, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []*domain.RegistrationTimePoint); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time) []*domain.RegistrationTimePoint); ok {
+		r0 = returnFunc(ctx, freezeTime)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.RegistrationTimePoint)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *time.Time) error); ok {
+		r1 = returnFunc(ctx, freezeTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -779,18 +779,24 @@ type MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call struct {
 
 // GetTeamRegistrationTimeSeries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockStatisticsRepository_Expecter) GetTeamRegistrationTimeSeries(ctx interface{}) *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call {
-	return &MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call{Call: _e.mock.On("GetTeamRegistrationTimeSeries", ctx)}
+//   - freezeTime *time.Time
+func (_e *MockStatisticsRepository_Expecter) GetTeamRegistrationTimeSeries(ctx interface{}, freezeTime interface{}) *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call {
+	return &MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call{Call: _e.mock.On("GetTeamRegistrationTimeSeries", ctx, freezeTime)}
 }
 
-func (_c *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call) Run(run func(ctx context.Context)) *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call {
+func (_c *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call) Run(run func(ctx context.Context, freezeTime *time.Time)) *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 *time.Time
+		if args[1] != nil {
+			arg1 = args[1].(*time.Time)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -801,14 +807,14 @@ func (_c *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call) Return(re
 	return _c
 }
 
-func (_c *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call) RunAndReturn(run func(ctx context.Context) ([]*domain.RegistrationTimePoint, error)) *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call {
+func (_c *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call) RunAndReturn(run func(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error)) *MockStatisticsRepository_GetTeamRegistrationTimeSeries_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUserRegistrationTimeSeries provides a mock function for the type MockStatisticsRepository
-func (_mock *MockStatisticsRepository) GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockStatisticsRepository) GetUserRegistrationTimeSeries(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error) {
+	ret := _mock.Called(ctx, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUserRegistrationTimeSeries")
@@ -816,18 +822,18 @@ func (_mock *MockStatisticsRepository) GetUserRegistrationTimeSeries(ctx context
 
 	var r0 []*domain.RegistrationTimePoint
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*domain.RegistrationTimePoint, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time) ([]*domain.RegistrationTimePoint, error)); ok {
+		return returnFunc(ctx, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []*domain.RegistrationTimePoint); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *time.Time) []*domain.RegistrationTimePoint); ok {
+		r0 = returnFunc(ctx, freezeTime)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.RegistrationTimePoint)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *time.Time) error); ok {
+		r1 = returnFunc(ctx, freezeTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -841,18 +847,24 @@ type MockStatisticsRepository_GetUserRegistrationTimeSeries_Call struct {
 
 // GetUserRegistrationTimeSeries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockStatisticsRepository_Expecter) GetUserRegistrationTimeSeries(ctx interface{}) *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call {
-	return &MockStatisticsRepository_GetUserRegistrationTimeSeries_Call{Call: _e.mock.On("GetUserRegistrationTimeSeries", ctx)}
+//   - freezeTime *time.Time
+func (_e *MockStatisticsRepository_Expecter) GetUserRegistrationTimeSeries(ctx interface{}, freezeTime interface{}) *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call {
+	return &MockStatisticsRepository_GetUserRegistrationTimeSeries_Call{Call: _e.mock.On("GetUserRegistrationTimeSeries", ctx, freezeTime)}
 }
 
-func (_c *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call) Run(run func(ctx context.Context)) *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call {
+func (_c *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call) Run(run func(ctx context.Context, freezeTime *time.Time)) *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 *time.Time
+		if args[1] != nil {
+			arg1 = args[1].(*time.Time)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -863,7 +875,7 @@ func (_c *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call) Return(re
 	return _c
 }
 
-func (_c *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call) RunAndReturn(run func(ctx context.Context) ([]*domain.RegistrationTimePoint, error)) *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call {
+func (_c *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call) RunAndReturn(run func(ctx context.Context, freezeTime *time.Time) ([]*domain.RegistrationTimePoint, error)) *MockStatisticsRepository_GetUserRegistrationTimeSeries_Call {
 	_c.Call.Return(run)
 	return _c
 }

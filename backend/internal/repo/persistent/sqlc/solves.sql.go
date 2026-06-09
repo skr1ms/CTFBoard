@@ -785,7 +785,17 @@ func (q *Queries) RestoreSolvesByBannedTeamID(ctx context.Context, bannedTeamID 
 }
 
 const restoreSolvesByBannedUserID = `-- name: RestoreSolvesByBannedUserID :exec
-UPDATE solves SET banned_user_id = NULL WHERE banned_user_id = $1
+UPDATE solves s
+SET banned_user_id = NULL
+WHERE s.banned_user_id = $1
+  AND NOT EXISTS (
+    SELECT 1
+    FROM solves active
+    WHERE active.team_id = s.team_id
+      AND active.challenge_id = s.challenge_id
+      AND active.banned_team_id IS NULL
+      AND active.banned_user_id IS NULL
+  )
 `
 
 func (q *Queries) RestoreSolvesByBannedUserID(ctx context.Context, bannedUserID *uuid.UUID) error {

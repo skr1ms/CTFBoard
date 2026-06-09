@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
@@ -11,10 +12,30 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
+func (h *Server) requirePublicUserVisible(w http.ResponseWriter, r *http.Request, userID uuid.UUID, op string) bool {
+	target, err := h.user.UserUC.GetByID(r.Context(), userID)
+	if h.OnError(w, r, err, op, "GetByID") {
+		return false
+	}
+
+	viewer, _ := helper.CurrentUser(r)
+	if !helper.UserPublicVisibleToViewer(target, viewer) {
+		h.OnError(w, r, helper.ErrUserNotFound, op, "BlockedUser")
+
+		return false
+	}
+
+	return true
+}
+
 // (GET /users/{ID}).
 func (h *Server) GetUsersID(w http.ResponseWriter, r *http.Request, ID string) {
 	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
+		return
+	}
+
+	if !h.requirePublicUserVisible(w, r, userIDParsed, "GetUsersID") {
 		return
 	}
 
@@ -65,6 +86,10 @@ func (h *Server) GetUsersIDSolves(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
+	if !h.requirePublicUserVisible(w, r, userIDParsed, "GetUsersIDSolves") {
+		return
+	}
+
 	solves, err := h.user.UserUC.GetUserSolves(r.Context(), userIDParsed)
 	if h.OnError(w, r, err, "GetUsersIDSolves", "GetUserSolves") {
 		return
@@ -97,6 +122,10 @@ func (h *Server) GetUsersIDFails(w http.ResponseWriter, r *http.Request, ID stri
 		return
 	}
 
+	if !h.requirePublicUserVisible(w, r, userIDParsed, "GetUsersIDFails") {
+		return
+	}
+
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
 	fails, err := h.user.UserUC.GetUserFails(r.Context(), userIDParsed, page, perPage)
@@ -126,6 +155,10 @@ func (h *Server) GetUsersMeAwards(w http.ResponseWriter, r *http.Request) {
 func (h *Server) GetUsersIDAwards(w http.ResponseWriter, r *http.Request, ID string) {
 	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
+		return
+	}
+
+	if !h.requirePublicUserVisible(w, r, userIDParsed, "GetUsersIDAwards") {
 		return
 	}
 

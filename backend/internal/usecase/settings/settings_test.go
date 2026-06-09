@@ -54,7 +54,7 @@ func newTestAppSettings() *domain.Settings {
 		VerifyEmails:                     true,
 		FrontendURL:                      "http://localhost:3000",
 		CORSOrigins:                      "http://localhost:3000",
-		ResendEnabled:                    false,
+		ResendEnabled:                    true,
 		ResendFromEmail:                  "noreply@ctf-platform.local",
 		ResendFromName:                   "CTF Platform",
 		VerifyTTLHours:                   24,
@@ -103,4 +103,43 @@ func TestSettingsUseCase_Validate_MaxUsersNegative(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "max_users")
+}
+
+func TestSettingsUseCase_Validate_VerifyEmailsRequiresDeliveryWhenKnown(t *testing.T) {
+	t.Parallel()
+
+	uc := NewSettingsUseCase(SettingsDeps{EmailDeliveryKnown: true, EmailDeliveryReady: false})
+	settings := newTestAppSettings()
+	settings.VerifyEmails = true
+
+	err := uc.validate(settings)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "verify_emails")
+}
+
+func TestSettingsUseCase_Validate_VerifyEmailsRequiresResendEnabled(t *testing.T) {
+	t.Parallel()
+
+	uc := NewSettingsUseCase(SettingsDeps{})
+	settings := newTestAppSettings()
+	settings.VerifyEmails = true
+	settings.ResendEnabled = false
+
+	err := uc.validate(settings)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "email delivery")
+}
+
+func TestSettingsUseCase_Validate_VerifyEmailsAllowedWhenDeliveryReady(t *testing.T) {
+	t.Parallel()
+
+	uc := NewSettingsUseCase(SettingsDeps{EmailDeliveryKnown: true, EmailDeliveryReady: true})
+	settings := newTestAppSettings()
+	settings.VerifyEmails = true
+
+	err := uc.validate(settings)
+
+	assert.NoError(t, err)
 }

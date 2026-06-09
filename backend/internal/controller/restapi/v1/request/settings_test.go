@@ -55,6 +55,30 @@ func TestUpdateAppSettingsRequestToEntityRejectsDeployTimeFieldChanges(t *testin
 			},
 			want: "cors_origins is deploy-time only",
 		},
+		{
+			name: "resend enabled",
+			mutate: func(req *openapi.UpdateAppSettingsRequest) {
+				value := true
+				req.ResendEnabled = &value
+			},
+			want: "resend_enabled is deploy-time only",
+		},
+		{
+			name: "resend from email",
+			mutate: func(req *openapi.UpdateAppSettingsRequest) {
+				value := "ops@example.com"
+				req.ResendFromEmail = &value
+			},
+			want: "resend_from_email is deploy-time only",
+		},
+		{
+			name: "resend from name",
+			mutate: func(req *openapi.UpdateAppSettingsRequest) {
+				value := "Ops"
+				req.ResendFromName = &value
+			},
+			want: "resend_from_name is deploy-time only",
+		},
 	}
 
 	for _, tt := range tests {
@@ -98,5 +122,8 @@ func settingsRequestCurrent() *domain.Settings {
 		RateLimitOAuthCallbackPerMinute:  5,
 		RateLimitOAuthRedirectPerMinute:  5,
 		RateLimitCommentPerMinute:        5,
+		ResendEnabled:                    true,
+		ResendFromEmail:                  "noreply@example.com",
+		ResendFromName:                   "Astro CTF",
 	}
 }

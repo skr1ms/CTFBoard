@@ -48,7 +48,7 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	tracker := ProvideFailedLoginTracker(redisClient)
 	competitionRepo := ProvideCompetitionRepo(pool)
 	wireRuntimeSettingsInvalidator := ProvideRuntimeSettingsInvalidator()
-	settingsUseCase := ProvideSettingsUseCase(ctx, settingsRepo, auditLogRepo, transactionManager, keyValueStore, competitionRepo, competitionParamUseCase, pubSubStore, wireRuntimeSettingsInvalidator, l)
+	settingsUseCase := ProvideSettingsUseCase(ctx, settingsRepo, auditLogRepo, transactionManager, keyValueStore, competitionRepo, competitionParamUseCase, pubSubStore, wireRuntimeSettingsInvalidator, cfg, l)
 	cache := ProvideCache(redisClient)
 	scoreboardCacheService := ProvideScoreboardCacheService(cache, teamRepo)
 	competitionUseCase := ProvideCompetitionUseCase(competitionRepo, auditLogRepo, transactionManager, keyValueStore, cache, scoreboardCacheService, l)

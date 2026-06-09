@@ -131,6 +131,10 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 		}
 
 		previousRole = current.Role
+		if email != nil && *email != current.Email && isVerified == nil {
+			verified := false
+			isVerified = &verified
+		}
 
 		if err := uc.profileCheckUniqueness(ctx, current.Username, current.Email, username, email); err != nil {
 			return fmt.Errorf("UserUseCase - AdminUpdate - profileCheckUniqueness: %w", err)

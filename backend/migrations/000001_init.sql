@@ -51,7 +51,7 @@ CREATE TABLE competition (
 CREATE TABLE app_settings (
     id INT PRIMARY KEY DEFAULT 1 CONSTRAINT chk_app_settings_singleton CHECK (id = 1),
     app_name VARCHAR(100) NOT NULL DEFAULT 'CTF Platform',
-    verify_emails BOOLEAN NOT NULL DEFAULT TRUE,
+    verify_emails BOOLEAN NOT NULL DEFAULT FALSE,
     frontend_url VARCHAR(512) NOT NULL DEFAULT 'http://localhost:3000',
     cors_origins TEXT NOT NULL DEFAULT 'http://localhost:3000,http://localhost:5173',
     resend_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -360,11 +360,15 @@ CREATE TABLE solves (
     solved_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     points_at_solve INT NOT NULL DEFAULT 0,
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
-    banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL,
-    CONSTRAINT unique_team_solve UNIQUE (team_id, challenge_id)
+    banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_solves_user ON solves (user_id);
+
+CREATE UNIQUE INDEX idx_solves_team_challenge_active_unique ON solves (team_id, challenge_id)
+WHERE
+    banned_team_id IS NULL
+    AND banned_user_id IS NULL;
 
 CREATE INDEX idx_solves_challenge_date ON solves (challenge_id, solved_at);
 

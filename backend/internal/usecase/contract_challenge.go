@@ -210,11 +210,17 @@ type (
 
 	StorageAdminListParams struct {
 		Prefix string
+		Cursor string
 		Limit  int
 	}
 
+	StorageAdminListResult struct {
+		Paths      []string
+		NextCursor string
+	}
+
 	StorageAdminUseCase interface {
-		List(ctx context.Context, params StorageAdminListParams) ([]string, error)
+		List(ctx context.Context, params StorageAdminListParams) (*StorageAdminListResult, error)
 		Delete(ctx context.Context, params StorageAdminDeleteParams) error
 	}
 )

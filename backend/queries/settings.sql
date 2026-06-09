@@ -37,14 +37,13 @@ FOR UPDATE;
 
 -- name: ReconcileAppSettingsStartupDefaults :exec
 UPDATE app_settings
-SET app_name = $1,
+SET app_name = CASE WHEN app_name = $7 THEN $1 ELSE app_name END,
     resend_from_name = $2,
     resend_from_email = $3,
     resend_enabled = $4,
     oauth_github_enabled = $5,
     oauth_google_enabled = $6
-WHERE id = 1
-  AND app_name = $7;
+WHERE id = 1;
 
 -- name: UpdateAppSettings :exec
 UPDATE app_settings SET

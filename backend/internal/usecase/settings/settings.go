@@ -46,6 +46,8 @@ type SettingsDeps struct {
 	PubSub             cachekit.PubSubStore
 	StopContext        context.Context
 	RuntimeInvalidator RuntimeInvalidator
+	EmailDeliveryKnown bool
+	EmailDeliveryReady bool
 	Logger             logkit.Logger
 }
 
@@ -228,6 +230,14 @@ func (uc *SettingsUseCase) validate(s *domain.Settings) error {
 
 	if s.MaxTeams < 0 {
 		return apperr.NewValidationErrorf("max_teams must be >= 0")
+	}
+
+	if s.VerifyEmails && !s.ResendEnabled {
+		return apperr.NewValidationErrorf("verify_emails requires email delivery to be enabled")
+	}
+
+	if s.VerifyEmails && uc.deps.EmailDeliveryKnown && !uc.deps.EmailDeliveryReady {
+		return apperr.NewValidationErrorf("verify_emails requires configured email delivery")
 	}
 
 	return nil

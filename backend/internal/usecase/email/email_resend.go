@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/emailaddr"
 )
 
 // ResendVerificationByEmail looks up a user by email address and resends the
@@ -20,7 +20,7 @@ func (uc *EmailUseCase) ResendVerificationByEmail(ctx context.Context, email str
 		return nil
 	}
 
-	email = strings.ToLower(strings.TrimSpace(email))
+	email = emailaddr.Normalize(email)
 
 	user, err := uc.deps.UserRepo.GetByEmail(ctx, email)
 	if err != nil {

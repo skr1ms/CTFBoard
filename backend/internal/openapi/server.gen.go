@@ -539,10 +539,10 @@ type ServerInterface interface {
 	GetStatisticsSubmissionsType(w http.ResponseWriter, r *http.Request, pType GetStatisticsSubmissionsTypeParamsType, params GetStatisticsSubmissionsTypeParams)
 	// Get team registration statistics
 	// (GET /statistics/teams)
-	GetStatisticsTeams(w http.ResponseWriter, r *http.Request)
+	GetStatisticsTeams(w http.ResponseWriter, r *http.Request, params GetStatisticsTeamsParams)
 	// Get user registration statistics
 	// (GET /statistics/users)
-	GetStatisticsUsers(w http.ResponseWriter, r *http.Request)
+	GetStatisticsUsers(w http.ResponseWriter, r *http.Request, params GetStatisticsUsersParams)
 	// Swagger UI
 	// (GET /swagger/index.html)
 	GetSwaggerUI(w http.ResponseWriter, r *http.Request)
@@ -1721,13 +1721,13 @@ func (_ Unimplemented) GetStatisticsSubmissionsType(w http.ResponseWriter, r *ht
 
 // Get team registration statistics
 // (GET /statistics/teams)
-func (_ Unimplemented) GetStatisticsTeams(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetStatisticsTeams(w http.ResponseWriter, r *http.Request, params GetStatisticsTeamsParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get user registration statistics
 // (GET /statistics/users)
-func (_ Unimplemented) GetStatisticsUsers(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) GetStatisticsUsers(w http.ResponseWriter, r *http.Request, params GetStatisticsUsersParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -3892,6 +3892,14 @@ func (siw *ServerInterfaceWrapper) GetAdminStorage(w http.ResponseWriter, r *htt
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
 		return
 	}
 
@@ -7348,6 +7356,8 @@ func (siw *ServerInterfaceWrapper) GetStatisticsSubmissionsType(w http.ResponseW
 // GetStatisticsTeams operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsTeams(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
@@ -7356,8 +7366,19 @@ func (siw *ServerInterfaceWrapper) GetStatisticsTeams(w http.ResponseWriter, r *
 
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsTeamsParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "live", r.URL.Query(), &params.Live, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsTeams(w, r)
+		siw.Handler.GetStatisticsTeams(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7370,6 +7391,8 @@ func (siw *ServerInterfaceWrapper) GetStatisticsTeams(w http.ResponseWriter, r *
 // GetStatisticsUsers operation middleware
 func (siw *ServerInterfaceWrapper) GetStatisticsUsers(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
@@ -7378,8 +7401,19 @@ func (siw *ServerInterfaceWrapper) GetStatisticsUsers(w http.ResponseWriter, r *
 
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStatisticsUsersParams
+
+	// ------------- Optional query parameter "live" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "live", r.URL.Query(), &params.Live, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "live", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStatisticsUsers(w, r)
+		siw.Handler.GetStatisticsUsers(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

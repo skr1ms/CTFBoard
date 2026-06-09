@@ -9,38 +9,53 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
-// SetHidden locks the team row, updates the hidden flag, then invalidates the
-// scoreboard cache for that team only. The lock prevents a concurrent visibility
-// flip from racing with score recalculations.
+// SetHidden locks the team row, updates the hidden flag, recalculates affected
+// challenge scores, then invalidates caches derived from team visibility.
 func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error {
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		return uc.setHiddenTx(ctx, teamID, hidden)
+		_, err := uc.setHiddenTx(ctx, teamID, hidden)
+
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("TeamUseCase - SetHidden - TM.Run: %w", err)
 	}
 
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+	cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
 	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - SetHidden")
 
 	return nil
 }
 
-func (uc *TeamUseCase) setHiddenTx(ctx context.Context, teamID uuid.UUID, hidden bool) error {
+func (uc *TeamUseCase) setHiddenTx(ctx context.Context, teamID uuid.UUID, hidden bool) (bool, error) {
 	if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
-		return fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.Lock: %w", err)
+		return false, fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.Lock: %w", err)
 	}
 
-	_, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
+	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 	if err != nil {
-		return fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.GetByID: %w", err)
+		return false, fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.GetByID: %w", err)
+	}
+
+	if team.IsHidden == hidden {
+		return false, nil
+	}
+
+	challengeIDs, err := uc.getChallengeIDsForTeam(ctx, teamID)
+	if err != nil {
+		return false, fmt.Errorf("TeamUseCase - setHiddenTx - getChallengeIDsForTeam: %w", err)
 	}
 
 	if err := uc.deps.TeamRepo.SetHidden(ctx, teamID, hidden); err != nil {
-		return fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.SetHidden: %w", err)
+		return false, fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.SetHidden: %w", err)
 	}
 
-	return nil
+	if err := uc.adjustSolveCountsForChallenges(ctx, challengeIDs); err != nil {
+		return false, fmt.Errorf("TeamUseCase - setHiddenTx - adjustSolveCountsForChallenges: %w", err)
+	}
+
+	return true, nil
 }
 
 // SetBracket locks the team row, assigns the bracket (nil removes it), then invalidates

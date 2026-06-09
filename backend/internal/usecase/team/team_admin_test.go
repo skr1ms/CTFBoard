@@ -98,6 +98,37 @@ func TestTeamUseCase_AdminUpdate_Success(t *testing.T) {
 	assert.Equal(t, newName, team.Name)
 }
 
+func TestTeamUseCase_AdminUpdate_HiddenChangeRecalculatesScores(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	teamID := uuid.New()
+	challengeID := uuid.New()
+	hidden := true
+	currentTeam := &domain.Team{ID: teamID, Name: "Team", IsHidden: false}
+	updatedTeam := &domain.Team{ID: teamID, Name: "Team", IsHidden: true}
+	challenge := &domain.Challenge{ID: challengeID, Points: 100}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(currentTeam, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{challengeID}, nil).Once()
+	d.teamRepo.EXPECT().UpdateAdmin(mock.Anything, teamID, (*string)(nil), (*uuid.UUID)(nil), (*uuid.UUID)(nil), &hidden).Return(nil).Once()
+	d.challengeRepo.EXPECT().RecalculateSolveCounts(mock.Anything, []uuid.UUID{challengeID}).Return(nil).Once()
+	d.challengeRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{challengeID}).Return(map[uuid.UUID]*domain.Challenge{challengeID: challenge}, nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(updatedTeam, nil).Once()
+
+	uc := d.createUseCase()
+
+	team, err := uc.AdminUpdate(context.Background(), teamID, nil, nil, nil, &hidden)
+
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	assert.True(t, team.IsHidden)
+}
+
 func TestTeamUseCase_AdminUpdate_Error(t *testing.T) {
 	t.Parallel()
 	d := newTeamTestDeps(t)

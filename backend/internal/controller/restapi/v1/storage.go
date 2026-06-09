@@ -18,12 +18,12 @@ func (h *Server) GetAdminStorage(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	paths, err := h.admin.StorageAdminUC.List(r.Context(), listParams)
+	result, err := h.admin.StorageAdminUC.List(r.Context(), listParams)
 	if h.OnError(w, r, err, "GetAdminStorage", "List") {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromStorageList(paths))
+	httputil.RenderOK(w, r, response.FromStorageList(result))
 }
 
 // (DELETE /admin/storage).

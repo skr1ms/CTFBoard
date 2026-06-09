@@ -299,24 +299,40 @@ func (uc *StatisticsUseCase) GetSubmissionTimeSeriesByType(ctx context.Context, 
 	)
 }
 
-func (uc *StatisticsUseCase) GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-	return statsCachedLoad(uc, ctx, statsTeamRegistrationKey, statsLongTTL, func(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-		return statsReadOnlyLoad(uc, ctx, "GetTeamRegistrationTimeSeries", "StatsRepo.GetTeamRegistrationTimeSeries",
-			func(roCtx context.Context) ([]*domain.RegistrationTimePoint, error) {
-				return uc.deps.StatsRepo.GetTeamRegistrationTimeSeries(roCtx)
-			},
-		)
-	})
+func (uc *StatisticsUseCase) GetTeamRegistrationTimeSeries(ctx context.Context, forceLive bool) ([]*domain.RegistrationTimePoint, error) {
+	frozen, freezeTime := uc.isFrozen(ctx)
+
+	if forceLive {
+		frozen = false
+	}
+
+	return freezeAwareLoad(uc, ctx, statsTeamRegistrationKey, statsLongTTL, frozen, freezeTime,
+		func(ctx context.Context, ft *time.Time) ([]*domain.RegistrationTimePoint, error) {
+			return statsReadOnlyLoad(uc, ctx, "GetTeamRegistrationTimeSeries", "StatsRepo.GetTeamRegistrationTimeSeries",
+				func(roCtx context.Context) ([]*domain.RegistrationTimePoint, error) {
+					return uc.deps.StatsRepo.GetTeamRegistrationTimeSeries(roCtx, ft)
+				},
+			)
+		},
+	)
 }
 
-func (uc *StatisticsUseCase) GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-	return statsCachedLoad(uc, ctx, statsUserRegistrationKey, statsLongTTL, func(ctx context.Context) ([]*domain.RegistrationTimePoint, error) {
-		return statsReadOnlyLoad(uc, ctx, "GetUserRegistrationTimeSeries", "StatsRepo.GetUserRegistrationTimeSeries",
-			func(roCtx context.Context) ([]*domain.RegistrationTimePoint, error) {
-				return uc.deps.StatsRepo.GetUserRegistrationTimeSeries(roCtx)
-			},
-		)
-	})
+func (uc *StatisticsUseCase) GetUserRegistrationTimeSeries(ctx context.Context, forceLive bool) ([]*domain.RegistrationTimePoint, error) {
+	frozen, freezeTime := uc.isFrozen(ctx)
+
+	if forceLive {
+		frozen = false
+	}
+
+	return freezeAwareLoad(uc, ctx, statsUserRegistrationKey, statsLongTTL, frozen, freezeTime,
+		func(ctx context.Context, ft *time.Time) ([]*domain.RegistrationTimePoint, error) {
+			return statsReadOnlyLoad(uc, ctx, "GetUserRegistrationTimeSeries", "StatsRepo.GetUserRegistrationTimeSeries",
+				func(roCtx context.Context) ([]*domain.RegistrationTimePoint, error) {
+					return uc.deps.StatsRepo.GetUserRegistrationTimeSeries(roCtx, ft)
+				},
+			)
+		},
+	)
 }
 
 // buildScoreboardGraph transforms a flat list of scoreboard history entries

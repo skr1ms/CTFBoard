@@ -147,6 +147,34 @@ func (q *Queries) GetBackupImportJob(ctx context.Context, id uuid.UUID) (BackupI
 	return i, err
 }
 
+const listInterruptedBackupImportJobStagingLocations = `-- name: ListInterruptedBackupImportJobStagingLocations :many
+SELECT staging_location
+FROM backup_import_jobs
+WHERE status IN ('queued', 'running')
+  AND staging_location <> ''
+ORDER BY id
+`
+
+func (q *Queries) ListInterruptedBackupImportJobStagingLocations(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listInterruptedBackupImportJobStagingLocations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var staging_location string
+		if err := rows.Scan(&staging_location); err != nil {
+			return nil, err
+		}
+		items = append(items, staging_location)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markBackupImportJobRunning = `-- name: MarkBackupImportJobRunning :one
 UPDATE backup_import_jobs
 SET status = 'running',

@@ -32,6 +32,7 @@ var (
 	ErrTeamNotFound          = apperr.ErrTeamNotFound
 	ErrTokenRequired         = apperr.ErrTokenRequired
 	ErrTooManyRequests       = apperr.ErrTooManyRequests
+	ErrUserNotFound          = apperr.ErrUserNotFound
 	ErrWriteupsDisabled      = apperr.ErrWriteupsDisabled
 )
 
@@ -84,7 +85,7 @@ func TrackChallengeOpenAsync(reqCtx context.Context, logger logkit.Logger, track
 }
 
 func IsAdmin(user *domain.User) bool {
-	return user.Role == domain.RoleAdmin
+	return user != nil && user.Role == domain.RoleAdmin
 }
 
 func IsCompetitionNotStarted(comp *domain.Competition) bool {
@@ -104,6 +105,10 @@ func TeamStatsVisibleToViewer(team *domain.Team, viewer *domain.User) bool {
 		return false
 	}
 
+	if team.IsBanned {
+		return IsAdmin(viewer)
+	}
+
 	if !team.IsHidden {
 		return true
 	}
@@ -117,6 +122,19 @@ func TeamStatsVisibleToViewer(team *domain.Team, viewer *domain.User) bool {
 	}
 
 	return viewer.TeamID != nil && *viewer.TeamID == team.ID
+}
+
+func UserPublicVisibleToViewer(target, viewer *domain.User) bool {
+	if target == nil {
+		return false
+	}
+
+	blocked := target.IsBanned || (target.WasInBannedTeam && target.Role != domain.RoleAdmin)
+	if !blocked {
+		return true
+	}
+
+	return IsAdmin(viewer)
 }
 
 func ParseSearchQuery(w http.ResponseWriter, r *http.Request, q *string, maxLen int, onError OnErrorFunc, op, step string) (string, bool) {

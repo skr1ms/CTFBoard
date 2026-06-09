@@ -1,13 +1,16 @@
 package request
 
-import "github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+import (
+	"github.com/TakuyaYagam1/AstroCTFb/internal/emailaddr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+)
 
 func ForgotPasswordRequestToParams(req *openapi.ForgotPasswordRequest) string {
-	return req.Email
+	return emailaddr.Normalize(req.Email)
 }
 
 func ResendVerificationByEmailRequestToParams(req *openapi.ResendVerificationByEmailRequest) string {
-	return req.Email
+	return emailaddr.Normalize(req.Email)
 }
 
 func ResetPasswordRequestToParams(req *openapi.ResetPasswordRequest) (token, newPassword string) {

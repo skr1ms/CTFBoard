@@ -201,14 +201,20 @@ schemas:
           validate: "omitempty,min=1,max=168"
       resend_enabled:
         type: boolean
+        deprecated: true
+        description: Deploy-time email delivery status; update RESEND_ENABLED/RESEND_API_KEY and restart the backend.
       resend_from_email:
         maxLength: 255
         type: string
+        deprecated: true
+        description: Deploy-time sender email; update RESEND_FROM_EMAIL and restart the backend.
         x-oapi-codegen-extra-tags:
           validate: "omitempty,max=255"
       resend_from_name:
         maxLength: 100
         type: string
+        deprecated: true
+        description: Deploy-time sender name; update RESEND_FROM_NAME and restart the backend.
         x-oapi-codegen-extra-tags:
           validate: "omitempty,max=100"
       submit_limit_duration_min:

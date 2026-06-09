@@ -21,7 +21,7 @@ func TestE2E_AdminStorageDeleteAcceptsSlashPathQuery(t *testing.T) {
 
 	s.uploadChallengeFile(admin, challengeID, filename, "storage delete payload")
 
-	list, err := s.client.GetAdminStorageWithResponse(context.Background(), &openapi.GetAdminStorageParams{Prefix: "files/"}, e2eBearer(admin.Token))
+	list, err := s.client.GetAdminStorageWithResponse(context.Background(), &openapi.GetAdminStorageParams{Prefix: "tasks/"}, e2eBearer(admin.Token))
 	require.NoError(t, err)
 	requireStatus(t, "list storage", http.StatusOK, list.StatusCode(), list.Body)
 	require.NotNil(t, list.JSON200)

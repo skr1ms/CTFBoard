@@ -120,8 +120,8 @@ type (
 		GetScoreDistribution(ctx context.Context, forceLive bool) ([]*domain.ScoreDistributionBucket, error)
 		GetSubmissionTimeSeries(ctx context.Context, forceLive bool) (*domain.SubmissionTimeSeriesStats, error)
 		GetSubmissionTimeSeriesByType(ctx context.Context, isCorrect, forceLive bool) ([]*domain.RegistrationTimePoint, error)
-		GetTeamRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
-		GetUserRegistrationTimeSeries(ctx context.Context) ([]*domain.RegistrationTimePoint, error)
+		GetTeamRegistrationTimeSeries(ctx context.Context, forceLive bool) ([]*domain.RegistrationTimePoint, error)
+		GetUserRegistrationTimeSeries(ctx context.Context, forceLive bool) ([]*domain.RegistrationTimePoint, error)
 		GetSolveMatrix(ctx context.Context, forceLive bool) ([]*domain.SolveMatrixRow, error)
 		GetAdminStatisticsFunnel(ctx context.Context, limit int, forceLive bool) (*domain.AdminStatisticsFunnel, error)
 	}

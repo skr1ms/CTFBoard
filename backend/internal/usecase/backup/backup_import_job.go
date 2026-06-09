@@ -189,8 +189,19 @@ func (uc *BackupUseCase) failInterruptedImportJobs(ctx context.Context) {
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), importJobStartupRecoveryTimeout)
 	defer cancel()
 
+	locations, err := uc.deps.BackupRepo.ListInterruptedImportJobStagingLocations(cleanupCtx)
+	if err != nil {
+		uc.deps.Logger.WithError(err).Warn("BackupUseCase - failInterruptedImportJobs - ListInterruptedImportJobStagingLocations")
+	}
+
 	if err := uc.deps.BackupRepo.FailInterruptedImportJobs(cleanupCtx); err != nil {
 		uc.deps.Logger.WithError(err).Warn("BackupUseCase - failInterruptedImportJobs")
+
+		return
+	}
+
+	for _, location := range uniqueNonEmptyStrings(locations) {
+		uc.deleteStagedImportArchive(cleanupCtx, location)
 	}
 }
 
@@ -214,4 +225,24 @@ func (uc *BackupUseCase) deleteStagedImportArchive(ctx context.Context, stagingL
 	if err := uc.deps.Storage.Delete(cleanupCtx, stagingLocation); err != nil {
 		uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"location": stagingLocation}).Warn("BackupUseCase - deleteStagedImportArchive")
 	}
+}
+
+func uniqueNonEmptyStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+
+		if _, ok := seen[value]; ok {
+			continue
+		}
+
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+
+	return result
 }

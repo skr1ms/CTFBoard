@@ -104,6 +104,23 @@ func TestValidateStoragePathAndPrefix(t *testing.T) {
 	}
 }
 
+func TestStorageAdminListParamsRejectsInvalidCursor(t *testing.T) {
+	t.Parallel()
+
+	cursor := "../secret"
+	got, err := StorageAdminListParams(openapi.GetAdminStorageParams{
+		Prefix: "uploads/",
+		Cursor: &cursor,
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, usecase.StorageAdminListParams{}, got)
+
+	var validationErr *apperr.ValidationError
+	assert.ErrorAs(t, err, &validationErr)
+	assert.Contains(t, err.Error(), "invalid cursor")
+}
+
 func TestFileTypeMappings(t *testing.T) {
 	t.Parallel()
 

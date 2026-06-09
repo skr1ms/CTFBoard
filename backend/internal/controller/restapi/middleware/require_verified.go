@@ -34,7 +34,7 @@ func RequireVerified(verifyEmails bool) func(http.Handler) http.Handler {
 
 // RequireVerifiedFromSettings enforces email verification from live app settings
 // so setup/admin changes take effect without rebuilding the router. fallback is
-// the env/provider capability gate and is also used if settings cannot be read.
+// only the env default used when settings cannot be read.
 func RequireVerifiedFromSettings(fallback bool, getter VerificationSettingsGetter, log logkit.Logger) func(http.Handler) http.Handler {
 	if getter == nil {
 		return RequireVerified(fallback)
@@ -52,7 +52,7 @@ func RequireVerifiedFromSettings(fallback bool, getter VerificationSettingsGette
 			if err != nil {
 				log.WithError(err).Warn("middleware - RequireVerifiedFromSettings - Settings.Get: using fallback")
 			} else if settings != nil {
-				verifyEmails = fallback && settings.VerifyEmails
+				verifyEmails = settings.VerifyEmails
 			}
 
 			RequireVerified(verifyEmails)(next).ServeHTTP(w, r)

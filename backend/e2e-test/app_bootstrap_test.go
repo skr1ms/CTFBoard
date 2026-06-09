@@ -442,12 +442,14 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		Storage: fileStorage, TM: repos.tm, Logger: deps.logger,
 	})
 	settingsUC := settings.NewSettingsUseCase(settings.SettingsDeps{
-		Repo:         repos.SettingsRepo,
-		AuditLogRepo: repos.auditLogRepo,
-		TM:           repos.tm,
-		Redis:        &cachekit.RedisKeyValueStore{Client: TestRedis},
-		CompRepo:     repos.compRepo,
-		Logger:       deps.logger,
+		Repo:               repos.SettingsRepo,
+		AuditLogRepo:       repos.auditLogRepo,
+		TM:                 repos.tm,
+		Redis:              &cachekit.RedisKeyValueStore{Client: TestRedis},
+		CompRepo:           repos.compRepo,
+		EmailDeliveryKnown: true,
+		EmailDeliveryReady: true,
+		Logger:             deps.logger,
 	})
 	commentUC := challenge.NewCommentUseCase(challenge.CommentDeps{
 		CommentRepo:   repos.commentRepo,

@@ -6,6 +6,7 @@ import (
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/config"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
@@ -54,6 +55,7 @@ func ProvideSettingsUseCase(
 	competitionParamUC *competition.CompetitionParamUseCase,
 	pubsub cachekit.PubSubStore,
 	runtimeInvalidator *runtimeSettingsInvalidator,
+	cfg *config.Config,
 	l logkit.Logger,
 ) *settings.SettingsUseCase {
 	return settings.NewSettingsUseCase(settings.SettingsDeps{
@@ -66,6 +68,8 @@ func ProvideSettingsUseCase(
 		PubSub:             pubsub,
 		StopContext:        ctx,
 		RuntimeInvalidator: runtimeInvalidator,
+		EmailDeliveryKnown: true,
+		EmailDeliveryReady: cfg.Enabled,
 		Logger:             l,
 	})
 }

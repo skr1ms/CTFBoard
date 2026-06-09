@@ -54,6 +54,7 @@ func (q *Queries) CountTeams(ctx context.Context, freezeTime pgtype.Timestamptz)
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*)::int FROM users
 WHERE is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin')
   AND ($1::timestamptz IS NULL OR created_at <= $1)
 `
 
@@ -267,7 +268,7 @@ active_teams AS (
 open_counts AS (
     SELECT co.challenge_id, COUNT(DISTINCT COALESCE(co.team_id, u.team_id))::int AS opened_count
     FROM challenge_opens co
-    JOIN users u ON u.id = co.user_id AND u.is_banned = false
+    JOIN users u ON u.id = co.user_id AND u.is_banned = false AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
     JOIN active_teams t ON t.id = COALESCE(co.team_id, u.team_id)
     WHERE ($1::timestamptz IS NULL OR co.opened_at <= $1)
     GROUP BY co.challenge_id
@@ -353,7 +354,7 @@ active_challenges AS (
 team_opens AS (
     SELECT COALESCE(co.team_id, u.team_id) AS team_id, co.challenge_id, MIN(co.opened_at) AS first_opened_at
     FROM challenge_opens co
-    JOIN users u ON u.id = co.user_id AND u.is_banned = false
+    JOIN users u ON u.id = co.user_id AND u.is_banned = false AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
     JOIN active_teams t ON t.id = COALESCE(co.team_id, u.team_id)
     JOIN active_challenges c ON c.id = co.challenge_id
     WHERE ($2::timestamptz IS NULL OR co.opened_at <= $2)
@@ -467,7 +468,7 @@ active_challenges AS (
 team_opens AS (
     SELECT COALESCE(co.team_id, u.team_id) AS team_id, co.challenge_id, MIN(co.opened_at) AS first_opened_at
     FROM challenge_opens co
-    JOIN users u ON u.id = co.user_id AND u.is_banned = false
+    JOIN users u ON u.id = co.user_id AND u.is_banned = false AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
     JOIN active_teams t ON t.id = COALESCE(co.team_id, u.team_id)
     JOIN active_challenges c ON c.id = co.challenge_id
     WHERE ($2::timestamptz IS NULL OR co.opened_at <= $2)
@@ -552,6 +553,7 @@ WITH active_users AS (
     FROM users u
     LEFT JOIN teams t ON t.id = u.team_id
     WHERE u.is_banned = false
+      AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
       AND (u.team_id IS NULL OR (t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false))
 ),
 active_challenges AS (
@@ -666,6 +668,7 @@ WITH active_users AS (
     FROM users u
     LEFT JOIN teams t ON t.id = u.team_id
     WHERE u.is_banned = false
+      AND NOT (u.was_in_banned_team = true AND u.role <> 'admin')
       AND (u.team_id IS NULL OR (t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false))
 ),
 active_challenges AS (
@@ -759,6 +762,7 @@ SELECT
         SELECT COUNT(*)::int
         FROM users
         WHERE is_banned = false
+          AND NOT (was_in_banned_team = true AND role <> 'admin')
           AND ($1::timestamptz IS NULL OR created_at <= $1)
     ) AS user_count,
     (
@@ -879,7 +883,7 @@ WITH top_teams AS (
     SELECT t.id, t.name
     FROM teams t
     LEFT JOIN (
-        SELECT s.team_id, SUM(s.points_at_solve)::int AS total
+        SELECT s.team_id, SUM(s.points_at_solve)::int AS total, MAX(s.solved_at) AS last_solved
         FROM solves s
         JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
         WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
@@ -894,7 +898,9 @@ WITH top_teams AS (
         GROUP BY team_id
     ) ap ON ap.team_id = t.id
     WHERE t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
-    ORDER BY COALESCE(sp.total, 0) + COALESCE(ap.total, 0) DESC, t.id
+    ORDER BY COALESCE(sp.total, 0) + COALESCE(ap.total, 0) DESC,
+             COALESCE(sp.last_solved, '9999-12-31'::timestamp) ASC,
+             t.id ASC
     LIMIT $1
 ),
 events AS (
@@ -1097,6 +1103,7 @@ const getTeamRegistrationTimeSeries = `-- name: GetTeamRegistrationTimeSeries :m
 SELECT DATE(created_at) AS date, COUNT(*)::int AS count
 FROM teams
 WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+  AND ($1::timestamptz IS NULL OR created_at <= $1)
 GROUP BY DATE(created_at)
 ORDER BY date
 `
@@ -1106,8 +1113,8 @@ type GetTeamRegistrationTimeSeriesRow struct {
 	Count int32       `json:"count"`
 }
 
-func (q *Queries) GetTeamRegistrationTimeSeries(ctx context.Context) ([]GetTeamRegistrationTimeSeriesRow, error) {
-	rows, err := q.db.Query(ctx, getTeamRegistrationTimeSeries)
+func (q *Queries) GetTeamRegistrationTimeSeries(ctx context.Context, freezeTime pgtype.Timestamptz) ([]GetTeamRegistrationTimeSeriesRow, error) {
+	rows, err := q.db.Query(ctx, getTeamRegistrationTimeSeries, freezeTime)
 	if err != nil {
 		return nil, err
 	}
@@ -1130,6 +1137,8 @@ const getUserRegistrationTimeSeries = `-- name: GetUserRegistrationTimeSeries :m
 SELECT DATE(created_at) AS date, COUNT(*)::int AS count
 FROM users
 WHERE is_banned = false
+  AND NOT (was_in_banned_team = true AND role <> 'admin')
+  AND ($1::timestamptz IS NULL OR created_at <= $1)
 GROUP BY DATE(created_at)
 ORDER BY date
 `
@@ -1139,8 +1148,8 @@ type GetUserRegistrationTimeSeriesRow struct {
 	Count int32       `json:"count"`
 }
 
-func (q *Queries) GetUserRegistrationTimeSeries(ctx context.Context) ([]GetUserRegistrationTimeSeriesRow, error) {
-	rows, err := q.db.Query(ctx, getUserRegistrationTimeSeries)
+func (q *Queries) GetUserRegistrationTimeSeries(ctx context.Context, freezeTime pgtype.Timestamptz) ([]GetUserRegistrationTimeSeriesRow, error) {
+	rows, err := q.db.Query(ctx, getUserRegistrationTimeSeries, freezeTime)
 	if err != nil {
 		return nil, err
 	}

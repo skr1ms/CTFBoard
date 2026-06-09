@@ -177,6 +177,12 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "429":
+        description: Too Many Requests
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
     summary: Update current user profile
@@ -186,22 +192,10 @@
 /auth/logout:
   post:
     operationId: PostAuthLogout
-    description: Invalidates the refresh cookie and revokes the current bearer access token when Authorization is provided. Client should discard the access token.
+    description: Idempotently clears the refresh cookie and best-effort revokes the current bearer access token when Authorization is provided. Client should discard the access token.
     responses:
       "204":
         description: No Content
-      "400":
-        description: Bad Request (e.g. invalid JSON body)
-        content:
-          application/json:
-            schema:
-              $ref: '../components/schemas.yml#/ErrorResponse'
-      "401":
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              $ref: '../components/schemas.yml#/ErrorResponse'
       "429":
         description: Too Many Requests
         content:
@@ -209,8 +203,8 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
-      - BearerAuth: []
       - {}
+      - BearerAuth: []
     summary: Logout
     tags:
       - Authentication

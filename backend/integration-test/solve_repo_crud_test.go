@@ -54,6 +54,47 @@ func TestSolveRepo_Create_Duplicate(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestSolveRepo_Create_AllowsActiveReplacementAfterUserSoftBan(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	firstUser, team := f.CreateUserWithTeam(t, "soft_re_solve_1")
+	secondUser := f.CreateUser(t, "soft_re_solve_2")
+	f.AddUserToTeam(t, secondUser.ID, team.ID)
+	challenge := f.CreateChallenge(t, "soft_re_solve_ch", 100)
+
+	firstSolve := f.CreateSolve(t, firstUser.ID, team.ID, challenge.ID)
+
+	require.NoError(t, f.SolveRepo.SoftBanByTeamIDAndUserID(ctx, team.ID, firstUser.ID))
+	secondSolve := f.CreateSolve(t, secondUser.ID, team.ID, challenge.ID)
+
+	activeSolve, err := f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
+	require.NoError(t, err)
+	assert.Equal(t, secondSolve.ID, activeSolve.ID)
+	assert.NotEqual(t, firstSolve.ID, activeSolve.ID)
+
+	require.NoError(t, f.SolveRepo.RestoreByBannedUserID(ctx, firstUser.ID))
+
+	activeSolve, err = f.SolveRepo.GetByTeamAndChallenge(ctx, team.ID, challenge.ID)
+	require.NoError(t, err)
+	assert.Equal(t, secondSolve.ID, activeSolve.ID)
+
+	var activeCount int
+
+	err = f.Pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM solves
+		WHERE team_id = $1
+		  AND challenge_id = $2
+		  AND banned_team_id IS NULL
+		  AND banned_user_id IS NULL
+	`, team.ID, challenge.ID).Scan(&activeCount)
+	require.NoError(t, err)
+	assert.Equal(t, 1, activeCount)
+}
+
 func TestSolveRepo_GetByID(t *testing.T) {
 	t.Parallel()
 	testPool := SetupTestPool(t)

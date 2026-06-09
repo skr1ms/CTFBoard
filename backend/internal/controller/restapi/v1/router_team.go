@@ -20,8 +20,6 @@ func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, requi
 		me.Get("/teams/me/solves", wrapper.GetTeamsMeSolves)
 		me.Get("/teams/me/fails", wrapper.GetTeamsMeFails)
 		me.Get("/teams/me/awards", wrapper.GetTeamsMeAwards)
-		me.Get("/teams/me/invite", wrapper.GetTeamsMeInvite)
-		me.Post("/teams/me/invite", wrapper.PostTeamsMeInvite)
 	})
 
 	verified := r.With(requireVerified, notBanned)
@@ -30,6 +28,8 @@ func setupTeamRoutes(r chi.Router, wrapper openapi.ServerInterfaceWrapper, requi
 	verified.Delete("/teams/me", wrapper.DeleteTeamsMe)
 	verified.Delete("/teams/members/{ID}", wrapper.DeleteTeamsMembersID)
 	verified.Post("/teams/transfer-captain", wrapper.PostTeamsTransferCaptain)
+	verified.With(restapimiddleware.RequireTeam()).Get("/teams/me/invite", wrapper.GetTeamsMeInvite)
+	verified.With(restapimiddleware.RequireTeam()).Post("/teams/me/invite", wrapper.PostTeamsMeInvite)
 
 	teamOpLimit := restapimiddleware.RateLimit(redisClient, rlKeyTeamOpUser, teamOpRateLimit, teamOpRateLimitWindow, userIDKeyFunc, log)
 	verified.With(teamOpLimit).Post("/teams", wrapper.PostTeams)

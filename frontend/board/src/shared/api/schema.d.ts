@@ -223,7 +223,7 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description Invalidates the refresh cookie and revokes the current bearer access token when Authorization is provided. Client should discard the access token.
+         * @description Idempotently clears the refresh cookie and best-effort revokes the current bearer access token when Authorization is provided. Client should discard the access token.
          */
         post: operations["PostAuthLogout"];
         delete?: never;
@@ -1862,7 +1862,7 @@ export interface paths {
         };
         /**
          * Get team registration statistics
-         * @description Returns team registration statistics per day. Requires authentication and scoreboard visibility.
+         * @description Returns team registration statistics per day. Requires authentication and scoreboard visibility. When frozen, use live=true (admin) for live data.
          */
         get: operations["GetStatisticsTeams"];
         put?: never;
@@ -1882,7 +1882,7 @@ export interface paths {
         };
         /**
          * Get user registration statistics
-         * @description Returns user registration statistics per day. Requires authentication and scoreboard visibility.
+         * @description Returns user registration statistics per day. Requires authentication and scoreboard visibility. When frozen, use live=true (admin) for live data.
          */
         get: operations["GetStatisticsUsers"];
         put?: never;
@@ -3694,7 +3694,7 @@ export interface paths {
         };
         /**
          * List storage objects
-         * @description List all objects in storage with an optional prefix filter. Admin only.
+         * @description List storage objects under a required prefix. Admin only.
          */
         get: operations["GetAdminStorage"];
         put?: never;
@@ -4726,6 +4726,19 @@ export interface components {
             /** Format: date-time */
             created_at?: string;
         };
+        BackupPage: {
+            /** Format: uuid */
+            id?: string;
+            title?: string;
+            slug?: string;
+            content?: string;
+            is_draft?: boolean;
+            order_index?: number;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
         ChallengeRequirementPair: {
             /** Format: uuid */
             challenge_id?: string;
@@ -4906,6 +4919,7 @@ export interface components {
             topics?: components["schemas"]["BackupTopic"][];
             challenges?: components["schemas"]["ChallengeExport"][];
             brackets?: components["schemas"]["BackupBracket"][];
+            pages?: components["schemas"]["BackupPage"][];
             challenge_requirements?: components["schemas"]["ChallengeRequirementPair"][];
             solutions?: components["schemas"]["SolutionBackup"][];
             teams?: components["schemas"]["TeamExport"][];
@@ -5500,8 +5514,20 @@ export interface components {
             rate_limit_comment_per_minute?: number;
             registration_open?: boolean;
             reset_ttl_hours?: number;
+            /**
+             * @deprecated
+             * @description Deploy-time email delivery status; update RESEND_ENABLED/RESEND_API_KEY and restart the backend.
+             */
             resend_enabled?: boolean;
+            /**
+             * @deprecated
+             * @description Deploy-time sender email; update RESEND_FROM_EMAIL and restart the backend.
+             */
             resend_from_email?: string;
+            /**
+             * @deprecated
+             * @description Deploy-time sender name; update RESEND_FROM_NAME and restart the backend.
+             */
             resend_from_name?: string;
             submit_limit_duration_min?: number;
             submit_limit_per_user?: number;
@@ -5546,6 +5572,7 @@ export interface components {
         StorageListResponse: {
             objects?: components["schemas"]["StorageObjectResponse"][];
             total?: number;
+            next_cursor?: string;
         };
         ConfigResponse: {
             key: string;
@@ -6059,6 +6086,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     PostAuthLogout: {
@@ -6076,24 +6112,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Bad Request (e.g. invalid JSON body) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
             };
             /** @description Too Many Requests */
             429: {
@@ -6170,6 +6188,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     GetAuthOauthProviderCallback: {
@@ -6232,6 +6259,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6710,6 +6746,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     PostAdminUsersBulkUnban: {
@@ -6772,6 +6817,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6931,6 +6985,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden (account visibility or banned user) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     GetUsersID: {
@@ -6974,6 +7046,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7052,6 +7133,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7143,6 +7233,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     GetUsersMeAwards: {
@@ -7214,6 +7313,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7611,6 +7719,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden (Bearer token and verified email required) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     PostUserTokens: {
@@ -7653,6 +7770,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden (Bearer token and verified email required) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     DeleteUserTokensID: {
@@ -7673,6 +7808,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -7682,8 +7826,26 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden (Bearer token and verified email required) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10086,6 +10248,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Internal Server Error */
             500: {
                 headers: {
@@ -10131,6 +10302,15 @@ export interface operations {
             };
             /** @description Forbidden (scoreboard hidden or admins-only) */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10188,6 +10368,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Internal Server Error */
             500: {
                 headers: {
@@ -10231,6 +10420,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10290,6 +10488,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Internal Server Error */
             500: {
                 headers: {
@@ -10333,6 +10540,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10390,6 +10606,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Internal Server Error */
             500: {
                 headers: {
@@ -10433,6 +10658,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10484,6 +10718,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Internal Server Error */
             500: {
                 headers: {
@@ -10497,7 +10740,10 @@ export interface operations {
     };
     GetStatisticsTeams: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description If true and requester is admin, return live data during freeze. */
+                live?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -10513,6 +10759,15 @@ export interface operations {
                     "application/json": components["schemas"]["RegistrationTimePoint"][];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -10524,6 +10779,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10544,7 +10808,10 @@ export interface operations {
     };
     GetStatisticsUsers: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description If true and requester is admin, return live data during freeze. */
+                live?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -10560,6 +10827,15 @@ export interface operations {
                     "application/json": components["schemas"]["RegistrationTimePoint"][];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -10571,6 +10847,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10623,6 +10908,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15797,8 +16091,10 @@ export interface operations {
     };
     GetAdminStorage: {
         parameters: {
-            query?: {
-                prefix?: string;
+            query: {
+                prefix: string;
+                limit?: number;
+                cursor?: string;
             };
             header?: never;
             path?: never;

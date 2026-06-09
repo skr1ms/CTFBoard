@@ -178,11 +178,13 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		Storage: fileStorage, TM: repos.tm, Logger: deps.log,
 	})
 	sett := settingsUC.NewSettingsUseCase(settingsUC.SettingsDeps{
-		Repo:         repos.SettingsRepo,
-		AuditLogRepo: repos.auditLogRepo,
-		TM:           repos.tm,
-		Redis:        &cachekit.RedisKeyValueStore{Client: redisClient},
-		CompRepo:     repos.compRepo,
+		Repo:               repos.SettingsRepo,
+		AuditLogRepo:       repos.auditLogRepo,
+		TM:                 repos.tm,
+		Redis:              &cachekit.RedisKeyValueStore{Client: redisClient},
+		CompRepo:           repos.compRepo,
+		EmailDeliveryKnown: true,
+		EmailDeliveryReady: true,
 	})
 	comment := challengeUC.NewCommentUseCase(challengeUC.CommentDeps{CommentRepo: repos.commentRepo, ChallengeRepo: repos.challengeRepo, TM: repos.tm})
 	tracking := userUC.NewTrackingUseCase(userUC.TrackingDeps{TrackingRepo: repos.trackingRepo})

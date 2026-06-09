@@ -90,7 +90,15 @@ func TestBackupUseCase_StartImportZIPJob_CanceledStopContextFailsQueuedJob(t *te
 	var jobID uuid.UUID
 
 	repo.EXPECT().
+		ListInterruptedImportJobStagingLocations(mock.Anything).
+		Return([]string{"imports/interrupted.zip"}, nil).
+		Once()
+	repo.EXPECT().
 		FailInterruptedImportJobs(mock.Anything).
+		Return(nil).
+		Once()
+	storage.EXPECT().
+		Delete(mock.Anything, "imports/interrupted.zip").
 		Return(nil).
 		Once()
 	uc := NewBackupUseCase(BackupDeps{StopContext: stopCtx, BackupRepo: repo, Storage: storage})

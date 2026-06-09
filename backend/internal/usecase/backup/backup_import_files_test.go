@@ -72,6 +72,38 @@ func TestBackupFileZIPPath_FallsBackToSafeStorageFilename(t *testing.T) {
 	assert.Equal(t, "files/challenge-"+challengeID.String()+"/safe.txt", got)
 }
 
+func TestBackupFileZIPPath_DoesNotTrustBasenameFromUnsafeMetadata(t *testing.T) {
+	t.Parallel()
+
+	challengeID := uuid.New()
+	file := domain.File{
+		Type:        domain.FileTypeChallenge,
+		ChallengeID: &challengeID,
+		Location:    "tasks/0123456789abcdef/location.txt",
+		Filename:    "../metadata.txt",
+	}
+
+	got, err := backupFileZIPPath(file)
+
+	require.NoError(t, err)
+	assert.Equal(t, "files/challenge-"+challengeID.String()+"/location.txt", got)
+}
+
+func TestNormalizeBackupFileMetadata_RewritesUnsafeFilenameFromLocation(t *testing.T) {
+	t.Parallel()
+
+	file := domain.File{
+		Location: "tasks/0123456789abcdef/safe.txt",
+		Filename: `..\unsafe.txt`,
+	}
+
+	got, normalized, err := normalizeBackupFileMetadata(file)
+
+	require.NoError(t, err)
+	assert.True(t, normalized)
+	assert.Equal(t, "safe.txt", got.Filename)
+}
+
 func TestBackupUseCase_PrepareImportFiles_FiltersUnsafeOrMissingPayloads(t *testing.T) {
 	t.Parallel()
 
@@ -141,6 +173,62 @@ func TestBackupUseCase_PrepareImportFiles_FiltersUnsafeOrMissingPayloads(t *test
 	assert.Contains(t, warnings[1], "invalid storage location")
 	assert.Contains(t, warnings[2], "invalid storage location")
 	assert.Contains(t, warnings[3], "sha256 mismatch")
+}
+
+func TestBackupUseCase_PrepareImportFiles_NormalizesUnsafeFilenameMetadata(t *testing.T) {
+	t.Parallel()
+
+	uc := NewBackupUseCase(BackupDeps{})
+	challengeID := uuid.New()
+	content := []byte("payload")
+	file := domain.File{
+		ID:          uuid.New(),
+		Type:        domain.FileTypeChallenge,
+		ChallengeID: &challengeID,
+		Location:    "tasks/0123456789abcdef/safe.txt",
+		Filename:    "../unsafe.txt",
+		SHA256:      testSHA256(content),
+	}
+	zipPath, err := backupFileZIPPath(file)
+	require.NoError(t, err)
+
+	zr := newTestZipReader(t, map[string][]byte{zipPath: content})
+	prepared, warnings := uc.prepareImportFiles(zr, []domain.File{file}, true)
+
+	require.Len(t, prepared, 1)
+	assert.Equal(t, "safe.txt", prepared[0].Filename)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0], "filename rewritten")
+}
+
+func TestBackupUseCase_PrepareImportFiles_SkipsDuplicateCanonicalPaths(t *testing.T) {
+	t.Parallel()
+
+	uc := NewBackupUseCase(BackupDeps{})
+	challengeID := uuid.New()
+	content := []byte("payload")
+	first := domain.File{
+		ID:          uuid.New(),
+		Type:        domain.FileTypeChallenge,
+		ChallengeID: &challengeID,
+		Location:    "tasks/0123456789abcdef/same.txt",
+		Filename:    "same.txt",
+		SHA256:      testSHA256(content),
+	}
+	second := first
+	second.ID = uuid.New()
+	second.Filename = "./same.txt"
+
+	zipPath, err := backupFileZIPPath(first)
+	require.NoError(t, err)
+	zr := newTestZipReader(t, map[string][]byte{zipPath: content})
+
+	prepared, warnings := uc.prepareImportFiles(zr, []domain.File{first, second}, true)
+
+	require.Len(t, prepared, 1)
+	assert.Equal(t, first.ID, prepared[0].ID)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0], "duplicate backup file path")
 }
 
 func TestBackupUseCase_PrepareImportFiles_SkipsSymlinkPayload(t *testing.T) {

@@ -50,8 +50,8 @@ func TestUserUseCase_BanUsers_DedupesAndReportsAffected(t *testing.T) {
 
 	for _, userID := range []uuid.UUID{firstID, secondID} {
 		user := &domain.User{ID: userID, Role: domain.RoleUser}
-		d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
-		d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+		d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Twice()
+		d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Twice()
 		d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
 		d.solveRepo.EXPECT().GetModerationAffectedSolvesByUserID(mock.Anything, userID).Return([]*domain.ModerationAffectedSolve{}, nil).Once()
 		d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()

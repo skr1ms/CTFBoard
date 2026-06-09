@@ -134,6 +134,80 @@ func TestE2E_ProfilePatchRequiresBearerAndPasswordChangeReturnsFreshToken(t *tes
 	require.Equal(t, user.UserID, *newTokenMe.JSON200.ID)
 }
 
+func TestE2E_APITokenLifecycle(t *testing.T) {
+	s := newE2ESuite(t)
+
+	user := s.registerUser("api_token_lifecycle_user")
+
+	description := "e2e api token lifecycle"
+	created, err := s.client.PostUserTokensWithResponse(context.Background(), openapi.PostUserTokensJSONRequestBody{
+		Description: &description,
+	}, e2eBearer(user.Token))
+	require.NoError(t, err)
+	requireStatus(t, "create api token", http.StatusCreated, created.StatusCode(), created.Body)
+	require.NotNil(t, created.JSON201)
+	require.NotNil(t, created.JSON201.ID)
+	require.NotEmpty(t, created.JSON201.Token)
+
+	list, err := s.client.GetUserTokensWithResponse(context.Background(), e2eBearer(user.Token))
+	require.NoError(t, err)
+	requireStatus(t, "list api tokens", http.StatusOK, list.StatusCode(), list.Body)
+	require.NotNil(t, list.JSON200)
+
+	found := false
+
+	for _, token := range *list.JSON200 {
+		if token.ID != nil && *token.ID == *created.JSON201.ID {
+			require.NotNil(t, token.Description)
+			require.Equal(t, description, *token.Description)
+
+			found = true
+		}
+	}
+
+	require.True(t, found, "created API token should be visible in token list")
+
+	solves, err := s.client.GetUsersMeSolvesWithResponse(context.Background(), e2eAPIToken(created.JSON201.Token))
+	require.NoError(t, err)
+	requireStatus(t, "use api token on read endpoint", http.StatusOK, solves.StatusCode(), solves.Body)
+
+	deleted, err := s.client.DeleteUserTokensIDWithResponse(context.Background(), *created.JSON201.ID, e2eBearer(user.Token))
+	require.NoError(t, err)
+	requireStatus(t, "delete api token", http.StatusNoContent, deleted.StatusCode(), deleted.Body)
+
+	revoked, err := s.client.GetUsersMeSolvesWithResponse(context.Background(), e2eAPIToken(created.JSON201.Token))
+	require.NoError(t, err)
+	requireStatus(t, "use deleted api token", http.StatusUnauthorized, revoked.StatusCode(), revoked.Body)
+}
+
+func TestE2E_TeamInviteRequiresVerifiedCaptain(t *testing.T) {
+	s := newE2ESuite(t)
+
+	defer resetAppSettingsFull()
+
+	admin := s.registerAdmin("invite_verify_settings_admin")
+	captain := s.registerUser("invite_unverified_captain")
+	s.createTeam(&captain, e2eUID("invite_unverified_team"))
+
+	verifyEmails := true
+	settingsResp, err := s.client.PutAdminSettingsWithResponse(context.Background(), openapi.PutAdminSettingsJSONRequestBody{
+		VerifyEmails: &verifyEmails,
+	}, e2eBearer(admin.Token))
+	require.NoError(t, err)
+	requireStatus(t, "enable email verification", http.StatusOK, settingsResp.StatusCode(), settingsResp.Body)
+
+	_, err = TestPool.Exec(context.Background(), "UPDATE users SET is_verified = FALSE, verified_at = NULL WHERE id = $1", captain.UserID)
+	require.NoError(t, err)
+
+	if TestRedis != nil {
+		_ = TestRedis.Del(context.Background(), "user:"+captain.UserID).Err()
+	}
+
+	invite, err := s.client.GetTeamsMeInviteWithResponse(context.Background(), e2eBearer(captain.Token))
+	require.NoError(t, err)
+	requireStatus(t, "get invite as unverified captain", http.StatusForbidden, invite.StatusCode(), invite.Body)
+}
+
 func TestE2E_OAuthExchangeRejectsEmptyCode(t *testing.T) {
 	s := newE2ESuite(t)
 
@@ -331,7 +405,7 @@ func TestE2E_WasInBannedTeamProtectedWritesBlocked(t *testing.T) {
 		Message: "duplicate team inherited appeal",
 	}, e2eBearer(player.Token))
 	require.NoError(t, err)
-	requireStatus(t, "duplicate appeal with was-in-banned-team state", http.StatusForbidden, duplicateAppeal.StatusCode(), duplicateAppeal.Body)
+	requireStatus(t, "duplicate appeal with was-in-banned-team state", http.StatusTooManyRequests, duplicateAppeal.StatusCode(), duplicateAppeal.Body)
 }
 
 func TestE2E_OptionalAuthIgnoresQueryJWTAndAuthenticatedSignedDownloadWorks(t *testing.T) {

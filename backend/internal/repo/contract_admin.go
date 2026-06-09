@@ -57,6 +57,7 @@ type (
 		UpdateImportJobPhase(ctx context.Context, id uuid.UUID, phase domain.ImportJobPhase) error
 		CompleteImportJob(ctx context.Context, id uuid.UUID, result *domain.ImportResult) error
 		FailImportJob(ctx context.Context, id uuid.UUID, message string) error
+		ListInterruptedImportJobStagingLocations(ctx context.Context) ([]string, error)
 		FailInterruptedImportJobs(ctx context.Context) error
 	}
 )
