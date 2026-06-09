@@ -25,6 +25,7 @@ var table = map[error]mapping{
 	apperr.ErrInvalidRegistrationCode:     {http.StatusForbidden, "INVALID_REGISTRATION_CODE"},
 	apperr.ErrMaxUsersReached:             {http.StatusConflict, "MAX_USERS_REACHED"},
 	apperr.ErrInvalidCredentials:          {http.StatusUnauthorized, "INVALID_CREDENTIALS"},
+	apperr.ErrLocalPasswordRequired:       {http.StatusConflict, "LOCAL_PASSWORD_REQUIRED"},
 	apperr.ErrAuthorizationHeaderRequired: {http.StatusUnauthorized, "AUTHORIZATION_REQUIRED"},
 	apperr.ErrInvalidAuthorizationHeader:  {http.StatusUnauthorized, "INVALID_AUTHORIZATION_HEADER"},
 	apperr.ErrInvalidToken:                {http.StatusUnauthorized, "INVALID_TOKEN"},

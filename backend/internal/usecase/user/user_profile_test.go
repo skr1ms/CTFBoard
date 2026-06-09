@@ -9,9 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/wahrwelt-kit/go-jwtkit"
-	"golang.org/x/crypto/bcrypt"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	validation "github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
@@ -209,7 +208,7 @@ func TestUserUseCase_UpdateProfile_CustomFieldsPartialUpsert(t *testing.T) {
 	assert.Equal(t, map[string]string{fieldID.String(): "updated"}, fieldValues.lastUpsert)
 }
 
-func TestUserUseCase_UpdateProfile_OAuthOnlyCanSetFirstPasswordWithoutCurrentPassword(t *testing.T) {
+func TestUserUseCase_UpdateProfile_OAuthOnlyCannotSetFirstPassword(t *testing.T) {
 	t.Parallel()
 	d := newUserTestDeps(t)
 
@@ -224,30 +223,6 @@ func TestUserUseCase_UpdateProfile_OAuthOnlyCanSetFirstPasswordWithoutCurrentPas
 	newPassword := "new-password"
 
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
-	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
-		return fn(ctx)
-	}).Once()
-	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
-	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
-	d.userRepo.EXPECT().UpdateProfile(mock.Anything, userID, (*string)(nil), (*string)(nil), mock.MatchedBy(func(hash *string) bool {
-		return hash != nil && bcrypt.CompareHashAndPassword([]byte(*hash), []byte(newPassword)) == nil
-	})).Return(nil).Once()
-	d.apiTokenRevoker.On("RevokeAllForUser", mock.Anything, userID).Return(nil).Once()
-	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
-		ID:           userID,
-		Username:     user.Username,
-		Email:        user.Email,
-		Role:         domain.RoleUser,
-		PasswordHash: "stored-hash",
-	}, nil).Once()
-	d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()
-	d.jwtService.EXPECT().GenerateTokenPair(mock.Anything, userID, string(domain.RoleUser)).Return(&jwtkit.TokenPair{
-		AccessToken:      "new-access",
-		RefreshToken:     "new-refresh",
-		AccessExpiresAt:  123,
-		RefreshExpiresAt: 456,
-	}, nil).Once()
-	d.jwtService.EXPECT().ValidateAccessToken(mock.Anything, "new-access").Return(&jwtkit.CustomClaims{}, nil).Once()
 
 	uc := d.createUseCase()
 
@@ -256,13 +231,9 @@ func TestUserUseCase_UpdateProfile_OAuthOnlyCanSetFirstPasswordWithoutCurrentPas
 		NewPassword: &newPassword,
 	})
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.NotNil(t, result.Me)
-	require.NotNil(t, result.TokenPair)
-	assert.Equal(t, userID, result.Me.User.ID)
-	assert.Equal(t, "new-access", result.TokenPair.AccessToken)
-	assert.Equal(t, "new-refresh", result.TokenPair.RefreshToken)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrLocalPasswordRequired)
+	assert.Nil(t, result)
 }
 
 type fakeFieldRepo struct {

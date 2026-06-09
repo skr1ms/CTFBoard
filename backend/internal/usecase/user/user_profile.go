@@ -225,8 +225,9 @@ func (uc *UserUseCase) profileCheckUniqueness(ctx context.Context, currentUserna
 
 // UpdateProfile updates username, email, and/or password for the authenticated
 // user. When email or password is being changed, the caller must supply the
-// current password for re-verification (unless the account has no password hash,
-// i.e. OAuth-only). A new password hash is produced under the CPU semaphore
+// current password for re-verification. OAuth-only accounts cannot create a
+// local password or change email through this endpoint because there is no local
+// credential to re-check. A new password hash is produced under the CPU semaphore
 // Inside a transaction the user row is locked, uniqueness is rechecked against
 // the latest state to prevent races, and the profile is updated; an email change
 // additionally marks the account as unverified. After the transaction commits a
@@ -261,7 +262,11 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, params usecase.UserPro
 		return nil, fmt.Errorf("UserUseCase - UpdateProfile - UserRepo.GetByID: %w", err)
 	}
 
-	if (newPassword != nil || email != nil) && current.HasLocalPassword() {
+	if newPassword != nil || email != nil {
+		if !current.HasLocalPassword() {
+			return nil, apperr.ErrLocalPasswordRequired
+		}
+
 		if currentPassword == nil {
 			return nil, apperr.ErrInvalidCredentials
 		}

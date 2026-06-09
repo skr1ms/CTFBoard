@@ -11,6 +11,7 @@ var (
 	ErrInvalidRegistrationCode     = errors.New("invalid registration code")
 	ErrMaxUsersReached             = errors.New("maximum number of users reached")
 	ErrInvalidCredentials          = errors.New("invalid credentials")
+	ErrLocalPasswordRequired       = errors.New("local password is required")
 	ErrAuthorizationHeaderRequired = errors.New("authorization header required")
 	ErrInvalidAuthorizationHeader  = errors.New("invalid authorization header format")
 	ErrInvalidToken                = errors.New("invalid token")
