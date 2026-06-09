@@ -116,11 +116,12 @@ var table = map[error]mapping{
 	apperr.ErrSettingsConflict:                      {http.StatusConflict, "SETTINGS_CONFLICT"},
 
 	// backup
-	apperr.ErrBackupJSONNotFound:       {http.StatusBadRequest, "BACKUP_JSON_NOT_FOUND"},
-	apperr.ErrBackupVersionUnsupported: {http.StatusBadRequest, "BACKUP_VERSION_UNSUPPORTED"},
-	apperr.ErrBackupTableUnsupported:   {http.StatusBadRequest, "BACKUP_TABLE_UNSUPPORTED"},
-	apperr.ErrBackupCSVEmpty:           {http.StatusBadRequest, "BACKUP_CSV_EMPTY"},
-	apperr.ErrBackupImportJobNotFound:  {http.StatusNotFound, "BACKUP_IMPORT_JOB_NOT_FOUND"},
+	apperr.ErrBackupJSONNotFound:         {http.StatusBadRequest, "BACKUP_JSON_NOT_FOUND"},
+	apperr.ErrBackupVersionUnsupported:   {http.StatusBadRequest, "BACKUP_VERSION_UNSUPPORTED"},
+	apperr.ErrBackupTableUnsupported:     {http.StatusBadRequest, "BACKUP_TABLE_UNSUPPORTED"},
+	apperr.ErrBackupCSVEmpty:             {http.StatusBadRequest, "BACKUP_CSV_EMPTY"},
+	apperr.ErrBackupImportJobNotFound:    {http.StatusNotFound, "BACKUP_IMPORT_JOB_NOT_FOUND"},
+	apperr.ErrBackupImportAlreadyRunning: {http.StatusConflict, "BACKUP_IMPORT_ALREADY_RUNNING"},
 
 	// page
 	apperr.ErrPageNotFound:      {http.StatusNotFound, "PAGE_NOT_FOUND"},

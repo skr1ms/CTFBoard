@@ -152,7 +152,7 @@
         content:
           application/json:
             schema:
-              $ref: '../components/schemas.yml#/MeResponse'
+              $ref: '../components/schemas.yml#/UpdateProfileResponse'
       "400":
         description: Bad Request
         content:
@@ -165,6 +165,12 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden (Bearer token required)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "409":
         description: Conflict (username or email taken)
         content:
@@ -173,7 +179,6 @@
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
-      - ApiTokenAuth: []
     summary: Update current user profile
     tags:
       - Authentication
@@ -181,7 +186,7 @@
 /auth/logout:
   post:
     operationId: PostAuthLogout
-    description: Invalidates the refresh cookie. Client should discard the access token.
+    description: Invalidates the refresh cookie and revokes the current bearer access token when Authorization is provided. Client should discard the access token.
     responses:
       "204":
         description: No Content
@@ -203,7 +208,9 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
-    security: []
+    security:
+      - BearerAuth: []
+      - {}
     summary: Logout
     tags:
       - Authentication

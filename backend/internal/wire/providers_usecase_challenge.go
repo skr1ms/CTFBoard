@@ -96,18 +96,19 @@ func ProvideHintUseCase(
 	})
 }
 
-func ProvideTagUseCase(tagRepo repo.TagRepository, challengeRepo repo.ChallengeRepository) *challenge.TagUseCase {
-	return challenge.NewTagUseCase(challenge.TagDeps{TagRepo: tagRepo, ChallengeRepo: challengeRepo})
+func ProvideTagUseCase(tagRepo repo.TagRepository, challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository) *challenge.TagUseCase {
+	return challenge.NewTagUseCase(challenge.TagDeps{TagRepo: tagRepo, ChallengeRepo: challengeRepo, SolveRepo: solveRepo})
 }
 
 func ProvideTopicUseCase(topicRepo repo.TopicRepository, challengeRepo repo.ChallengeRepository, tm repo.TransactionManager) *challenge.TopicUseCase {
 	return challenge.NewTopicUseCase(challenge.TopicDeps{TopicRepo: topicRepo, ChallengeRepo: challengeRepo, TM: tm})
 }
 
-func ProvideCommentUseCase(commentRepo repo.CommentRepository, challengeRepo repo.ChallengeRepository, userRepo repo.UserRepository, teamRepo repo.TeamRepository, tm repo.TransactionManager) *challenge.CommentUseCase {
+func ProvideCommentUseCase(commentRepo repo.CommentRepository, challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, userRepo repo.UserRepository, teamRepo repo.TeamRepository, tm repo.TransactionManager) *challenge.CommentUseCase {
 	return challenge.NewCommentUseCase(challenge.CommentDeps{
 		CommentRepo:   commentRepo,
 		ChallengeRepo: challengeRepo,
+		SolveRepo:     solveRepo,
 		UserRepo:      userRepo,
 		TeamRepo:      teamRepo,
 		TM:            tm,

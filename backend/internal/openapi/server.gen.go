@@ -192,12 +192,12 @@ type ServerInterface interface {
 	// Get solve matrix
 	// (GET /admin/statistics/solve-matrix)
 	GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *http.Request, params GetAdminStatisticsSolveMatrixParams)
+	// Delete a storage object
+	// (DELETE /admin/storage)
+	DeleteAdminStorage(w http.ResponseWriter, r *http.Request, params DeleteAdminStorageParams)
 	// List storage objects
 	// (GET /admin/storage)
 	GetAdminStorage(w http.ResponseWriter, r *http.Request, params GetAdminStorageParams)
-	// Delete a storage object
-	// (DELETE /admin/storage/{path})
-	DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request, path string)
 	// Get all submissions
 	// (GET /admin/submissions)
 	GetAdminSubmissions(w http.ResponseWriter, r *http.Request, params GetAdminSubmissionsParams)
@@ -237,6 +237,15 @@ type ServerInterface interface {
 	// List all teams (admin)
 	// (GET /admin/teams)
 	GetAdminTeams(w http.ResponseWriter, r *http.Request, params GetAdminTeamsParams)
+	// Bulk ban teams
+	// (POST /admin/teams/bulk/ban)
+	PostAdminTeamsBulkBan(w http.ResponseWriter, r *http.Request)
+	// Bulk set team hidden status
+	// (PATCH /admin/teams/bulk/hidden)
+	PatchAdminTeamsBulkHidden(w http.ResponseWriter, r *http.Request)
+	// Bulk unban teams
+	// (POST /admin/teams/bulk/unban)
+	PostAdminTeamsBulkUnban(w http.ResponseWriter, r *http.Request)
 	// Delete team (admin)
 	// (DELETE /admin/teams/{ID})
 	DeleteAdminTeamsID(w http.ResponseWriter, r *http.Request, id string)
@@ -294,6 +303,12 @@ type ServerInterface interface {
 	// Create user (admin)
 	// (POST /admin/users)
 	PostAdminUsers(w http.ResponseWriter, r *http.Request)
+	// Bulk ban users
+	// (POST /admin/users/bulk/ban)
+	PostAdminUsersBulkBan(w http.ResponseWriter, r *http.Request)
+	// Bulk unban users
+	// (POST /admin/users/bulk/unban)
+	PostAdminUsersBulkUnban(w http.ResponseWriter, r *http.Request)
 	// Delete user (admin)
 	// (DELETE /admin/users/{ID})
 	DeleteAdminUsersID(w http.ResponseWriter, r *http.Request, id string)
@@ -441,7 +456,7 @@ type ServerInterface interface {
 	// Get fields by entity type
 	// (GET /fields)
 	GetFields(w http.ResponseWriter, r *http.Request, params GetFieldsParams)
-	// Get download URL
+	// Get signed backend download URL
 	// (GET /files/by-id/{ID}/download)
 	GetFilesIDDownload(w http.ResponseWriter, r *http.Request, id string)
 	// Stream file download (server route GET /files/download/*)
@@ -1014,15 +1029,15 @@ func (_ Unimplemented) GetAdminStatisticsSolveMatrix(w http.ResponseWriter, r *h
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// List storage objects
-// (GET /admin/storage)
-func (_ Unimplemented) GetAdminStorage(w http.ResponseWriter, r *http.Request, params GetAdminStorageParams) {
+// Delete a storage object
+// (DELETE /admin/storage)
+func (_ Unimplemented) DeleteAdminStorage(w http.ResponseWriter, r *http.Request, params DeleteAdminStorageParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Delete a storage object
-// (DELETE /admin/storage/{path})
-func (_ Unimplemented) DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request, path string) {
+// List storage objects
+// (GET /admin/storage)
+func (_ Unimplemented) GetAdminStorage(w http.ResponseWriter, r *http.Request, params GetAdminStorageParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1101,6 +1116,24 @@ func (_ Unimplemented) PutAdminTagsID(w http.ResponseWriter, r *http.Request, id
 // List all teams (admin)
 // (GET /admin/teams)
 func (_ Unimplemented) GetAdminTeams(w http.ResponseWriter, r *http.Request, params GetAdminTeamsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Bulk ban teams
+// (POST /admin/teams/bulk/ban)
+func (_ Unimplemented) PostAdminTeamsBulkBan(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Bulk set team hidden status
+// (PATCH /admin/teams/bulk/hidden)
+func (_ Unimplemented) PatchAdminTeamsBulkHidden(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Bulk unban teams
+// (POST /admin/teams/bulk/unban)
+func (_ Unimplemented) PostAdminTeamsBulkUnban(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1215,6 +1248,18 @@ func (_ Unimplemented) GetAdminUsers(w http.ResponseWriter, r *http.Request, par
 // Create user (admin)
 // (POST /admin/users)
 func (_ Unimplemented) PostAdminUsers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Bulk ban users
+// (POST /admin/users/bulk/ban)
+func (_ Unimplemented) PostAdminUsersBulkBan(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Bulk unban users
+// (POST /admin/users/bulk/unban)
+func (_ Unimplemented) PostAdminUsersBulkUnban(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1512,7 +1557,7 @@ func (_ Unimplemented) GetFields(w http.ResponseWriter, r *http.Request, params 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Get download URL
+// Get signed backend download URL
 // (GET /files/by-id/{ID}/download)
 func (_ Unimplemented) GetFilesIDDownload(w http.ResponseWriter, r *http.Request, id string) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -3773,6 +3818,46 @@ func (siw *ServerInterfaceWrapper) GetAdminStatisticsSolveMatrix(w http.Response
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteAdminStorage operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdminStorage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteAdminStorageParams
+
+	// ------------- Required query parameter "path" -------------
+
+	if paramValue := r.URL.Query().Get("path"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "path"})
+		return
+	}
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "path", r.URL.Query(), &params.Path, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdminStorage(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAdminStorage operation middleware
 func (siw *ServerInterfaceWrapper) GetAdminStorage(w http.ResponseWriter, r *http.Request) {
 
@@ -3797,37 +3882,6 @@ func (siw *ServerInterfaceWrapper) GetAdminStorage(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminStorage(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// DeleteAdminStoragePath operation middleware
-func (siw *ServerInterfaceWrapper) DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "path" -------------
-	var path string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "path", chi.URLParam(r, "path"), &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
-		return
-	}
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteAdminStoragePath(w, r, path)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4345,6 +4399,22 @@ func (siw *ServerInterfaceWrapper) GetAdminTeams(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// ------------- Optional query parameter "ban_status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "ban_status", r.URL.Query(), &params.BanStatus, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ban_status", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "visibility" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "visibility", r.URL.Query(), &params.Visibility, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "visibility", Err: err})
+		return
+	}
+
 	// ------------- Optional query parameter "page" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -4363,6 +4433,72 @@ func (siw *ServerInterfaceWrapper) GetAdminTeams(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetAdminTeams(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminTeamsBulkBan operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminTeamsBulkBan(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminTeamsBulkBan(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchAdminTeamsBulkHidden operation middleware
+func (siw *ServerInterfaceWrapper) PatchAdminTeamsBulkHidden(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchAdminTeamsBulkHidden(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminTeamsBulkUnban operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminTeamsBulkUnban(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminTeamsBulkUnban(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4962,6 +5098,14 @@ func (siw *ServerInterfaceWrapper) GetAdminUsers(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// ------------- Optional query parameter "ban_status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "ban_status", r.URL.Query(), &params.BanStatus, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ban_status", Err: err})
+		return
+	}
+
 	// ------------- Optional query parameter "page" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", r.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
@@ -5002,6 +5146,50 @@ func (siw *ServerInterfaceWrapper) PostAdminUsers(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAdminUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminUsersBulkBan operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminUsersBulkBan(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminUsersBulkBan(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAdminUsersBulkUnban operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminUsersBulkUnban(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAdminUsersBulkUnban(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5369,6 +5557,12 @@ func (siw *ServerInterfaceWrapper) PostAuthLogin(w http.ResponseWriter, r *http.
 // PostAuthLogout operation middleware
 func (siw *ServerInterfaceWrapper) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostAuthLogout(w, r)
 	}))
@@ -5408,8 +5602,6 @@ func (siw *ServerInterfaceWrapper) PatchAuthMe(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	ctx = context.WithValue(ctx, ApiTokenAuthScopes, []string{})
 
 	r = r.WithContext(ctx)
 
@@ -8668,10 +8860,10 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/admin/statistics/solve-matrix", wrapper.GetAdminStatisticsSolveMatrix)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/admin/storage", wrapper.GetAdminStorage)
+		r.Delete(options.BaseURL+"/admin/storage", wrapper.DeleteAdminStorage)
 	})
 	r.Group(func(r chi.Router) {
-		r.Delete(options.BaseURL+"/admin/storage/{path}", wrapper.DeleteAdminStoragePath)
+		r.Get(options.BaseURL+"/admin/storage", wrapper.GetAdminStorage)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/submissions", wrapper.GetAdminSubmissions)
@@ -8711,6 +8903,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/teams", wrapper.GetAdminTeams)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/teams/bulk/ban", wrapper.PostAdminTeamsBulkBan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/admin/teams/bulk/hidden", wrapper.PatchAdminTeamsBulkHidden)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/teams/bulk/unban", wrapper.PostAdminTeamsBulkUnban)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/teams/{ID}", wrapper.DeleteAdminTeamsID)
@@ -8768,6 +8969,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/admin/users", wrapper.PostAdminUsers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/users/bulk/ban", wrapper.PostAdminUsersBulkBan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/users/bulk/unban", wrapper.PostAdminUsersBulkUnban)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/admin/users/{ID}", wrapper.DeleteAdminUsersID)

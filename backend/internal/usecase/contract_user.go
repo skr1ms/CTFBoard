@@ -13,6 +13,12 @@ import (
 // =============================================================================
 
 type (
+	AdminUserBanStatus string
+
+	BulkActionResult struct {
+		AffectedCount int
+	}
+
 	// UserProfile is a user profile view combining the user record with their solve history.
 	UserProfile struct {
 		User         *domain.User
@@ -23,6 +29,11 @@ type (
 	UserMe struct {
 		User         *domain.User
 		CustomFields CustomFieldValues
+	}
+
+	UserProfileUpdateResult struct {
+		Me        *UserMe
+		TokenPair *TokenPair
 	}
 
 	UserRegisterParams struct {
@@ -52,6 +63,7 @@ type (
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.User, error)
 		GetProfile(ctx context.Context, userID uuid.UUID) (*UserProfile, error)
 		ListUsers(ctx context.Context, search *string, field string, page, perPage int) (*Paginated[*domain.User], error)
+		AdminListUsers(ctx context.Context, search *string, field string, banStatus AdminUserBanStatus, page, perPage int) (*Paginated[*domain.User], error)
 		GetUserSolves(ctx context.Context, userID uuid.UUID) ([]*domain.SolveWithDetails, error)
 		GetUserFails(ctx context.Context, userID uuid.UUID, page, perPage int) (*Paginated[*domain.SubmissionWithDetails], error)
 		GetUserAwards(ctx context.Context, userID uuid.UUID) ([]*domain.Award, error)
@@ -60,9 +72,19 @@ type (
 		AdminDelete(ctx context.Context, userID, actorID uuid.UUID) error
 		BanUser(ctx context.Context, userID uuid.UUID, reason string, actorID uuid.UUID) error
 		UnbanUser(ctx context.Context, userID, actorID uuid.UUID) error
-		UpdateProfile(ctx context.Context, params UserProfileUpdateParams) (*UserMe, error)
+		BanUsers(ctx context.Context, userIDs []uuid.UUID, reason string, actorID uuid.UUID) (*BulkActionResult, error)
+		UnbanUsers(ctx context.Context, userIDs []uuid.UUID, actorID uuid.UUID) (*BulkActionResult, error)
+		UpdateProfile(ctx context.Context, params UserProfileUpdateParams) (*UserProfileUpdateResult, error)
 		GetMySubmissions(ctx context.Context, userID uuid.UUID, page, perPage int) (*Paginated[*domain.SubmissionWithDetails], error)
 	}
+)
+
+const (
+	AdminUserBanStatusAll           AdminUserBanStatus = "all"
+	AdminUserBanStatusNotBanned     AdminUserBanStatus = "not_banned"
+	AdminUserBanStatusDirect        AdminUserBanStatus = "direct"
+	AdminUserBanStatusTeamInherited AdminUserBanStatus = "team_inherited"
+	AdminUserBanStatusBlocked       AdminUserBanStatus = "blocked"
 )
 
 // =============================================================================
@@ -76,8 +98,8 @@ type (
 		GetAppealsByUser(ctx context.Context, userID uuid.UUID) ([]*domain.BanAppeal, error)
 		ListAppeals(ctx context.Context, decision *domain.AppealDecision, page, perPage int) (*Paginated[*domain.BanAppeal], error)
 		ReviewAppeal(ctx context.Context, appealID uuid.UUID, decision domain.AppealDecision, adminResponse *string, actorID uuid.UUID) (*domain.BanAppeal, error)
-		// CanAppeal reports whether a banned user is eligible to submit a new appeal
-		// (no pending appeal and outside the cooldown window).
+		// CanAppeal reports whether a directly or team-inherited banned user is
+		// eligible to submit a new appeal (no pending appeal and outside the cooldown window).
 		CanAppeal(ctx context.Context, userID uuid.UUID) (canAppeal bool, hasPending bool, err error)
 	}
 )

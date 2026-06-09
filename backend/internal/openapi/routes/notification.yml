@@ -266,6 +266,12 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
     security:
       - BearerAuth: []
       - ApiTokenAuth: []

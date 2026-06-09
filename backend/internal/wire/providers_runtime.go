@@ -28,25 +28,13 @@ func (i *runtimeSettingsInvalidator) SetRateLimitCache(c *restapimiddleware.Rate
 	i.rateLimitCache = c
 }
 
-func (i *runtimeSettingsInvalidator) SetScoreboardVisibilityCache(c *restapimiddleware.ScoreboardVisibilityCache) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	i.scoreboardVisibilityCache = c
-}
-
 func (i *runtimeSettingsInvalidator) InvalidateRuntimeSettingsCaches() {
 	i.mu.RLock()
 	rateLimitCache := i.rateLimitCache
-	scoreboardVisibilityCache := i.scoreboardVisibilityCache
 	i.mu.RUnlock()
 
 	if rateLimitCache != nil {
 		rateLimitCache.Invalidate()
-	}
-
-	if scoreboardVisibilityCache != nil {
-		scoreboardVisibilityCache.Invalidate()
 	}
 }
 

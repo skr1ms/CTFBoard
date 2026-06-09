@@ -39,6 +39,27 @@ func (e AdminUpsertSolutionRequestState) Valid() bool {
 	}
 }
 
+// Defines values for AdminUserResponseBanSource.
+const (
+	AdminUserResponseBanSourceDirect        AdminUserResponseBanSource = "direct"
+	AdminUserResponseBanSourceNone          AdminUserResponseBanSource = "none"
+	AdminUserResponseBanSourceTeamInherited AdminUserResponseBanSource = "team_inherited"
+)
+
+// Valid indicates whether the value is a known member of the AdminUserResponseBanSource enum.
+func (e AdminUserResponseBanSource) Valid() bool {
+	switch e {
+	case AdminUserResponseBanSourceDirect:
+		return true
+	case AdminUserResponseBanSourceNone:
+		return true
+	case AdminUserResponseBanSourceTeamInherited:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BackupFieldEntityType.
 const (
 	BackupFieldEntityTypeTeam BackupFieldEntityType = "team"
@@ -78,6 +99,24 @@ func (e BackupFieldFieldType) Valid() bool {
 	case BackupFieldFieldTypeSelect:
 		return true
 	case BackupFieldFieldTypeText:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BanStatusSource.
+const (
+	BanStatusSourceDirect        BanStatusSource = "direct"
+	BanStatusSourceTeamInherited BanStatusSource = "team_inherited"
+)
+
+// Valid indicates whether the value is a known member of the BanStatusSource enum.
+func (e BanStatusSource) Valid() bool {
+	switch e {
+	case BanStatusSourceDirect:
+		return true
+	case BanStatusSourceTeamInherited:
 		return true
 	default:
 		return false
@@ -708,27 +747,6 @@ func (e UnlockResponseType) Valid() bool {
 	}
 }
 
-// Defines values for UpdateAppSettingsRequestScoreboardVisible.
-const (
-	UpdateAppSettingsRequestScoreboardVisibleAdminsOnly UpdateAppSettingsRequestScoreboardVisible = "admins_only"
-	UpdateAppSettingsRequestScoreboardVisibleHidden     UpdateAppSettingsRequestScoreboardVisible = "hidden"
-	UpdateAppSettingsRequestScoreboardVisiblePublic     UpdateAppSettingsRequestScoreboardVisible = "public"
-)
-
-// Valid indicates whether the value is a known member of the UpdateAppSettingsRequestScoreboardVisible enum.
-func (e UpdateAppSettingsRequestScoreboardVisible) Valid() bool {
-	switch e {
-	case UpdateAppSettingsRequestScoreboardVisibleAdminsOnly:
-		return true
-	case UpdateAppSettingsRequestScoreboardVisibleHidden:
-		return true
-	case UpdateAppSettingsRequestScoreboardVisiblePublic:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for UpdateChallengeRequestState.
 const (
 	UpdateChallengeRequestStateHidden  UpdateChallengeRequestState = "hidden"
@@ -891,15 +909,12 @@ func (e GetAdminExportCsvParamsTable) Valid() bool {
 // Defines values for PostAdminImportMultipartBodyConflictMode.
 const (
 	Overwrite PostAdminImportMultipartBodyConflictMode = "overwrite"
-	Skip      PostAdminImportMultipartBodyConflictMode = "skip"
 )
 
 // Valid indicates whether the value is a known member of the PostAdminImportMultipartBodyConflictMode enum.
 func (e PostAdminImportMultipartBodyConflictMode) Valid() bool {
 	switch e {
 	case Overwrite:
-		return true
-	case Skip:
 		return true
 	default:
 		return false
@@ -936,6 +951,48 @@ func (e PostAdminImportCsvMultipartBodyTable) Valid() bool {
 	}
 }
 
+// Defines values for GetAdminTeamsParamsBanStatus.
+const (
+	GetAdminTeamsParamsBanStatusAll       GetAdminTeamsParamsBanStatus = "all"
+	GetAdminTeamsParamsBanStatusBanned    GetAdminTeamsParamsBanStatus = "banned"
+	GetAdminTeamsParamsBanStatusNotBanned GetAdminTeamsParamsBanStatus = "not_banned"
+)
+
+// Valid indicates whether the value is a known member of the GetAdminTeamsParamsBanStatus enum.
+func (e GetAdminTeamsParamsBanStatus) Valid() bool {
+	switch e {
+	case GetAdminTeamsParamsBanStatusAll:
+		return true
+	case GetAdminTeamsParamsBanStatusBanned:
+		return true
+	case GetAdminTeamsParamsBanStatusNotBanned:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAdminTeamsParamsVisibility.
+const (
+	GetAdminTeamsParamsVisibilityAll     GetAdminTeamsParamsVisibility = "all"
+	GetAdminTeamsParamsVisibilityHidden  GetAdminTeamsParamsVisibility = "hidden"
+	GetAdminTeamsParamsVisibilityVisible GetAdminTeamsParamsVisibility = "visible"
+)
+
+// Valid indicates whether the value is a known member of the GetAdminTeamsParamsVisibility enum.
+func (e GetAdminTeamsParamsVisibility) Valid() bool {
+	switch e {
+	case GetAdminTeamsParamsVisibilityAll:
+		return true
+	case GetAdminTeamsParamsVisibilityHidden:
+		return true
+	case GetAdminTeamsParamsVisibilityVisible:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetAdminUsersParamsField.
 const (
 	IP       GetAdminUsersParamsField = "ip"
@@ -948,6 +1005,33 @@ func (e GetAdminUsersParamsField) Valid() bool {
 	case IP:
 		return true
 	case Username:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetAdminUsersParamsBanStatus.
+const (
+	GetAdminUsersParamsBanStatusAll           GetAdminUsersParamsBanStatus = "all"
+	GetAdminUsersParamsBanStatusBlocked       GetAdminUsersParamsBanStatus = "blocked"
+	GetAdminUsersParamsBanStatusDirect        GetAdminUsersParamsBanStatus = "direct"
+	GetAdminUsersParamsBanStatusNotBanned     GetAdminUsersParamsBanStatus = "not_banned"
+	GetAdminUsersParamsBanStatusTeamInherited GetAdminUsersParamsBanStatus = "team_inherited"
+)
+
+// Valid indicates whether the value is a known member of the GetAdminUsersParamsBanStatus enum.
+func (e GetAdminUsersParamsBanStatus) Valid() bool {
+	switch e {
+	case GetAdminUsersParamsBanStatusAll:
+		return true
+	case GetAdminUsersParamsBanStatusBlocked:
+		return true
+	case GetAdminUsersParamsBanStatusDirect:
+		return true
+	case GetAdminUsersParamsBanStatusNotBanned:
+		return true
+	case GetAdminUsersParamsBanStatusTeamInherited:
 		return true
 	default:
 		return false
@@ -1144,18 +1228,24 @@ type AdminUserListResponse struct {
 
 // AdminUserResponse defines model for AdminUserResponse.
 type AdminUserResponse struct {
-	AvatarURL    *string    `json:"avatar_url,omitempty"`
-	BannedAt     *time.Time `json:"banned_at,omitempty"`
-	BannedReason *string    `json:"banned_reason,omitempty"`
-	CreatedAt    *time.Time `json:"created_at,omitempty"`
-	Email        *string    `json:"email,omitempty"`
-	ID           *string    `json:"id,omitempty"`
-	IsBanned     *bool      `json:"is_banned,omitempty"`
-	IsVerified   *bool      `json:"is_verified,omitempty"`
-	Role         *string    `json:"role,omitempty"`
-	TeamID       *string    `json:"team_id,omitempty"`
-	Username     *string    `json:"username,omitempty"`
+	AvatarURL       *string                     `json:"avatar_url,omitempty"`
+	BanSource       *AdminUserResponseBanSource `json:"ban_source,omitempty"`
+	BannedAt        *time.Time                  `json:"banned_at,omitempty"`
+	BannedReason    *string                     `json:"banned_reason,omitempty"`
+	CreatedAt       *time.Time                  `json:"created_at,omitempty"`
+	Email           *string                     `json:"email,omitempty"`
+	ID              *string                     `json:"id,omitempty"`
+	IsBanned        *bool                       `json:"is_banned,omitempty"`
+	IsBlocked       *bool                       `json:"is_blocked,omitempty"`
+	IsVerified      *bool                       `json:"is_verified,omitempty"`
+	Role            *string                     `json:"role,omitempty"`
+	TeamID          *string                     `json:"team_id,omitempty"`
+	Username        *string                     `json:"username,omitempty"`
+	WasInBannedTeam *bool                       `json:"was_in_banned_team,omitempty"`
 }
+
+// AdminUserResponseBanSource defines model for AdminUserResponse.BanSource.
+type AdminUserResponseBanSource string
 
 // AffectedData defines model for AffectedData.
 type AffectedData struct {
@@ -1202,7 +1292,6 @@ type AppSettingsResponse struct {
 	ResendFromEmail                  *string `json:"resend_from_email,omitempty"`
 	ResendFromName                   *string `json:"resend_from_name,omitempty"`
 	ResetTTLHours                    *int    `json:"reset_ttl_hours,omitempty"`
-	ScoreboardVisible                *string `json:"scoreboard_visible,omitempty"`
 	SubmitLimitDurationMin           *int    `json:"submit_limit_duration_min,omitempty"`
 	SubmitLimitPerUser               *int    `json:"submit_limit_per_user,omitempty"`
 	UpdatedAt                        *string `json:"updated_at,omitempty"`
@@ -1327,14 +1416,15 @@ type BackupHintUnlock struct {
 
 // BackupRating defines model for BackupRating.
 type BackupRating struct {
-	ChallengeID *openapi_types.UUID `json:"challenge_id,omitempty"`
-	CreatedAt   *time.Time          `json:"created_at,omitempty"`
-	ID          *openapi_types.UUID `json:"id,omitempty"`
-	Review      *string             `json:"review,omitempty"`
-	TeamID      *openapi_types.UUID `json:"team_id,omitempty"`
-	UpdatedAt   *time.Time          `json:"updated_at,omitempty"`
-	UserID      *openapi_types.UUID `json:"user_id,omitempty"`
-	Value       *int                `json:"value,omitempty"`
+	BannedTeamID *openapi_types.UUID `json:"banned_team_id,omitempty"`
+	ChallengeID  *openapi_types.UUID `json:"challenge_id,omitempty"`
+	CreatedAt    *time.Time          `json:"created_at,omitempty"`
+	ID           *openapi_types.UUID `json:"id,omitempty"`
+	Review       *string             `json:"review,omitempty"`
+	TeamID       *openapi_types.UUID `json:"team_id,omitempty"`
+	UpdatedAt    *time.Time          `json:"updated_at,omitempty"`
+	UserID       *openapi_types.UUID `json:"user_id,omitempty"`
+	Value        *int                `json:"value,omitempty"`
 }
 
 // BackupTag defines model for BackupTag.
@@ -1377,7 +1467,13 @@ type BanStatus struct {
 	HasPendingAppeal *bool   `json:"has_pending_appeal,omitempty"`
 	IsBanned         *bool   `json:"is_banned,omitempty"`
 	Reason           *string `json:"reason,omitempty"`
+
+	// Source direct user ban or inherited restriction from a previously banned team
+	Source *BanStatusSource `json:"source,omitempty"`
 }
+
+// BanStatusSource direct user ban or inherited restriction from a previously banned team
+type BanStatusSource string
 
 // BanTeamRequest defines model for BanTeamRequest.
 type BanTeamRequest struct {
@@ -1416,6 +1512,42 @@ type BracketResponse struct {
 	ID          *string    `json:"id,omitempty"`
 	IsDefault   *bool      `json:"is_default,omitempty"`
 	Name        *string    `json:"name,omitempty"`
+}
+
+// BulkActionResponse defines model for BulkActionResponse.
+type BulkActionResponse struct {
+	AffectedCount int    `json:"affected_count"`
+	Message       string `json:"message"`
+}
+
+// BulkBanTeamsRequest defines model for BulkBanTeamsRequest.
+type BulkBanTeamsRequest struct {
+	// BanMembers If true, ban each team member as a user.
+	BanMembers *bool                `json:"ban_members,omitempty"`
+	Ids        []openapi_types.UUID `json:"ids" validate:"required,min=1,max=100,dive,uuid"`
+	Reason     string               `json:"reason" validate:"required,min=1,max=500"`
+}
+
+// BulkBanUsersRequest defines model for BulkBanUsersRequest.
+type BulkBanUsersRequest struct {
+	Ids    []openapi_types.UUID `json:"ids" validate:"required,min=1,max=100,dive,uuid"`
+	Reason string               `json:"reason" validate:"required,min=1,max=500"`
+}
+
+// BulkSetHiddenRequest defines model for BulkSetHiddenRequest.
+type BulkSetHiddenRequest struct {
+	Hidden bool                 `json:"hidden"`
+	Ids    []openapi_types.UUID `json:"ids" validate:"required,min=1,max=100,dive,uuid"`
+}
+
+// BulkTeamIDsRequest defines model for BulkTeamIDsRequest.
+type BulkTeamIDsRequest struct {
+	Ids []openapi_types.UUID `json:"ids" validate:"required,min=1,max=100,dive,uuid"`
+}
+
+// BulkUserIDsRequest defines model for BulkUserIDsRequest.
+type BulkUserIDsRequest struct {
+	Ids []openapi_types.UUID `json:"ids" validate:"required,min=1,max=100,dive,uuid"`
 }
 
 // CSVImportResult defines model for CSVImportResult.
@@ -2511,11 +2643,21 @@ type TagResponse struct {
 
 // TeamExport defines model for TeamExport.
 type TeamExport struct {
-	CaptainID *string   `json:"captain_id,omitempty"`
-	ID        *string   `json:"id,omitempty"`
-	IsBanned  *bool     `json:"is_banned,omitempty"`
-	MemberIds *[]string `json:"member_ids,omitempty"`
-	Name      *string   `json:"name,omitempty"`
+	AvatarURL            *string               `json:"avatar_url,omitempty"`
+	BannedAt             *time.Time            `json:"banned_at,omitempty"`
+	BannedReason         *string               `json:"banned_reason,omitempty"`
+	BracketID            *openapi_types.UUID   `json:"bracket_id,omitempty"`
+	CaptainID            *openapi_types.UUID   `json:"captain_id,omitempty"`
+	CreatedAt            *time.Time            `json:"created_at,omitempty"`
+	ID                   *openapi_types.UUID   `json:"id,omitempty"`
+	InviteToken          *openapi_types.UUID   `json:"invite_token,omitempty"`
+	InviteTokenExpiresAt *time.Time            `json:"invite_token_expires_at,omitempty"`
+	IsAutoCreated        *bool                 `json:"is_auto_created,omitempty"`
+	IsBanned             *bool                 `json:"is_banned,omitempty"`
+	IsHidden             *bool                 `json:"is_hidden,omitempty"`
+	IsSolo               *bool                 `json:"is_solo,omitempty"`
+	MemberIds            *[]openapi_types.UUID `json:"member_ids,omitempty"`
+	Name                 *string               `json:"name,omitempty"`
 }
 
 // TeamInviteResponse defines model for TeamInviteResponse.
@@ -2653,36 +2795,32 @@ type UpdateAppSettingsRequest struct {
 	OauthGithubEnabled *bool `json:"oauth_github_enabled,omitempty"`
 
 	// OauthGoogleEnabled Allow users to sign in via Google OAuth
-	OauthGoogleEnabled               *bool                                      `json:"oauth_google_enabled,omitempty"`
-	RateLimitCommentPerMinute        *int                                       `json:"rate_limit_comment_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitForgotPasswordPerMinute *int                                       `json:"rate_limit_forgot_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitGeneralIPPerMinute      *int                                       `json:"rate_limit_general_ip_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitLoginPerMinute          *int                                       `json:"rate_limit_login_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitLogoutPerMinute         *int                                       `json:"rate_limit_logout_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitOauthCallbackPerMinute  *int                                       `json:"rate_limit_oauth_callback_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitOauthRedirectPerMinute  *int                                       `json:"rate_limit_oauth_redirect_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitRefreshPerMinute        *int                                       `json:"rate_limit_refresh_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitRegisterPerMinute       *int                                       `json:"rate_limit_register_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitResetPasswordPerMinute  *int                                       `json:"rate_limit_reset_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitScoreboardPerMinute     *int                                       `json:"rate_limit_scoreboard_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RateLimitVerifyEmailPerMinute    *int                                       `json:"rate_limit_verify_email_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
-	RegistrationOpen                 *bool                                      `json:"registration_open,omitempty"`
-	ResendEnabled                    *bool                                      `json:"resend_enabled,omitempty"`
-	ResendFromEmail                  *string                                    `json:"resend_from_email,omitempty" validate:"omitempty,max=255"`
-	ResendFromName                   *string                                    `json:"resend_from_name,omitempty" validate:"omitempty,max=100"`
-	ResetTTLHours                    *int                                       `json:"reset_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
-	ScoreboardVisible                *UpdateAppSettingsRequestScoreboardVisible `json:"scoreboard_visible,omitempty" validate:"omitempty,oneof=public hidden admins_only"`
-	SubmitLimitDurationMin           *int                                       `json:"submit_limit_duration_min,omitempty" validate:"omitempty,min=1"`
-	SubmitLimitPerUser               *int                                       `json:"submit_limit_per_user,omitempty" validate:"omitempty,min=1"`
-	VerifyEmails                     *bool                                      `json:"verify_emails,omitempty"`
-	VerifyTTLHours                   *int                                       `json:"verify_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
+	OauthGoogleEnabled               *bool   `json:"oauth_google_enabled,omitempty"`
+	RateLimitCommentPerMinute        *int    `json:"rate_limit_comment_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitForgotPasswordPerMinute *int    `json:"rate_limit_forgot_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitGeneralIPPerMinute      *int    `json:"rate_limit_general_ip_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitLoginPerMinute          *int    `json:"rate_limit_login_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitLogoutPerMinute         *int    `json:"rate_limit_logout_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthCallbackPerMinute  *int    `json:"rate_limit_oauth_callback_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitOauthRedirectPerMinute  *int    `json:"rate_limit_oauth_redirect_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitRefreshPerMinute        *int    `json:"rate_limit_refresh_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitRegisterPerMinute       *int    `json:"rate_limit_register_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitResetPasswordPerMinute  *int    `json:"rate_limit_reset_password_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitScoreboardPerMinute     *int    `json:"rate_limit_scoreboard_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RateLimitVerifyEmailPerMinute    *int    `json:"rate_limit_verify_email_per_minute,omitempty" validate:"omitempty,min=1,max=10000"`
+	RegistrationOpen                 *bool   `json:"registration_open,omitempty"`
+	ResendEnabled                    *bool   `json:"resend_enabled,omitempty"`
+	ResendFromEmail                  *string `json:"resend_from_email,omitempty" validate:"omitempty,max=255"`
+	ResendFromName                   *string `json:"resend_from_name,omitempty" validate:"omitempty,max=100"`
+	ResetTTLHours                    *int    `json:"reset_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
+	SubmitLimitDurationMin           *int    `json:"submit_limit_duration_min,omitempty" validate:"omitempty,min=1"`
+	SubmitLimitPerUser               *int    `json:"submit_limit_per_user,omitempty" validate:"omitempty,min=1"`
+	VerifyEmails                     *bool   `json:"verify_emails,omitempty"`
+	VerifyTTLHours                   *int    `json:"verify_ttl_hours,omitempty" validate:"omitempty,min=1,max=168"`
 
 	// WriteupEnabled Whether writeups/solutions are shown to teams after solving a challenge
 	WriteupEnabled *bool `json:"writeup_enabled,omitempty"`
 }
-
-// UpdateAppSettingsRequestScoreboardVisible defines model for UpdateAppSettingsRequest.ScoreboardVisible.
-type UpdateAppSettingsRequestScoreboardVisible string
 
 // UpdateBracketRequest defines model for UpdateBracketRequest.
 type UpdateBracketRequest struct {
@@ -2705,11 +2843,11 @@ type UpdateChallengeRequest struct {
 	// Flag Single v1 answer for the challenge. When `is_regex` is false this value is hashed; when `is_regex` is true this value is stored as encrypted regex material.
 	Flag *string `json:"flag,omitempty" validate:"omitempty,challenge_flag"`
 
-	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default
-	FlagFormatRegex   *string `json:"flag_format_regex,omitempty" validate:"omitempty,max=1024"`
-	InitialValue      *int    `json:"initial_value,omitempty" validate:"omitempty,min=0"`
-	IsCaseInsensitive *bool   `json:"is_case_insensitive,omitempty"`
-	IsRegex           *bool   `json:"is_regex,omitempty"`
+	// FlagFormatRegex Optional regex for flag format validation for this challenge; overrides competition default. Omit to keep current value, send null to clear.
+	FlagFormatRegex   nullable.Nullable[string] `json:"flag_format_regex,omitempty" validate:"omitempty,max=1024"`
+	InitialValue      *int                      `json:"initial_value,omitempty" validate:"omitempty,min=0"`
+	IsCaseInsensitive *bool                     `json:"is_case_insensitive,omitempty"`
+	IsRegex           *bool                     `json:"is_regex,omitempty"`
 
 	// MaxAttempts Max submission attempts per team (0 = unlimited)
 	MaxAttempts *int `json:"max_attempts,omitempty" validate:"omitempty,min=0"`
@@ -2813,6 +2951,12 @@ type UpdateProfileRequest struct {
 	Username     *string                 `json:"username,omitempty" validate:"omitempty,custom_username"`
 }
 
+// UpdateProfileResponse defines model for UpdateProfileResponse.
+type UpdateProfileResponse struct {
+	TokenPair *TokenPair `json:"token_pair,omitempty"`
+	User      MeResponse `json:"user"`
+}
+
 // UpdateTagRequest defines model for UpdateTagRequest.
 type UpdateTagRequest struct {
 	Color *string `json:"color,omitempty" validate:"omitempty,hex_color"`
@@ -2841,11 +2985,17 @@ type UploadFileResponse struct {
 
 // UserExport defines model for UserExport.
 type UserExport struct {
-	Email    *string `json:"email,omitempty"`
-	ID       *string `json:"id,omitempty"`
-	Role     *string `json:"role,omitempty"`
-	TeamID   *string `json:"team_id,omitempty"`
-	Username *string `json:"username,omitempty"`
+	BannedAt     *time.Time          `json:"banned_at,omitempty"`
+	BannedReason *string             `json:"banned_reason,omitempty"`
+	CreatedAt    *time.Time          `json:"created_at,omitempty"`
+	Email        *string             `json:"email,omitempty"`
+	ID           *openapi_types.UUID `json:"id,omitempty"`
+	IsBanned     *bool               `json:"is_banned,omitempty"`
+	IsVerified   *bool               `json:"is_verified,omitempty"`
+	Role         *string             `json:"role,omitempty"`
+	TeamID       *openapi_types.UUID `json:"team_id,omitempty"`
+	Username     *string             `json:"username,omitempty"`
+	VerifiedAt   *time.Time          `json:"verified_at,omitempty"`
 }
 
 // UserListResponse defines model for UserListResponse.
@@ -2958,7 +3108,7 @@ type GetAdminExportZipParams struct {
 
 // PostAdminImportMultipartBody defines parameters for PostAdminImport.
 type PostAdminImportMultipartBody struct {
-	// ConflictMode How to handle conflicts
+	// ConflictMode Conflict handling mode. ZIP imports currently support overwrite only.
 	ConflictMode *PostAdminImportMultipartBodyConflictMode `json:"conflict_mode,omitempty"`
 
 	// EraseExisting Erase existing data before import
@@ -3002,6 +3152,11 @@ type GetAdminStatisticsFunnelParams struct {
 type GetAdminStatisticsSolveMatrixParams struct {
 	// Live If true, return live data during freeze (admin only).
 	Live *bool `form:"live,omitempty" json:"live,omitempty"`
+}
+
+// DeleteAdminStorageParams defines parameters for DeleteAdminStorage.
+type DeleteAdminStorageParams struct {
+	Path string `form:"path" json:"path"`
 }
 
 // GetAdminStorageParams defines parameters for GetAdminStorage.
@@ -3054,10 +3209,22 @@ type GetAdminSubmissionsUserUserIDParams struct {
 // GetAdminTeamsParams defines parameters for GetAdminTeams.
 type GetAdminTeamsParams struct {
 	// Q Search query (team name)
-	Q       *string `form:"q,omitempty" json:"q,omitempty"`
-	Page    *int    `form:"page,omitempty" json:"page,omitempty"`
-	PerPage *int    `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// BanStatus Admin team ban-state filter
+	BanStatus *GetAdminTeamsParamsBanStatus `form:"ban_status,omitempty" json:"ban_status,omitempty"`
+
+	// Visibility Admin team visibility filter
+	Visibility *GetAdminTeamsParamsVisibility `form:"visibility,omitempty" json:"visibility,omitempty"`
+	Page       *int                           `form:"page,omitempty" json:"page,omitempty"`
+	PerPage    *int                           `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
+
+// GetAdminTeamsParamsBanStatus defines parameters for GetAdminTeams.
+type GetAdminTeamsParamsBanStatus string
+
+// GetAdminTeamsParamsVisibility defines parameters for GetAdminTeams.
+type GetAdminTeamsParamsVisibility string
 
 // PutAdminTeamsIDAvatarMultipartBody defines parameters for PutAdminTeamsIDAvatar.
 type PutAdminTeamsIDAvatarMultipartBody struct {
@@ -3077,13 +3244,19 @@ type GetAdminUsersParams struct {
 	Q *string `form:"q,omitempty" json:"q,omitempty"`
 
 	// Field Search field (username or ip)
-	Field   *GetAdminUsersParamsField `form:"field,omitempty" json:"field,omitempty"`
-	Page    *int                      `form:"page,omitempty" json:"page,omitempty"`
-	PerPage *int                      `form:"per_page,omitempty" json:"per_page,omitempty"`
+	Field *GetAdminUsersParamsField `form:"field,omitempty" json:"field,omitempty"`
+
+	// BanStatus Admin ban-state filter
+	BanStatus *GetAdminUsersParamsBanStatus `form:"ban_status,omitempty" json:"ban_status,omitempty"`
+	Page      *int                          `form:"page,omitempty" json:"page,omitempty"`
+	PerPage   *int                          `form:"per_page,omitempty" json:"per_page,omitempty"`
 }
 
 // GetAdminUsersParamsField defines parameters for GetAdminUsers.
 type GetAdminUsersParamsField string
+
+// GetAdminUsersParamsBanStatus defines parameters for GetAdminUsers.
+type GetAdminUsersParamsBanStatus string
 
 // PutAdminUsersIDAvatarMultipartBody defines parameters for PutAdminUsersIDAvatar.
 type PutAdminUsersIDAvatarMultipartBody struct {
@@ -3395,6 +3568,15 @@ type PostAdminTagsJSONRequestBody = CreateTagRequest
 // PutAdminTagsIDJSONRequestBody defines body for PutAdminTagsID for application/json ContentType.
 type PutAdminTagsIDJSONRequestBody = UpdateTagRequest
 
+// PostAdminTeamsBulkBanJSONRequestBody defines body for PostAdminTeamsBulkBan for application/json ContentType.
+type PostAdminTeamsBulkBanJSONRequestBody = BulkBanTeamsRequest
+
+// PatchAdminTeamsBulkHiddenJSONRequestBody defines body for PatchAdminTeamsBulkHidden for application/json ContentType.
+type PatchAdminTeamsBulkHiddenJSONRequestBody = BulkSetHiddenRequest
+
+// PostAdminTeamsBulkUnbanJSONRequestBody defines body for PostAdminTeamsBulkUnban for application/json ContentType.
+type PostAdminTeamsBulkUnbanJSONRequestBody = BulkTeamIDsRequest
+
 // PatchAdminTeamsIDJSONRequestBody defines body for PatchAdminTeamsID for application/json ContentType.
 type PatchAdminTeamsIDJSONRequestBody = AdminUpdateTeamRequest
 
@@ -3421,6 +3603,12 @@ type PutAdminTopicsIDJSONRequestBody = UpdateTopicRequest
 
 // PostAdminUsersJSONRequestBody defines body for PostAdminUsers for application/json ContentType.
 type PostAdminUsersJSONRequestBody = AdminCreateUserRequest
+
+// PostAdminUsersBulkBanJSONRequestBody defines body for PostAdminUsersBulkBan for application/json ContentType.
+type PostAdminUsersBulkBanJSONRequestBody = BulkBanUsersRequest
+
+// PostAdminUsersBulkUnbanJSONRequestBody defines body for PostAdminUsersBulkUnban for application/json ContentType.
+type PostAdminUsersBulkUnbanJSONRequestBody = BulkUserIDsRequest
 
 // PatchAdminUsersIDJSONRequestBody defines body for PatchAdminUsersID for application/json ContentType.
 type PatchAdminUsersIDJSONRequestBody = AdminUpdateUserRequest

@@ -53,10 +53,49 @@ func BanTeamRequestToParams(req *openapi.BanTeamRequest) (reason string, banMemb
 	return reason, banMembers
 }
 
+func BulkBanTeamsRequestToParams(req *openapi.BulkBanTeamsRequest) (ids []uuid.UUID, reason string, banMembers bool) {
+	reason = req.Reason
+	banMembers = lo.FromPtrOr(req.BanMembers, false)
+
+	return req.Ids, reason, banMembers
+}
+
+func BulkTeamIDsRequestToParams(req *openapi.BulkTeamIDsRequest) []uuid.UUID {
+	return req.Ids
+}
+
+func BulkSetHiddenRequestToParams(req *openapi.BulkSetHiddenRequest) ([]uuid.UUID, bool) {
+	return req.Ids, req.Hidden
+}
+
 func SetHiddenRequestToParams(req *openapi.SetHiddenRequest) (*bool, error) {
 	v := req.Hidden
 
 	return &v, nil
+}
+
+func AdminTeamsBanStatusFromParams(params openapi.GetAdminTeamsParams) (usecase.AdminTeamBanStatus, error) {
+	if params.BanStatus == nil {
+		return usecase.AdminTeamBanStatusAll, nil
+	}
+
+	if !params.BanStatus.Valid() {
+		return "", apperr.NewValidationErrorf("ban_status must be one of: all, not_banned, banned")
+	}
+
+	return usecase.AdminTeamBanStatus(*params.BanStatus), nil
+}
+
+func AdminTeamsVisibilityFromParams(params openapi.GetAdminTeamsParams) (usecase.AdminTeamVisibility, error) {
+	if params.Visibility == nil {
+		return usecase.AdminTeamVisibilityAll, nil
+	}
+
+	if !params.Visibility.Valid() {
+		return "", apperr.NewValidationErrorf("visibility must be one of: all, visible, hidden")
+	}
+
+	return usecase.AdminTeamVisibility(*params.Visibility), nil
 }
 
 func AdminUpdateTeamRequestToParams(req *openapi.AdminUpdateTeamRequest) (name *string, captainID, bracketID *uuid.UUID, isHidden *bool, err error) {

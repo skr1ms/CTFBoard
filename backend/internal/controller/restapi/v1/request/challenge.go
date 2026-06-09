@@ -163,6 +163,7 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 	}
 
 	nextChallengeID, nextChallengeSet := updateRequestNextChallengeID(req)
+	flagFormatRegex, flagFormatRegexSet := updateRequestFlagFormatRegex(req)
 
 	iv, mv, dc := req.InitialValue, req.MinValue, req.Decay
 	if iv != nil && mv != nil && dc != nil {
@@ -185,26 +186,27 @@ func UpdateChallengeRequestToParams(req *openapi.UpdateChallengeRequest) (Update
 	}
 
 	return UpdateChallengeParams{
-		Title:             req.Title,
-		Description:       req.Description,
-		Category:          req.Category,
-		Points:            req.Points,
-		InitialValue:      req.InitialValue,
-		MinValue:          req.MinValue,
-		Decay:             req.Decay,
-		FlagFormatRegex:   req.FlagFormatRegex,
-		TagIDs:            tagIDs,
-		Flag:              lo.FromPtrOr(req.Flag, ""),
-		Attribution:       req.Attribution,
-		ConnectionInfo:    req.ConnectionInfo,
-		MaxAttempts:       req.MaxAttempts,
-		MaxAttemptsWindow: maxAttemptsWindow,
-		Position:          req.Position,
-		NextChallengeID:   nextChallengeID,
-		NextChallengeSet:  nextChallengeSet,
-		State:             state,
-		IsRegex:           req.IsRegex,
-		IsCaseInsensitive: req.IsCaseInsensitive,
+		Title:              req.Title,
+		Description:        req.Description,
+		Category:           req.Category,
+		Points:             req.Points,
+		InitialValue:       req.InitialValue,
+		MinValue:           req.MinValue,
+		Decay:              req.Decay,
+		FlagFormatRegex:    flagFormatRegex,
+		FlagFormatRegexSet: flagFormatRegexSet,
+		TagIDs:             tagIDs,
+		Flag:               lo.FromPtrOr(req.Flag, ""),
+		Attribution:        req.Attribution,
+		ConnectionInfo:     req.ConnectionInfo,
+		MaxAttempts:        req.MaxAttempts,
+		MaxAttemptsWindow:  maxAttemptsWindow,
+		Position:           req.Position,
+		NextChallengeID:    nextChallengeID,
+		NextChallengeSet:   nextChallengeSet,
+		State:              state,
+		IsRegex:            req.IsRegex,
+		IsCaseInsensitive:  req.IsCaseInsensitive,
 	}, nil
 }
 
@@ -220,4 +222,18 @@ func updateRequestNextChallengeID(req *openapi.UpdateChallengeRequest) (*uuid.UU
 	id := uuid.UUID(req.NextID.MustGet())
 
 	return &id, true
+}
+
+func updateRequestFlagFormatRegex(req *openapi.UpdateChallengeRequest) (*string, bool) {
+	if !req.FlagFormatRegex.IsSpecified() {
+		return nil, false
+	}
+
+	if req.FlagFormatRegex.IsNull() {
+		return nil, true
+	}
+
+	value := req.FlagFormatRegex.MustGet()
+
+	return &value, true
 }

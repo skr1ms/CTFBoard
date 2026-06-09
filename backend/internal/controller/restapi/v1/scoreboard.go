@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
@@ -48,7 +49,13 @@ func (h *Server) GetChallengesChallengeIDFirstBlood(w http.ResponseWriter, r *ht
 
 	forceLive := forceLiveFromParams(r, params.Live)
 
-	entry, err := h.comp.SolveUC.GetFirstBlood(r.Context(), challengeIDParsed, forceLive)
+	var teamID *uuid.UUID
+
+	if user, ok := helper.CurrentUser(r); ok {
+		teamID = user.TeamID
+	}
+
+	entry, err := h.comp.SolveUC.GetFirstBlood(r.Context(), challengeIDParsed, teamID, forceLive)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDFirstBlood", "GetFirstBlood") {
 		return
 	}

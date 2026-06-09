@@ -168,7 +168,10 @@ func (h *Server) PutAdminSettings(w http.ResponseWriter, r *http.Request) {
 
 	clientIP := helper.ClientIP(r)
 
-	s := request.UpdateAppSettingsRequestToEntity(&req, current.ID, current)
+	s, err := request.UpdateAppSettingsRequestToEntity(&req, current.ID, current)
+	if h.OnError(w, r, err, "PutAdminSettings", "BuildSettings") {
+		return
+	}
 
 	if h.OnError(w, r, h.admin.SettingsUC.Update(r.Context(), s, user.ID, clientIP), "PutAdminSettings", "Update") {
 		return

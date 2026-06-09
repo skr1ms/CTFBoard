@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,12 +40,12 @@ func sanitizeUserAgent(s string) string {
 	b.Grow(len(s))
 
 	for _, r := range s {
-		if b.Len() >= trackingUserAgentMax {
-			break
-		}
-
 		if r == unicode.ReplacementChar || r < 32 || r == 127 {
 			continue
+		}
+
+		if b.Len()+utf8.RuneLen(r) > trackingUserAgentMax {
+			break
 		}
 
 		b.WriteRune(r)

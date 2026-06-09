@@ -58,3 +58,14 @@ schemas:
     properties:
       message:
         type: string
+  response.BulkActionResponse:
+    type: object
+    required:
+      - message
+      - affected_count
+    properties:
+      message:
+        type: string
+      affected_count:
+        type: integer
+        minimum: 0

@@ -9,6 +9,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
@@ -162,7 +163,12 @@ func (h *Server) PostAuthOauthExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pair, err := h.user.OAuthUC.ConsumeExchangeCode(r.Context(), req.Code)
+	code, err := request.OAuthExchangeRequestToParams(&req)
+	if h.OnError(w, r, err, "PostAuthOauthExchange", "OAuthExchangeRequestToParams") {
+		return
+	}
+
+	pair, err := h.user.OAuthUC.ConsumeExchangeCode(r.Context(), code)
 	if h.OnError(w, r, err, "PostAuthOauthExchange", "ConsumeExchangeCode") {
 		return
 	}

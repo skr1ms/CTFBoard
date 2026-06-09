@@ -91,11 +91,11 @@ func ImportOptionsFromMultipart(body *openapi.PostAdminImportMultipartBody, admi
 	cm := domain.ConflictModeOverwrite
 
 	if body.ConflictMode != nil {
-		if !body.ConflictMode.Valid() {
-			return domain.ImportOptions{}, apperr.NewValidationErrorf("conflict_mode must be one of: overwrite, skip")
+		if string(*body.ConflictMode) != string(domain.ConflictModeOverwrite) {
+			return domain.ImportOptions{}, apperr.NewValidationErrorf("conflict_mode must be overwrite")
 		}
 
-		cm = domain.ConflictMode(*body.ConflictMode)
+		cm = domain.ConflictModeOverwrite
 	}
 
 	return domain.ImportOptions{

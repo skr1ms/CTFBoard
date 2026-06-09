@@ -140,6 +140,10 @@ paths:
   # User admin (user.go)
   /admin/users:
     $ref: './routes/user.yml#/~1admin~1users'
+  /admin/users/bulk/ban:
+    $ref: './routes/user.yml#/~1admin~1users~1bulk~1ban'
+  /admin/users/bulk/unban:
+    $ref: './routes/user.yml#/~1admin~1users~1bulk~1unban'
   /admin/users/{ID}:
     $ref: './routes/user.yml#/~1admin~1users~1{ID}'
 
@@ -426,6 +430,12 @@ paths:
   # Team (team.go) admin
   /admin/teams:
     $ref: './routes/team.yml#/~1admin~1teams'
+  /admin/teams/bulk/ban:
+    $ref: './routes/team.yml#/~1admin~1teams~1bulk~1ban'
+  /admin/teams/bulk/unban:
+    $ref: './routes/team.yml#/~1admin~1teams~1bulk~1unban'
+  /admin/teams/bulk/hidden:
+    $ref: './routes/team.yml#/~1admin~1teams~1bulk~1hidden'
   /admin/teams/{ID}:
     $ref: './routes/team.yml#/~1admin~1teams~1{ID}'
   /admin/teams/{ID}/members:
@@ -498,8 +508,6 @@ paths:
   # Storage management (storage.go)
   /admin/storage:
     $ref: './routes/storage.yml#/~1admin~1storage'
-  /admin/storage/{path}:
-    $ref: './routes/storage.yml#/~1admin~1storage~1{path}'
 
   # Config (request/config.go)
   /admin/configs:

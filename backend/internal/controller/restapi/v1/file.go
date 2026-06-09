@@ -25,7 +25,7 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 		return
 	}
 
-	if err := request.ValidateUploadFilename(body.File.Filename()); h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "Filename") {
+	if err := request.ValidateChallengeUploadFilename(body.File.Filename()); h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "Filename") {
 		return
 	}
 
@@ -41,7 +41,7 @@ func (h *Server) PostAdminChallengesChallengeIDFiles(w http.ResponseWriter, r *h
 
 	defer func() { _ = reader.Close() }()
 
-	fileReader, contentType, err := helper.PrepareUploadReader(reader, body.File.Filename())
+	fileReader, contentType, err := helper.PrepareChallengeUploadReader(reader, body.File.Filename())
 	if h.OnError(w, r, err, "PostAdminChallengesChallengeIDFiles", "PrepareUploadReader") {
 		return
 	}

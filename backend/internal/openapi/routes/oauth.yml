@@ -112,7 +112,7 @@
       "200":
         description: OK (fallback; normally 302 redirect)
       "302":
-        description: Redirect to frontend with tokens in fragment
+        description: Redirect to frontend with a one-time OAuth exchange code in the query string
       "400":
         description: Bad Request
         content:

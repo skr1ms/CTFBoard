@@ -65,17 +65,6 @@ func (h *Server) GetUsersIDSolves(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	user, ok := helper.RequireUser(w, r)
-	if !ok {
-		return
-	}
-
-	if !helper.UserMatchesOrAdmin(user, userIDParsed) {
-		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDSolves", "AccessCheck")
-
-		return
-	}
-
 	solves, err := h.user.UserUC.GetUserSolves(r.Context(), userIDParsed)
 	if h.OnError(w, r, err, "GetUsersIDSolves", "GetUserSolves") {
 		return
@@ -105,17 +94,6 @@ func (h *Server) GetUsersMeFails(w http.ResponseWriter, r *http.Request, params 
 func (h *Server) GetUsersIDFails(w http.ResponseWriter, r *http.Request, ID string, params openapi.GetUsersIDFailsParams) {
 	userIDParsed, ok := httputil.ParseUUID(w, r, ID)
 	if !ok {
-		return
-	}
-
-	user, ok := helper.RequireUser(w, r)
-	if !ok {
-		return
-	}
-
-	if !helper.UserMatchesOrAdmin(user, userIDParsed) {
-		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDFails", "AccessCheck")
-
 		return
 	}
 
@@ -151,17 +129,6 @@ func (h *Server) GetUsersIDAwards(w http.ResponseWriter, r *http.Request, ID str
 		return
 	}
 
-	user, ok := helper.RequireUser(w, r)
-	if !ok {
-		return
-	}
-
-	if !helper.UserMatchesOrAdmin(user, userIDParsed) {
-		h.OnError(w, r, helper.ErrAccessDenied, "GetUsersIDAwards", "AccessCheck")
-
-		return
-	}
-
 	awards, err := h.user.UserUC.GetUserAwards(r.Context(), userIDParsed)
 	if h.OnError(w, r, err, "GetUsersIDAwards", "GetUserAwards") {
 		return
@@ -186,12 +153,16 @@ func (h *Server) PatchAuthMe(w http.ResponseWriter, r *http.Request) {
 
 	params := request.UpdateProfileRequestToParams(me.ID, &req)
 
-	updated, err := h.user.UserUC.UpdateProfile(r.Context(), params)
+	result, err := h.user.UserUC.UpdateProfile(r.Context(), params)
 	if h.OnError(w, r, err, "PatchAuthMe", "UpdateProfile") {
 		return
 	}
 
-	httputil.RenderOK(w, r, response.FromUserMe(updated))
+	if result != nil && result.TokenPair != nil {
+		h.setRefreshCookie(w, result.TokenPair.RefreshToken)
+	}
+
+	httputil.RenderOK(w, r, response.FromUpdateProfileResult(result))
 }
 
 // (GET /users/me/submissions).

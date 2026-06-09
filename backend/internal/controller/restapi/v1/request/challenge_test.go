@@ -207,3 +207,32 @@ func TestUpdateChallengeRequestToParams_NextIDValueAndNull(t *testing.T) {
 	assert.True(t, params.NextChallengeSet)
 	assert.Nil(t, params.NextChallengeID)
 }
+
+func TestUpdateChallengeRequestToParams_FlagFormatRegexValueNullAndAbsent(t *testing.T) {
+	t.Parallel()
+
+	req := &openapi.UpdateChallengeRequest{
+		Title:       "Test",
+		Description: "Desc",
+		Category:    "misc",
+		Points:      100,
+	}
+	params, err := UpdateChallengeRequestToParams(req)
+	require.NoError(t, err)
+	assert.False(t, params.FlagFormatRegexSet)
+	assert.Nil(t, params.FlagFormatRegex)
+
+	pattern := `^CTF\{.+\}$`
+	req.FlagFormatRegex = nullable.NewNullableWithValue(pattern)
+	params, err = UpdateChallengeRequestToParams(req)
+	require.NoError(t, err)
+	assert.True(t, params.FlagFormatRegexSet)
+	require.NotNil(t, params.FlagFormatRegex)
+	assert.Equal(t, pattern, *params.FlagFormatRegex)
+
+	req.FlagFormatRegex = nullable.NewNullNullable[string]()
+	params, err = UpdateChallengeRequestToParams(req)
+	require.NoError(t, err)
+	assert.True(t, params.FlagFormatRegexSet)
+	assert.Nil(t, params.FlagFormatRegex)
+}

@@ -32,15 +32,13 @@
       - BearerAuth: []
     tags:
       - Admin
-
-/admin/storage/{path}:
   delete:
-    operationId: DeleteAdminStoragePath
+    operationId: DeleteAdminStorage
     summary: Delete a storage object
     description: Permanently delete a file from storage. Creates an audit log entry. Admin only.
     parameters:
       - name: path
-        in: path
+        in: query
         required: true
         schema:
           type: string

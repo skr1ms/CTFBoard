@@ -55,7 +55,12 @@ func (h *Server) GetChallengesChallengeIDRatings(w http.ResponseWriter, r *http.
 		return
 	}
 
-	list, err := h.challenge.RatingUC.GetRatingsByChallengeID(r.Context(), challengeIDParsed)
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	list, err := h.challenge.RatingUC.GetRatingsByChallengeID(r.Context(), challengeIDParsed, user.TeamID)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDRatings", "GetRatingsByChallengeID") {
 		return
 	}

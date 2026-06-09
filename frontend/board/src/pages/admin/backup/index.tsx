@@ -71,7 +71,7 @@ function useImportZip() {
     }: {
       file: File
       eraseExisting: boolean
-      conflictMode: 'merge' | 'overwrite' | 'skip'
+      conflictMode: 'overwrite'
     }): Promise<ImportResult> => {
       const fd = new FormData()
       fd.append('file', file)
@@ -191,7 +191,7 @@ function ImportZipSection() {
   const [dragging, setDragging] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [eraseExisting, setEraseExisting] = useState(false)
-  const [conflictMode, setConflictMode] = useState<'merge' | 'overwrite' | 'skip'>('merge')
+  const [conflictMode, setConflictMode] = useState<'overwrite'>('overwrite')
   const [result, setResult] = useState<ImportResult | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -278,9 +278,7 @@ function ImportZipSection() {
             onChange={(e) => setConflictMode(e.target.value as typeof conflictMode)}
             className="h-8 rounded-[var(--radius-md)] border border-space-border bg-space-dark px-2 text-sm text-text-primary focus:outline-none"
           >
-            <option value="merge">merge</option>
             <option value="overwrite">overwrite</option>
-            <option value="skip">skip</option>
           </select>
         </div>
 

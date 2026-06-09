@@ -10,6 +10,41 @@ schemas:
     required:
       - reason
     type: object
+  request.BulkBanUsersRequest:
+    properties:
+      ids:
+        type: array
+        minItems: 1
+        maxItems: 100
+        items:
+          type: string
+          format: uuid
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=100,dive,uuid"
+      reason:
+        type: string
+        example: Violation of rules
+        maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=500"
+    required:
+      - ids
+      - reason
+    type: object
+  request.BulkUserIDsRequest:
+    properties:
+      ids:
+        type: array
+        minItems: 1
+        maxItems: 100
+        items:
+          type: string
+          format: uuid
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=100,dive,uuid"
+    required:
+      - ids
+    type: object
   response.AdminUserResponse:
     properties:
       id:
@@ -26,6 +61,13 @@ schemas:
         type: boolean
       is_banned:
         type: boolean
+      was_in_banned_team:
+        type: boolean
+      is_blocked:
+        type: boolean
+      ban_source:
+        type: string
+        enum: [none, direct, team_inherited]
       banned_at:
         type: string
         format: date-time
@@ -199,6 +241,7 @@ schemas:
     properties:
       id:
         type: string
+        format: uuid
       username:
         type: string
       email:
@@ -207,6 +250,26 @@ schemas:
         type: string
       team_id:
         type: string
+        format: uuid
+        nullable: true
+      is_verified:
+        type: boolean
+      verified_at:
+        type: string
+        format: date-time
+        nullable: true
+      is_banned:
+        type: boolean
+      banned_at:
+        type: string
+        format: date-time
+        nullable: true
+      banned_reason:
+        type: string
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
     type: object
   TrackingEntry:
     properties:

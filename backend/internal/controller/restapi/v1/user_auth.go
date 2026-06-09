@@ -15,6 +15,7 @@ import (
 const (
 	refreshCookieName          = "ctf_refresh"
 	defaultRefreshCookieMaxAge = 72 * 60 * 60
+	authHeaderParts            = 2
 )
 
 func setRefreshCookie(w http.ResponseWriter, token string, maxAge int, secure bool) {
@@ -101,7 +102,7 @@ func (h *Server) GetAuthMe(w http.ResponseWriter, r *http.Request) {
 
 	resp := response.FromUserMe(me)
 
-	if me.User.IsBanned && resp.BanStatus != nil {
+	if (me.User.IsBanned || me.User.WasInBannedTeam) && resp.BanStatus != nil {
 		canAppeal, hasPending, err := h.user.AppealUC.CanAppeal(r.Context(), me.User.ID)
 		if h.OnError(w, r, err, "GetAuthMe", "CanAppeal") {
 			return
@@ -137,22 +138,24 @@ func (h *Server) PostAuthRefresh(w http.ResponseWriter, r *http.Request) {
 // optionally revokes the current access token from the Authorization header.
 // (POST /auth/logout).
 func (h *Server) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(refreshCookieName)
-	if err != nil || cookie.Value == "" {
-		h.OnError(w, r, helper.ErrNotAuthenticated, "PostAuthLogout", "MissingRefreshCookie")
+	var refreshToken string
 
-		return
+	cookie, err := r.Cookie(refreshCookieName)
+	if err == nil {
+		refreshToken = cookie.Value
 	}
 
 	var accessToken *string
 
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
-		if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok && token != "" {
+		parts := strings.SplitN(authHeader, " ", authHeaderParts)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && strings.TrimSpace(parts[1]) != "" {
+			token := strings.TrimSpace(parts[1])
 			accessToken = &token
 		}
 	}
 
-	if err := h.user.UserUC.Logout(r.Context(), cookie.Value, accessToken); h.OnError(w, r, err, "PostAuthLogout", "Logout") {
+	if err := h.user.UserUC.Logout(r.Context(), refreshToken, accessToken); h.OnError(w, r, err, "PostAuthLogout", "Logout") {
 		return
 	}
 

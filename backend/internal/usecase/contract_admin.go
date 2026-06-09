@@ -188,6 +188,7 @@ type (
 		List(ctx context.Context, userID uuid.UUID) ([]*domain.APIToken, error)
 		Create(ctx context.Context, userID uuid.UUID, description string, expiresAt *time.Time) (plaintext string, token *domain.APIToken, err error)
 		Delete(ctx context.Context, ID, userID uuid.UUID) error
+		RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
 		AuthenticatePlaintext(ctx context.Context, plaintext string) (*domain.APIToken, error)
 		UpdateLastUsedAt(ctx context.Context, ID uuid.UUID) error
 	}

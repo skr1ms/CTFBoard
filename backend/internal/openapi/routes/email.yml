@@ -22,6 +22,12 @@
           application/json:
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (token not found)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
       "410":
         description: Gone
         content:
@@ -94,6 +100,12 @@
               $ref: '../components/schemas.yml#/MessageResponse'
       "400":
         description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found (token not found)
         content:
           application/json:
             schema:

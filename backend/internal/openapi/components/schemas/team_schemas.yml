@@ -124,6 +124,63 @@ schemas:
     required:
       - reason
     type: object
+  request.BulkBanTeamsRequest:
+    properties:
+      ids:
+        type: array
+        minItems: 1
+        maxItems: 100
+        items:
+          type: string
+          format: uuid
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=100,dive,uuid"
+      reason:
+        example: Violation of rules
+        type: string
+        minLength: 1
+        maxLength: 500
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=500"
+      ban_members:
+        default: false
+        description: If true, ban each team member as a user.
+        type: boolean
+    required:
+      - ids
+      - reason
+    type: object
+  request.BulkTeamIDsRequest:
+    properties:
+      ids:
+        type: array
+        minItems: 1
+        maxItems: 100
+        items:
+          type: string
+          format: uuid
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=100,dive,uuid"
+    required:
+      - ids
+    type: object
+  request.BulkSetHiddenRequest:
+    properties:
+      ids:
+        type: array
+        minItems: 1
+        maxItems: 100
+        items:
+          type: string
+          format: uuid
+        x-oapi-codegen-extra-tags:
+          validate: "required,min=1,max=100,dive,uuid"
+      hidden:
+        type: boolean
+    required:
+      - ids
+      - hidden
+    type: object
   response.ConfirmationRequired:
     properties:
       reason:
@@ -243,14 +300,47 @@ schemas:
     properties:
       id:
         type: string
+        format: uuid
       name:
         type: string
+      invite_token:
+        type: string
+        format: uuid
+      invite_token_expires_at:
+        type: string
+        format: date-time
+        nullable: true
       captain_id:
         type: string
+        format: uuid
+      bracket_id:
+        type: string
+        format: uuid
+        nullable: true
+      is_solo:
+        type: boolean
+      is_auto_created:
+        type: boolean
       is_banned:
         type: boolean
+      banned_at:
+        type: string
+        format: date-time
+        nullable: true
+      banned_reason:
+        type: string
+        nullable: true
+      is_hidden:
+        type: boolean
+      avatar_url:
+        type: string
+        nullable: true
+      created_at:
+        type: string
+        format: date-time
       member_ids:
         type: array
         items:
           type: string
+          format: uuid
     type: object

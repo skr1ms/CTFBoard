@@ -3,14 +3,18 @@ package request
 import (
 	"github.com/samber/lo"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 )
 
-func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id int, current *domain.Settings) *domain.Settings {
-	scoreboardVisible := current.ScoreboardVisible
-	if req.ScoreboardVisible != nil {
-		scoreboardVisible = string(*req.ScoreboardVisible)
+func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id int, current *domain.Settings) (*domain.Settings, error) {
+	if req.FrontendURL != nil && *req.FrontendURL != current.FrontendURL {
+		return nil, apperr.NewValidationErrorf("frontend_url is deploy-time only; update FRONTEND_URL and restart the backend")
+	}
+
+	if req.CorsOrigins != nil && *req.CorsOrigins != current.CORSOrigins {
+		return nil, apperr.NewValidationErrorf("cors_origins is deploy-time only; update CORS_ORIGINS and restart the backend")
 	}
 
 	registrationOpen := current.RegistrationOpen
@@ -23,8 +27,8 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 		UpdatedAt:                        current.UpdatedAt,
 		AppName:                          lo.FromPtrOr(req.AppName, current.AppName),
 		VerifyEmails:                     lo.FromPtrOr(req.VerifyEmails, current.VerifyEmails),
-		FrontendURL:                      lo.FromPtrOr(req.FrontendURL, current.FrontendURL),
-		CORSOrigins:                      lo.FromPtrOr(req.CorsOrigins, current.CORSOrigins),
+		FrontendURL:                      current.FrontendURL,
+		CORSOrigins:                      current.CORSOrigins,
 		ResendEnabled:                    lo.FromPtrOr(req.ResendEnabled, current.ResendEnabled),
 		ResendFromEmail:                  lo.FromPtrOr(req.ResendFromEmail, current.ResendFromEmail),
 		ResendFromName:                   lo.FromPtrOr(req.ResendFromName, current.ResendFromName),
@@ -32,7 +36,6 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 		ResetTTLHours:                    lo.FromPtrOr(req.ResetTTLHours, current.ResetTTLHours),
 		SubmitLimitPerUser:               lo.FromPtrOr(req.SubmitLimitPerUser, current.SubmitLimitPerUser),
 		SubmitLimitDurationMin:           lo.FromPtrOr(req.SubmitLimitDurationMin, current.SubmitLimitDurationMin),
-		ScoreboardVisible:                scoreboardVisible,
 		RegistrationOpen:                 registrationOpen,
 		DefaultPerPage:                   lo.FromPtrOr(req.DefaultPerPage, current.DefaultPerPage),
 		MaxPerPage:                       lo.FromPtrOr(req.MaxPerPage, current.MaxPerPage),
@@ -54,5 +57,5 @@ func UpdateAppSettingsRequestToEntity(req *openapi.UpdateAppSettingsRequest, id 
 		WriteupEnabled:                   lo.FromPtrOr(req.WriteupEnabled, current.WriteupEnabled),
 		OAuthGithubEnabled:               lo.FromPtrOr(req.OauthGithubEnabled, current.OAuthGithubEnabled),
 		OAuthGoogleEnabled:               lo.FromPtrOr(req.OauthGoogleEnabled, current.OAuthGoogleEnabled),
-	}
+	}, nil
 }

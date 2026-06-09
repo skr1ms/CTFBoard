@@ -3,7 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
+	"slices"
 	"sync"
 	"time"
 
@@ -18,6 +18,11 @@ const setupCheckTTL = 5 * time.Second
 // SetupStatusChecker is satisfied by SetupUseCase.
 type SetupStatusChecker interface {
 	IsComplete(ctx context.Context) (bool, error)
+}
+
+type SetupAllowlist struct {
+	Exact    []string
+	Prefixes []string
 }
 
 type setupCache struct {
@@ -38,6 +43,10 @@ func (c *setupCache) get() (bool, bool) {
 }
 
 func (c *setupCache) set(complete bool) {
+	if !complete {
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -48,15 +57,16 @@ func (c *setupCache) set(complete bool) {
 // SetupRequired returns middleware that blocks all requests with 503 when the
 // platform setup has not been completed, unless the path is in the allowlist.
 //
-// The setup status is cached for setupCheckTTL (5 s) to avoid a Redis/DB round-trip
-// on every request. Once setup is complete the cache is never invalidated - setup can
-// only transition from false -> true, never the other way.
-func SetupRequired(uc SetupStatusChecker, allowedPrefixes []string) func(http.Handler) http.Handler {
+// Completed setup status is cached for setupCheckTTL (5 s) to avoid a Redis/DB
+// round-trip on every post-setup request. Incomplete status is intentionally not
+// cached so the first request after a successful setup cannot be blocked by a
+// stale negative entry.
+func SetupRequired(uc SetupStatusChecker, allowlist SetupAllowlist) func(http.Handler) http.Handler {
 	cache := &setupCache{}
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if isAllowed(r.URL.Path, allowedPrefixes) {
+			if allowlist.Allows(r.URL.Path) {
 				next.ServeHTTP(w, r)
 
 				return
@@ -78,8 +88,7 @@ func SetupRequired(uc SetupStatusChecker, allowedPrefixes []string) func(http.Ha
 			// Cache miss - query the use case.
 			complete, err := uc.IsComplete(r.Context())
 			if err != nil {
-				// On error, allow the request through - don't block the platform for transient failures.
-				next.ServeHTTP(w, r)
+				httputil.HandleError(w, r, errmap.MapAppError(err))
 
 				return
 			}
@@ -97,9 +106,13 @@ func SetupRequired(uc SetupStatusChecker, allowedPrefixes []string) func(http.Ha
 	}
 }
 
-func isAllowed(path string, prefixes []string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(path, prefix) {
+func (a SetupAllowlist) Allows(path string) bool {
+	if slices.Contains(a.Exact, path) {
+		return true
+	}
+
+	for _, prefix := range a.Prefixes {
+		if len(prefix) > 0 && len(path) >= len(prefix) && path[:len(prefix)] == prefix {
 			return true
 		}
 	}

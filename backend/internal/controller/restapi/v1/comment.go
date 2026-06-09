@@ -18,7 +18,12 @@ func (h *Server) GetChallengesChallengeIDComments(w http.ResponseWriter, r *http
 		return
 	}
 
-	list, err := h.challenge.CommentUC.GetByChallengeID(r.Context(), challengeIDParsed)
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	list, err := h.challenge.CommentUC.GetByChallengeID(r.Context(), challengeIDParsed, user.TeamID)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDComments", "GetByChallengeID") {
 		return
 	}

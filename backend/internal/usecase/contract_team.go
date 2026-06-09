@@ -13,9 +13,19 @@ import (
 // =============================================================================
 
 type ConfirmReason string
+type AdminTeamBanStatus string
+type AdminTeamVisibility string
 
 const (
 	ConfirmReasonSoloTeamReset ConfirmReason = "solo_team_reset"
+
+	AdminTeamBanStatusAll       AdminTeamBanStatus = "all"
+	AdminTeamBanStatusNotBanned AdminTeamBanStatus = "not_banned"
+	AdminTeamBanStatusBanned    AdminTeamBanStatus = "banned"
+
+	AdminTeamVisibilityAll     AdminTeamVisibility = "all"
+	AdminTeamVisibilityVisible AdminTeamVisibility = "visible"
+	AdminTeamVisibilityHidden  AdminTeamVisibility = "hidden"
 )
 
 type (
@@ -83,22 +93,15 @@ type (
 		BanTeam(ctx context.Context, teamID uuid.UUID, reason string, banMembers bool, actorID uuid.UUID) error
 		UnbanTeam(ctx context.Context, teamID, actorID uuid.UUID) error
 		SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error
+		BanTeams(ctx context.Context, teamIDs []uuid.UUID, reason string, banMembers bool, actorID uuid.UUID) (*BulkActionResult, error)
+		UnbanTeams(ctx context.Context, teamIDs []uuid.UUID, actorID uuid.UUID) (*BulkActionResult, error)
+		SetHiddenBulk(ctx context.Context, teamIDs []uuid.UUID, hidden bool) (*BulkActionResult, error)
 		SetBracket(ctx context.Context, teamID uuid.UUID, bracketID *uuid.UUID) error
-		AdminListTeams(ctx context.Context, search *string, page, perPage int) (*Paginated[*domain.Team], error)
+		AdminListTeams(ctx context.Context, search *string, banStatus AdminTeamBanStatus, visibility AdminTeamVisibility, page, perPage int) (*Paginated[*domain.Team], error)
 		AdminUpdate(ctx context.Context, teamID uuid.UUID, name *string, captainID, bracketID *uuid.UUID, isHidden *bool) (*domain.Team, error)
 		AdminDelete(ctx context.Context, teamID uuid.UUID) error
 		AdminGetMembers(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error)
 		AdminAddMember(ctx context.Context, teamID, userID uuid.UUID) error
 		AdminRemoveMember(ctx context.Context, teamID, userID uuid.UUID) error
-	}
-
-	// TeamUseCase keeps the legacy aggregate contract for internal implementations.
-	TeamUseCase interface {
-		TeamReadUseCase
-		TeamSelfUseCase
-		TeamAdminUseCase
-
-		Create(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error)
-		GetTeamMembers(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error)
 	}
 )

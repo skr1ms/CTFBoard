@@ -10,6 +10,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
@@ -80,11 +81,11 @@ type InfraDeps struct {
 	StructuredLogger              bool
 	DebugEnabled                  bool
 	RateLimitConfigCache          *middleware.RateLimitConfigCache
-	ScoreboardVisibilityCache     *middleware.ScoreboardVisibilityCache
 	ForgotPasswordRateLimiter     *middleware.PerKeyRateLimiter
 	ResendVerificationRateLimiter *middleware.PerKeyRateLimiter
 	ResetPasswordTokenRateLimiter *middleware.PerKeyRateLimiter
 	RatelimitAuditWG              *sync.WaitGroup
+	TM                            repo.TransactionManager
 }
 
 type ServerDeps struct {

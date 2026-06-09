@@ -19,9 +19,7 @@ import (
 	"github.com/wahrwelt-kit/go-wskit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/config"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/seed"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
@@ -171,11 +169,7 @@ func Run(cfg *config.Config, l logkit.Logger) {
 
 		// Banned users are still allowed to refresh so the frontend can load
 		// /auth/me, read ban_status, and redirect to /banned with the ban reason.
-		// The AuthGuard redirects all banned users to /banned; individual usecases
-		// enforce the ban for CTF operations (submit, hint unlock, team ops, etc.).
-		if u.WasInBannedTeam && u.Role != domain.RoleAdmin {
-			return "", apperr.ErrUserBanned
-		}
+		// The ban middleware and usecase guards enforce blocked CTF operations.
 
 		return string(u.Role), nil
 	})
@@ -227,6 +221,21 @@ func Run(cfg *config.Config, l logkit.Logger) {
 
 		if app.AvatarUC != nil {
 			app.AvatarUC.Wait()
+		}
+
+		if app.BackupUC != nil {
+			waitDone := make(chan struct{})
+
+			go func() {
+				app.BackupUC.Wait()
+				close(waitDone)
+			}()
+
+			select {
+			case <-waitDone:
+			case <-time.After(shutdownGraceTimeout):
+				l.Warn("backup import wait group timeout")
+			}
 		}
 
 		if app.Broadcaster != nil {

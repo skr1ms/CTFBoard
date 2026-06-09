@@ -581,6 +581,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get team solves
@@ -676,6 +677,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get team fails
@@ -758,6 +760,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get team awards
@@ -774,6 +777,20 @@
         description: Search query (team name)
         schema:
           type: string
+      - name: ban_status
+        in: query
+        description: Admin team ban-state filter
+        schema:
+          type: string
+          enum: [all, not_banned, banned]
+          default: all
+      - name: visibility
+        in: query
+        description: Admin team visibility filter
+        schema:
+          type: string
+          enum: [all, visible, hidden]
+          default: all
       - name: page
         in: query
         schema:
@@ -807,6 +824,168 @@
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: List all teams (admin)
+    tags:
+      - Admin
+
+"/admin/teams/bulk/ban":
+  post:
+    operationId: PostAdminTeamsBulkBan
+    description: Bans multiple teams in a single all-or-nothing admin operation.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/BulkBanTeamsRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BulkActionResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Bulk ban teams
+    tags:
+      - Admin
+
+"/admin/teams/bulk/unban":
+  post:
+    operationId: PostAdminTeamsBulkUnban
+    description: Unbans multiple teams in a single all-or-nothing admin operation.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/BulkTeamIDsRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BulkActionResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Bulk unban teams
+    tags:
+      - Admin
+
+"/admin/teams/bulk/hidden":
+  patch:
+    operationId: PatchAdminTeamsBulkHidden
+    description: Sets hidden status for multiple teams in a single all-or-nothing admin operation.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/BulkSetHiddenRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BulkActionResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Bulk set team hidden status
     tags:
       - Admin
 

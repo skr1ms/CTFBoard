@@ -39,8 +39,8 @@ func ProvideAvatarUseCase(
 	})
 }
 
-func ProvideStorageAdminUseCase(storageProvider storage.Provider) *storageadmin.UseCase {
-	return storageadmin.NewUseCase(storageadmin.Deps{Storage: storageProvider})
+func ProvideStorageAdminUseCase(storageProvider storage.Provider, auditLogRepo repo.AuditLogRepository) *storageadmin.UseCase {
+	return storageadmin.NewUseCase(storageadmin.Deps{Storage: storageProvider, AuditLog: auditLogRepo})
 }
 
 func ProvideCleanupUseCase(

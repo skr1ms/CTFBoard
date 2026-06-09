@@ -58,20 +58,15 @@ func ProvideRouter(
 	// Access-Control-Allow-Origin headers and the browser doesn't report a
 	// spurious CORS error instead of a rate-limit error.
 	if len(cfg.CORSOrigins) > 0 {
-		router.Use(cors.Handler(cors.Options{
-			AllowedOrigins:   cfg.CORSOrigins,
-			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-			ExposedHeaders:   []string{"Link"},
-			AllowCredentials: true,
-			MaxAge:           corsPreflightMaxAgeSeconds,
-		}))
+		router.Use(cors.Handler(corsOptions(cfg)))
 	}
 
-	timeoutMW := kitMiddleware.Timeout(requestTimeout)
+	defaultTimeoutMW := kitMiddleware.Timeout(requestTimeout)
+	longTimeoutMW := kitMiddleware.Timeout(longRequestTimeout)
 
 	router.Use(func(next http.Handler) http.Handler {
-		withTimeout := timeoutMW(next)
+		withDefaultTimeout := defaultTimeoutMW(next)
+		withLongTimeout := longTimeoutMW(next)
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasSuffix(r.URL.Path, "/ws") || strings.HasSuffix(r.URL.Path, "/sse") {
@@ -80,7 +75,13 @@ func ProvideRouter(
 				return
 			}
 
-			withTimeout.ServeHTTP(w, r)
+			if isLongRequestPath(r.URL.Path) {
+				withLongTimeout.ServeHTTP(w, r)
+
+				return
+			}
+
+			withDefaultTimeout.ServeHTTP(w, r)
 		})
 	})
 
@@ -147,29 +148,31 @@ func ProvideRouter(
 	router.Get("/openapi.json", openapiJSONHandler)
 	router.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/openapi.json")))
 
-	deps.Infra.ScoreboardVisibilityCache = restapimiddleware.NewScoreboardVisibilityCache(ctx)
-	runtimeInvalidator.SetScoreboardVisibilityCache(deps.Infra.ScoreboardVisibilityCache)
-
 	setupUC := setup.NewSetupUseCase(setup.SetupDeps{
 		UserUC:      deps.User.UserUC,
 		CompUC:      deps.Comp.CompetitionUC,
 		CompParamUC: deps.Admin.CompetitionParamUC,
 		SettingsUC:  deps.Admin.SettingsUC,
+		TM:          deps.Infra.TM,
 		JWTService:  deps.Infra.JWTService,
 	})
 	setupHandler := v1.NewSetupHandler(setupUC, l, deps.Infra.Validator, cfg.SetupToken, cfg.SecureCookies, int(cfg.RefreshTTL.Seconds()))
 
 	// Paths that remain accessible before setup is complete.
-	setupAllowedPaths := []string{
-		"/api/v1/setup",
-		"/api/v1/configs/public",
-		"/api/v1/health",
-		"/api/v1/healthcheck",
-		"/health",
-		"/metrics",
-		"/avatars/",
+	setupAllowlist := restapimiddleware.SetupAllowlist{
+		Exact: []string{
+			"/api/v1/setup",
+			"/api/v1/configs/public",
+			"/api/v1/health",
+			"/api/v1/healthcheck",
+			"/health",
+			"/metrics",
+		},
+		Prefixes: []string{
+			"/api/v1/avatars/",
+		},
 	}
-	setupRequiredMW := restapimiddleware.SetupRequired(setupUC, setupAllowedPaths)
+	setupRequiredMW := restapimiddleware.SetupRequired(setupUC, setupAllowlist)
 
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", healthHandler)
@@ -189,4 +192,38 @@ func ProvideRouter(
 	})
 
 	return router, nil
+}
+
+func isLongRequestPath(path string) bool {
+	if path == "/api/v1/admin/import" ||
+		path == "/api/v1/admin/import/csv" ||
+		path == "/api/v1/admin/export/zip" {
+		return true
+	}
+
+	if strings.HasPrefix(path, "/api/v1/files/download/") {
+		return true
+	}
+
+	return strings.HasPrefix(path, "/api/v1/admin/challenges/") && strings.HasSuffix(path, "/files")
+}
+
+func corsOptions(cfg *config.Config) cors.Options {
+	return cors.Options{
+		AllowedOrigins: cfg.CORSOrigins,
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders: []string{
+			"Accept",
+			"Authorization",
+			"Content-Type",
+			"X-CSRF-Token",
+			"X-Setup-Token",
+		},
+		ExposedHeaders: []string{
+			"Link",
+			"Retry-After",
+		},
+		AllowCredentials: true,
+		MaxAge:           corsPreflightMaxAgeSeconds,
+	}
 }

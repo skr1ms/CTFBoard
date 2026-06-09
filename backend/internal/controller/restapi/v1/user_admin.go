@@ -27,10 +27,15 @@ func (h *Server) GetAdminUsers(w http.ResponseWriter, r *http.Request, params op
 		return
 	}
 
+	banStatus, err := request.AdminUsersBanStatusFromParams(params)
+	if h.OnError(w, r, err, "GetAdminUsers", "BanStatus") {
+		return
+	}
+
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
-	result, err := h.user.UserUC.ListUsers(r.Context(), q, field, page, perPage)
-	if h.OnError(w, r, err, "GetAdminUsers", "ListUsers") {
+	result, err := h.user.UserUC.AdminListUsers(r.Context(), q, field, banStatus, page, perPage)
+	if h.OnError(w, r, err, "GetAdminUsers", "AdminListUsers") {
 		return
 	}
 
@@ -57,6 +62,52 @@ func (h *Server) PostAdminUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.RenderCreated(w, r, response.FromAdminUser(user))
+}
+
+// (POST /admin/users/bulk/ban).
+func (h *Server) PostAdminUsersBulkBan(w http.ResponseWriter, r *http.Request) {
+	actor, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	req, ok := httputil.DecodeAndValidate[openapi.BulkBanUsersRequest](
+		w, r, h.infra.Validator,
+	)
+	if !ok {
+		return
+	}
+
+	ids, reason := request.BulkBanUsersRequestToParams(&req)
+
+	result, err := h.user.UserUC.BanUsers(r.Context(), ids, reason, actor.ID)
+	if h.OnError(w, r, err, "PostAdminUsersBulkBan", "BanUsers") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.BulkAction("users banned", result.AffectedCount))
+}
+
+// (POST /admin/users/bulk/unban).
+func (h *Server) PostAdminUsersBulkUnban(w http.ResponseWriter, r *http.Request) {
+	actor, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	req, ok := httputil.DecodeAndValidate[openapi.BulkUserIDsRequest](
+		w, r, h.infra.Validator,
+	)
+	if !ok {
+		return
+	}
+
+	result, err := h.user.UserUC.UnbanUsers(r.Context(), request.BulkUserIDsRequestToParams(&req), actor.ID)
+	if h.OnError(w, r, err, "PostAdminUsersBulkUnban", "UnbanUsers") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.BulkAction("users unbanned", result.AffectedCount))
 }
 
 // (PATCH /admin/users/{ID}).

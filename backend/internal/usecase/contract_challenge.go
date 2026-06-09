@@ -57,26 +57,27 @@ type (
 	}
 
 	ChallengeUpdateParams struct {
-		Title             string
-		Description       string
-		Category          string
-		Points            int
-		InitialValue      *int
-		MinValue          *int
-		Decay             *int
-		Flag              string
-		Attribution       *string
-		ConnectionInfo    *string
-		MaxAttempts       *int
-		MaxAttemptsWindow *time.Duration
-		Position          *int
-		NextChallengeID   *uuid.UUID
-		NextChallengeSet  bool
-		State             string
-		IsRegex           *bool
-		IsCaseInsensitive *bool
-		FlagFormatRegex   *string
-		TagIDs            []uuid.UUID
+		Title              string
+		Description        string
+		Category           string
+		Points             int
+		InitialValue       *int
+		MinValue           *int
+		Decay              *int
+		Flag               string
+		Attribution        *string
+		ConnectionInfo     *string
+		MaxAttempts        *int
+		MaxAttemptsWindow  *time.Duration
+		Position           *int
+		NextChallengeID    *uuid.UUID
+		NextChallengeSet   bool
+		State              string
+		IsRegex            *bool
+		IsCaseInsensitive  *bool
+		FlagFormatRegex    *string
+		FlagFormatRegexSet bool
+		TagIDs             []uuid.UUID
 	}
 
 	ChallengeSubmitParams struct {
@@ -97,9 +98,9 @@ type (
 		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*ChallengeWithTags, error)
 		GetByID(ctx context.Context, challengeID uuid.UUID) (*domain.Challenge, error)
 		GetDetail(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) (*ChallengeDetail, error)
-		GetSolves(ctx context.Context, challengeID uuid.UUID) ([]*domain.SolveWithDetails, error)
-		GetTags(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error)
-		GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error)
+		GetSolves(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.SolveWithDetails, error)
+		GetTags(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Tag, error)
+		GetRequirements(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID, isAdmin bool) ([]*domain.ChallengeRequirement, error)
 		GetSolution(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID, isAdmin bool) (*domain.ChallengeSolution, error)
 		ListSolutions(ctx context.Context, teamID *uuid.UUID, isAdmin bool) ([]*domain.ChallengeSolutionEntry, error)
 		GetTypes(ctx context.Context) ([]string, error)
@@ -112,7 +113,6 @@ type (
 
 	// ChallengeAdminUseCase exposes administrative challenge mutations and views.
 	ChallengeAdminUseCase interface {
-		GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error)
 		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
 		AdminUpsertSolution(ctx context.Context, challengeID uuid.UUID, params ChallengeSolutionUpsertParams) (*domain.ChallengeSolution, error)
 		AdminDeleteSolution(ctx context.Context, challengeID uuid.UUID) error
@@ -123,18 +123,6 @@ type (
 		Update(ctx context.Context, ID uuid.UUID, params ChallengeUpdateParams) (*domain.Challenge, error)
 		Delete(ctx context.Context, ID, actorID uuid.UUID, clientIP string) error
 		RecalcAllDynamicPoints(ctx context.Context) error
-	}
-
-	// ChallengeUseCase keeps the legacy aggregate contract for internal implementations.
-	ChallengeUseCase interface {
-		ChallengeReadUseCase
-		ChallengeSubmitUseCase
-		ChallengeAdminUseCase
-
-		InvalidateScoreboardCache(ctx context.Context)
-		InvalidateScoreboardCacheForTeam(ctx context.Context, teamID uuid.UUID)
-		AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error
-		AdminDeleteSolve(ctx context.Context, teamID, challengeID uuid.UUID) error
 	}
 )
 
@@ -148,7 +136,7 @@ type (
 		Create(ctx context.Context, name, color string) (*domain.Tag, error)
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Tag, error)
 		GetAll(ctx context.Context) ([]*domain.Tag, error)
-		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error)
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Tag, error)
 		Update(ctx context.Context, ID uuid.UUID, name, color string) (*domain.Tag, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 	}
@@ -204,7 +192,6 @@ type (
 		Upload(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType, filename string, reader io.Reader, size int64, contentType string) (*domain.File, error)
 		UploadPageFile(ctx context.Context, pageID uuid.UUID, filename string, reader io.Reader, size int64, contentType string) (*domain.File, error)
 		Download(ctx context.Context, path string) (io.ReadCloser, error)
-		GetDownloadURL(ctx context.Context, fileID uuid.UUID) (string, error)
 		GetDownloadURLWithAccess(ctx context.Context, fileID uuid.UUID, teamID *uuid.UUID, isAdmin bool) (string, error)
 		BuildDownloadURLs(ctx context.Context, files []*domain.File, teamID *uuid.UUID, isAdmin bool) (map[string]string, error)
 		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, fileType domain.FileType) ([]*domain.File, error)
@@ -215,9 +202,15 @@ type (
 	}
 
 	// StorageAdminUseCase handles direct administrative object-storage operations.
+	StorageAdminDeleteParams struct {
+		Path     string
+		ActorID  uuid.UUID
+		ClientIP string
+	}
+
 	StorageAdminUseCase interface {
 		List(ctx context.Context, prefix string) ([]string, error)
-		Delete(ctx context.Context, path string) error
+		Delete(ctx context.Context, params StorageAdminDeleteParams) error
 	}
 )
 
@@ -243,7 +236,7 @@ type (
 type (
 	// CommentUseCase manages participant comments on challenges.
 	CommentUseCase interface {
-		GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Comment, error)
+		GetByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Comment, error)
 		Create(ctx context.Context, userID, challengeID uuid.UUID, content string) (*domain.Comment, error)
 		Delete(ctx context.Context, ID, userID uuid.UUID, isAdmin bool) error
 	}
@@ -257,6 +250,6 @@ type (
 	// RatingUseCase manages participant difficulty ratings and reviews for challenges.
 	RatingUseCase interface {
 		PutRating(ctx context.Context, challengeID, userID, teamID uuid.UUID, value int, review string) (*domain.Rating, error)
-		GetRatingsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Rating, error)
+		GetRatingsByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Rating, error)
 	}
 )

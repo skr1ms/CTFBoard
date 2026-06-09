@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-cachekit"
@@ -11,7 +10,6 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/errmap"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
@@ -20,15 +18,14 @@ type userContextKeyType = contextKey
 
 const (
 	userContextKey userContextKeyType = "authenticated_user"
-	userCacheTTL                      = 1 * time.Second
 )
 
 // InjectUser is a middleware that loads the authenticated user by ID and stores it in the
-// request context under userContextKey. The user record is fetched via a short-lived
-// in-memory cache (userCacheTTL) backed by the usecase. After BanUser the usecase
-// invalidates the user cache; a brief window until invalidation propagates is accepted.
+// request context under userContextKey. Authentication and authorization decisions depend
+// on mutable fields such as team_id, role, and ban flags, so this middleware reads the
+// current user record on every request instead of serving a cached snapshot.
 // Must run after the Auth middleware which sets the user ID in the context.
-func InjectUser(userUC UserByIDGetter, c *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
+func InjectUser(userUC UserByIDGetter, _ *cachekit.Cache, log logkit.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			userID := GetUserID(r.Context())
@@ -55,16 +52,7 @@ func InjectUser(userUC UserByIDGetter, c *cachekit.Cache, log logkit.Logger) fun
 				return
 			}
 
-			var user *domain.User
-
-			if c != nil {
-				user, err = cachekit.GetOrLoad(c, r.Context(), cache.KeyUser(userID), userCacheTTL, func(ctx context.Context) (*domain.User, error) {
-					return userUC.GetByID(ctx, userUUID)
-				})
-			} else {
-				user, err = userUC.GetByID(r.Context(), userUUID)
-			}
-
+			user, err := userUC.GetByID(r.Context(), userUUID)
 			if err != nil {
 				httputil.HandleError(w, r, errmap.MapAppError(err))
 

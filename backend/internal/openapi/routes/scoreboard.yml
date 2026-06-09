@@ -55,6 +55,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get scoreboard
@@ -104,6 +105,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get scoreboard graph

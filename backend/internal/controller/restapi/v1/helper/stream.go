@@ -77,6 +77,10 @@ func PrepareUploadReader(r io.Reader, filename string) (io.Reader, string, error
 	return io.MultiReader(bytes.NewReader(peek[:n]), r), DetectContentType(filename), nil
 }
 
+func PrepareChallengeUploadReader(r io.Reader, filename string) (io.Reader, string, error) {
+	return r, DetectContentType(filename), nil
+}
+
 func ValidateDownloadPath(path string) bool {
 	return storagepath.ValidateDownloadPath(path)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -57,6 +58,8 @@ func TestFromUserForMePasswordAndBanSemantics(t *testing.T) {
 	assert.False(t, *got.HasPassword)
 	assert.Equal(t, avatarURL, *got.AvatarURL)
 	assert.True(t, *got.BanStatus.IsBanned)
+	require.NotNil(t, got.BanStatus.Source)
+	assert.Equal(t, "direct", string(*got.BanStatus.Source))
 	assert.Equal(t, reason, *got.BanStatus.Reason)
 	require.NotNil(t, got.BanStatus.BannedAt)
 	assert.Equal(t, bannedAt.Format(time.RFC3339), *got.BanStatus.BannedAt)
@@ -65,6 +68,32 @@ func TestFromUserForMePasswordAndBanSemantics(t *testing.T) {
 	got = FromUserForMe(user)
 	require.NotNil(t, got.HasPassword)
 	assert.True(t, *got.HasPassword)
+}
+
+func TestFromUserForMeInheritedTeamBanSemantics(t *testing.T) {
+	t.Parallel()
+
+	user := &domain.User{
+		ID:              uuid.New(),
+		Username:        "alice",
+		Email:           "alice@example.com",
+		Role:            domain.RoleUser,
+		WasInBannedTeam: true,
+	}
+
+	got := FromUserForMe(user)
+
+	require.NotNil(t, got.BanStatus)
+	require.NotNil(t, got.BanStatus.IsBanned)
+	require.NotNil(t, got.BanStatus.Source)
+	require.NotNil(t, got.BanStatus.CanAppeal)
+	require.NotNil(t, got.BanStatus.HasPendingAppeal)
+	assert.True(t, *got.BanStatus.IsBanned)
+	assert.Equal(t, "team_inherited", string(*got.BanStatus.Source))
+	assert.False(t, *got.BanStatus.CanAppeal)
+	assert.False(t, *got.BanStatus.HasPendingAppeal)
+	assert.Nil(t, got.BanStatus.Reason)
+	assert.Nil(t, got.BanStatus.BannedAt)
 }
 
 func TestUserResponsesExposeCustomFields(t *testing.T) {
@@ -82,6 +111,50 @@ func TestUserResponsesExposeCustomFields(t *testing.T) {
 	profile := FromUserProfile(&usecase.UserProfile{User: user, CustomFields: customFields})
 	require.NotNil(t, profile.CustomFields)
 	assert.Equal(t, customFields, *profile.CustomFields)
+}
+
+func TestFromAdminUserBanSourceSemantics(t *testing.T) {
+	t.Parallel()
+
+	direct := FromAdminUser(&domain.User{
+		ID:       uuid.New(),
+		Username: "alice",
+		Email:    "alice@example.com",
+		Role:     domain.RoleUser,
+		IsBanned: true,
+	})
+	require.NotNil(t, direct.IsBanned)
+	require.NotNil(t, direct.WasInBannedTeam)
+	require.NotNil(t, direct.IsBlocked)
+	require.NotNil(t, direct.BanSource)
+	assert.True(t, *direct.IsBanned)
+	assert.False(t, *direct.WasInBannedTeam)
+	assert.True(t, *direct.IsBlocked)
+	assert.Equal(t, openapi.AdminUserResponseBanSourceDirect, *direct.BanSource)
+
+	inherited := FromAdminUser(&domain.User{
+		ID:              uuid.New(),
+		Username:        "bob",
+		Email:           "bob@example.com",
+		Role:            domain.RoleUser,
+		WasInBannedTeam: true,
+	})
+	require.NotNil(t, inherited.IsBlocked)
+	require.NotNil(t, inherited.BanSource)
+	assert.True(t, *inherited.IsBlocked)
+	assert.Equal(t, openapi.AdminUserResponseBanSourceTeamInherited, *inherited.BanSource)
+
+	adminFromBannedTeam := FromAdminUser(&domain.User{
+		ID:              uuid.New(),
+		Username:        "root",
+		Email:           "root@example.com",
+		Role:            domain.RoleAdmin,
+		WasInBannedTeam: true,
+	})
+	require.NotNil(t, adminFromBannedTeam.IsBlocked)
+	require.NotNil(t, adminFromBannedTeam.BanSource)
+	assert.False(t, *adminFromBannedTeam.IsBlocked)
+	assert.Equal(t, openapi.AdminUserResponseBanSourceNone, *adminFromBannedTeam.BanSource)
 }
 
 func TestFromTokenPairNilAndValues(t *testing.T) {

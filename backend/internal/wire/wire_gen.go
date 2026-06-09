@@ -42,7 +42,9 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	keyValueStore := ProvideKeyValueStore(redisClient)
 	pubSubStore := ProvidePubSubStore(redisClient)
 	competitionParamUseCase := ProvideCompetitionParamUseCase(ctx, competitionParamRepo, auditLogRepo, transactionManager, l, keyValueStore, pubSubStore)
-	emailUseCase := ProvideEmailUseCase(userRepo, verificationTokenRepo, transactionManager, mailer2, cfg, competitionParamUseCase, jwtService, l)
+	apiTokenRepo := ProvideAPITokenRepo(pool)
+	apiTokenUseCase := ProvideAPITokenUseCase(apiTokenRepo)
+	emailUseCase := ProvideEmailUseCase(userRepo, verificationTokenRepo, transactionManager, mailer2, cfg, competitionParamUseCase, apiTokenUseCase, jwtService, l)
 	tracker := ProvideFailedLoginTracker(redisClient)
 	competitionRepo := ProvideCompetitionRepo(pool)
 	wireRuntimeSettingsInvalidator := ProvideRuntimeSettingsInvalidator()
@@ -65,7 +67,7 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	teamUseCase := ProvideTeamUseCase(cfg, teamRepo, userRepo, solveRepo, submissionRepo, awardRepo, competitionRepo, settingsUseCase, challengeRepo, competitionParamUseCase, transactionManager, guard, scoreboardCacheService, challengeUseCase, userCacheService, cache, hintRepo, ratingRepo, fieldValidator, fieldRepo, fieldValueRepo, jwtService, l)
 	notificationRepo := ProvideNotificationRepo(pool)
 	notificationUseCase := ProvideNotificationUseCase(notificationRepo, teamRepo, userRepo, transactionManager, broadcaster, l)
-	userUseCase := ProvideUserUseCase(userRepo, teamRepo, solveRepo, challengeRepo, submissionRepo, awardRepo, hintRepo, transactionManager, jwtService, fieldValidator, fieldRepo, fieldValueRepo, settingsRepo, emailUseCase, tracker, competitionRepo, teamUseCase, notificationUseCase, userCacheService, scoreboardCacheService, challengeUseCase, cache, competitionParamUseCase, l)
+	userUseCase := ProvideUserUseCase(userRepo, teamRepo, solveRepo, challengeRepo, submissionRepo, awardRepo, hintRepo, transactionManager, jwtService, fieldValidator, fieldRepo, fieldValueRepo, settingsRepo, emailUseCase, apiTokenUseCase, tracker, competitionRepo, teamUseCase, notificationUseCase, userCacheService, scoreboardCacheService, challengeUseCase, cache, competitionParamUseCase, l)
 	solveUseCase := ProvideSolveUseCase(solveRepo, challengeRepo, competitionRepo, competitionUseCase, competitionParamUseCase, userRepo, teamRepo, transactionManager, cache, scoreboardCacheService, challengeUseCase, broadcaster)
 	pageRepo := ProvidePageRepo(pool)
 	fileUseCase := ProvideFileUseCase(fileRepo, challengeRepo, pageRepo, solveRepo, competitionRepo, settingsRepo, storageProvider, cfg)
@@ -73,7 +75,7 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	statisticsRepo := ProvideStatisticsRepo(pool)
 	statisticsUseCase := ProvideStatisticsUseCase(statisticsRepo, cache, competitionUseCase, transactionManager)
 	submissionUseCase := ProvideSubmissionUseCase(submissionRepo, competitionUseCase, transactionManager, challengeUseCase, userRepo, teamRepo, cache, l)
-	tagUseCase := ProvideTagUseCase(tagRepo, challengeRepo)
+	tagUseCase := ProvideTagUseCase(tagRepo, challengeRepo, solveRepo)
 	topicRepo := ProvideTopicRepo(pool)
 	topicUseCase := ProvideTopicUseCase(topicRepo, challengeRepo, transactionManager)
 	fieldUseCase := ProvideFieldUseCase(fieldRepo)
@@ -81,13 +83,11 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	bracketRepo := ProvideBracketRepo(pool)
 	bracketUseCase := ProvideBracketUseCase(bracketRepo, transactionManager)
 	shareUseCase := ProvideShareUseCase(cfg, solveRepo, challengeRepo, userRepo, teamRepo, competitionParamUseCase)
-	apiTokenRepo := ProvideAPITokenRepo(pool)
-	apiTokenUseCase := ProvideAPITokenUseCase(apiTokenRepo)
 	backupRepo := ProvideBackupRepo(pool)
 	commentRepo := ProvideCommentRepo(pool)
 	backupUseCase := ProvideBackupUseCase(ctx, competitionRepo, challengeRepo, tagRepo, topicRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, submissionRepo, fileRepo, backupRepo, settingsRepo, auditLogRepo, bracketRepo, commentRepo, fieldRepo, fieldValueRepo, ratingRepo, storageProvider, transactionManager, l)
-	useCase := ProvideStorageAdminUseCase(storageProvider)
-	commentUseCase := ProvideCommentUseCase(commentRepo, challengeRepo, userRepo, teamRepo, transactionManager)
+	useCase := ProvideStorageAdminUseCase(storageProvider, auditLogRepo)
+	commentUseCase := ProvideCommentUseCase(commentRepo, challengeRepo, solveRepo, userRepo, teamRepo, transactionManager)
 	ratingUseCase := ProvideRatingUseCase(challengeRepo, solveRepo, ratingRepo, userRepo, teamRepo, transactionManager)
 	trackingRepo := ProvideTrackingRepo(pool)
 	trackingUseCase := ProvideTrackingUseCase(trackingRepo, cache, l)
@@ -100,13 +100,13 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	oAuthUseCase := ProvideOAuthUseCase(userRepo, oAuthRepo, transactionManager, settingsRepo, jwtService, oAuthProviderGateway, oAuthConfig, competitionRepo, teamUseCase, oAuthExchangeStore, competitionParamUseCase, l)
 	avatarUseCase := ProvideAvatarUseCase(userRepo, teamRepo, storageProvider, keyValueStore, transactionManager, auditLogRepo, l)
 	banAppealRepo := ProvideBanAppealRepo(pool)
-	banAppealUseCase := ProvideBanAppealUseCase(banAppealRepo, userRepo, transactionManager)
+	banAppealUseCase := ProvideBanAppealUseCase(banAppealRepo, userRepo, transactionManager, userUseCase)
 	controller := ProvideWsController(wsHub, l, cfg)
 	validator, err := ProvideValidator()
 	if err != nil {
 		return nil, err
 	}
-	serverDeps, err := ProvideServerDeps(ctx, cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, tagUseCase, topicUseCase, fieldUseCase, pageUseCase, bracketUseCase, shareUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, useCase, competitionParamUseCase, commentUseCase, ratingUseCase, trackingUseCase, oAuthUseCase, avatarUseCase, banAppealUseCase, jwtService, redisClient, controller, wsHub, validator, wireRuntimeSettingsInvalidator, l)
+	serverDeps, err := ProvideServerDeps(ctx, cfg, userUseCase, challengeUseCase, solveUseCase, teamUseCase, competitionUseCase, hintUseCase, emailUseCase, fileUseCase, awardUseCase, statisticsUseCase, submissionUseCase, tagUseCase, topicUseCase, fieldUseCase, pageUseCase, bracketUseCase, shareUseCase, notificationUseCase, apiTokenUseCase, backupUseCase, settingsUseCase, useCase, competitionParamUseCase, commentUseCase, ratingUseCase, trackingUseCase, oAuthUseCase, avatarUseCase, banAppealUseCase, jwtService, redisClient, controller, wsHub, validator, wireRuntimeSettingsInvalidator, transactionManager, l)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 		return nil, err
 	}
 	server := ProvideServer(router, cfg)
-	app := ProvideApp(server, userRepo, solveUseCase, avatarUseCase, serverDeps, broadcaster)
+	app := ProvideApp(server, userRepo, solveUseCase, avatarUseCase, backupUseCase, serverDeps, broadcaster)
 	return app, nil
 }
 

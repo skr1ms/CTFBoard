@@ -38,7 +38,6 @@ func FromAppSettings(s *domain.Settings) openapi.AppSettingsResponse {
 		ResendFromEmail:                  new(s.ResendFromEmail),
 		ResendFromName:                   new(s.ResendFromName),
 		ResetTTLHours:                    new(s.ResetTTLHours),
-		ScoreboardVisible:                new(s.ScoreboardVisible),
 		SubmitLimitDurationMin:           new(s.SubmitLimitDurationMin),
 		SubmitLimitPerUser:               new(s.SubmitLimitPerUser),
 		VerifyEmails:                     new(s.VerifyEmails),

@@ -90,14 +90,89 @@ func (h *Server) GetAdminTeams(w http.ResponseWriter, r *http.Request, params op
 		return
 	}
 
+	banStatus, err := request.AdminTeamsBanStatusFromParams(params)
+	if h.OnError(w, r, err, "GetAdminTeams", "BanStatus") {
+		return
+	}
+
+	visibility, err := request.AdminTeamsVisibilityFromParams(params)
+	if h.OnError(w, r, err, "GetAdminTeams", "Visibility") {
+		return
+	}
+
 	page, perPage := h.pageParams(r.Context(), params.Page, params.PerPage)
 
-	result, err := h.team.AdminUC.AdminListTeams(r.Context(), searchQ, page, perPage)
+	result, err := h.team.AdminUC.AdminListTeams(r.Context(), searchQ, banStatus, visibility, page, perPage)
 	if h.OnError(w, r, err, "GetAdminTeams", "AdminListTeams") {
 		return
 	}
 
 	httputil.RenderOK(w, r, response.FromAdminTeamList(result.Data, result.Total, result.Page, result.PerPage))
+}
+
+// (POST /admin/teams/bulk/ban).
+func (h *Server) PostAdminTeamsBulkBan(w http.ResponseWriter, r *http.Request) {
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	req, ok := httputil.DecodeAndValidate[openapi.BulkBanTeamsRequest](
+		w, r, h.infra.Validator,
+	)
+	if !ok {
+		return
+	}
+
+	ids, reason, banMembers := request.BulkBanTeamsRequestToParams(&req)
+
+	result, err := h.team.AdminUC.BanTeams(r.Context(), ids, reason, banMembers, user.ID)
+	if h.OnError(w, r, err, "PostAdminTeamsBulkBan", "BanTeams") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.BulkAction("teams banned", result.AffectedCount))
+}
+
+// (POST /admin/teams/bulk/unban).
+func (h *Server) PostAdminTeamsBulkUnban(w http.ResponseWriter, r *http.Request) {
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	req, ok := httputil.DecodeAndValidate[openapi.BulkTeamIDsRequest](
+		w, r, h.infra.Validator,
+	)
+	if !ok {
+		return
+	}
+
+	result, err := h.team.AdminUC.UnbanTeams(r.Context(), request.BulkTeamIDsRequestToParams(&req), user.ID)
+	if h.OnError(w, r, err, "PostAdminTeamsBulkUnban", "UnbanTeams") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.BulkAction("teams unbanned", result.AffectedCount))
+}
+
+// (PATCH /admin/teams/bulk/hidden).
+func (h *Server) PatchAdminTeamsBulkHidden(w http.ResponseWriter, r *http.Request) {
+	req, ok := httputil.DecodeAndValidate[openapi.BulkSetHiddenRequest](
+		w, r, h.infra.Validator,
+	)
+	if !ok {
+		return
+	}
+
+	ids, hidden := request.BulkSetHiddenRequestToParams(&req)
+
+	result, err := h.team.AdminUC.SetHiddenBulk(r.Context(), ids, hidden)
+	if h.OnError(w, r, err, "PatchAdminTeamsBulkHidden", "SetHiddenBulk") {
+		return
+	}
+
+	httputil.RenderOK(w, r, response.BulkAction("team visibility updated", result.AffectedCount))
 }
 
 // (PATCH /admin/teams/{ID}).

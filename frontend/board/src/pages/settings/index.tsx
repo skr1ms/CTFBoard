@@ -138,7 +138,7 @@ function ProfileSection() {
       if (error) throw error
       return data
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       if (!data) return
       setUser({ ...user!, ...data })
       toast.success('Profile saved')
@@ -233,13 +233,13 @@ function SecuritySection() {
       return data
     },
     onSuccess: (data) => {
-      if (data) useAuthStore.getState().setUser(data)
       toast.success('Password changed')
       setCurrent('')
       setNext('')
       setConfirm('')
       setNextError(undefined)
       setConfirmError(undefined)
+      void useAuthStore.getState().logout()
     },
     onError: (err) => {
       const msg = isApiError(err) ? err.message : 'Failed to change password'

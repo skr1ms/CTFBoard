@@ -53,8 +53,6 @@ schemas:
         type: string
       resend_from_name:
         type: string
-      scoreboard_visible:
-        type: string
       submit_limit_duration_min:
         type: integer
       submit_limit_per_user:
@@ -213,14 +211,6 @@ schemas:
         type: string
         x-oapi-codegen-extra-tags:
           validate: "omitempty,max=100"
-      scoreboard_visible:
-        enum:
-          - public
-          - hidden
-          - admins_only
-        type: string
-        x-oapi-codegen-extra-tags:
-          validate: "omitempty,oneof=public hidden admins_only"
       submit_limit_duration_min:
         minimum: 1
         type: integer

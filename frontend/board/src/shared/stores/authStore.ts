@@ -80,9 +80,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   async logout() {
     if (!get().isAuthenticated) return
 
+    const token = get().accessToken
+
     // Best-effort call - the server clears the httpOnly refresh cookie.
     try {
-      await baseClient.POST('/auth/logout')
+      await baseClient.POST('/auth/logout', {
+        ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+      })
     } catch {
       // ignore
     }

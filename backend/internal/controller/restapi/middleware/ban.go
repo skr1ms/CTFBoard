@@ -77,7 +77,7 @@ func RequireTeamNotBanned(teamGetter TeamGetter, c *cachekit.Cache) func(http.Ha
 	}
 }
 
-// RequireUserNotBanned blocks requests from users with IsBanned=true.
+// RequireUserNotBanned blocks requests from users with direct or inherited ban state.
 // Admin users and unauthenticated requests pass through unconditionally.
 func RequireUserNotBanned() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -91,6 +91,12 @@ func RequireUserNotBanned() func(http.Handler) http.Handler {
 
 			if user.IsBanned {
 				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrUserBanned))
+
+				return
+			}
+
+			if user.WasInBannedTeam {
+				httputil.HandleError(w, r, errmap.MapAppError(apperr.ErrUserWasInBannedTeam))
 
 				return
 			}

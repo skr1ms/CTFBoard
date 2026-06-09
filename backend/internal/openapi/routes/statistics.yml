@@ -37,6 +37,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get challenge statistics
@@ -86,6 +87,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get challenge detail statistics
@@ -129,6 +131,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get general statistics
@@ -182,6 +185,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get scoreboard history
@@ -227,6 +231,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get challenge solve percentages
@@ -272,6 +277,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get score distribution
@@ -315,6 +321,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get submission statistics
@@ -361,6 +368,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get submission statistics by type
@@ -399,6 +407,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get team registration statistics
@@ -437,6 +446,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get user registration statistics
@@ -482,6 +492,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get solve matrix
@@ -533,6 +544,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get engagement funnel

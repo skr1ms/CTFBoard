@@ -56,7 +56,7 @@ type (
 	SolveUseCase interface {
 		Create(ctx context.Context, solve *domain.Solve) error
 		GetScoreboard(ctx context.Context, bracketID *uuid.UUID, forceLive bool) ([]*domain.ScoreboardEntry, error)
-		GetFirstBlood(ctx context.Context, challengeID uuid.UUID, forceLive bool) (*domain.FirstBloodEntry, error)
+		GetFirstBlood(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID, forceLive bool) (*domain.FirstBloodEntry, error)
 	}
 )
 
@@ -176,6 +176,7 @@ type (
 	// CompetitionParamUseCase manages dynamic key-value competition parameters with typed access helpers.
 	CompetitionParamUseCase interface {
 		Get(ctx context.Context, key string) (*domain.CompetitionParam, error)
+		GetForUpdate(ctx context.Context, key string) (*domain.CompetitionParam, error)
 		GetAll(ctx context.Context) ([]*domain.CompetitionParam, error)
 		GetByCategory(ctx context.Context, category string) ([]*domain.CompetitionParam, error)
 		GetPublic(ctx context.Context) ([]*domain.CompetitionParam, error)

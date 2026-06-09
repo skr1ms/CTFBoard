@@ -15,6 +15,13 @@
           type: string
           enum: [username, ip]
           default: username
+      - name: ban_status
+        in: query
+        description: Admin ban-state filter
+        schema:
+          type: string
+          enum: [all, not_banned, direct, team_inherited, blocked]
+          default: all
       - name: page
         in: query
         schema:
@@ -94,6 +101,114 @@
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Create user (admin)
+    tags:
+      - Admin
+
+"/admin/users/bulk/ban":
+  post:
+    operationId: PostAdminUsersBulkBan
+    description: Bans multiple users in a single all-or-nothing admin operation.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/BulkBanUsersRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BulkActionResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Bulk ban users
+    tags:
+      - Admin
+
+"/admin/users/bulk/unban":
+  post:
+    operationId: PostAdminUsersBulkUnban
+    description: Unbans multiple directly banned users in a single all-or-nothing admin operation.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yml#/BulkUserIDsRequest'
+      required: true
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/BulkActionResponse'
+      "400":
+        description: Bad Request
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "404":
+        description: Not Found
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+      "409":
+        description: Conflict
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yml#/ErrorResponse'
+    security:
+      - BearerAuth: []
+      - ApiTokenAuth: []
+    summary: Bulk unban users
     tags:
       - Admin
 
@@ -418,7 +533,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
-        description: Forbidden (not owner and not admin)
+        description: Forbidden (score visibility is private)
         content:
           application/json:
             schema:
@@ -430,6 +545,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get user solves
@@ -501,7 +617,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
-        description: Forbidden (not owner and not admin)
+        description: Forbidden (score visibility is private)
         content:
           application/json:
             schema:
@@ -513,6 +629,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get user fails
@@ -571,7 +688,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
       "403":
-        description: Forbidden (not owner and not admin)
+        description: Forbidden (score visibility is private)
         content:
           application/json:
             schema:
@@ -583,6 +700,7 @@
             schema:
               $ref: '../components/schemas.yml#/ErrorResponse'
     security:
+      - {}
       - BearerAuth: []
       - ApiTokenAuth: []
     summary: Get user awards

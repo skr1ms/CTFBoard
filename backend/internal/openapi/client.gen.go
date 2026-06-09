@@ -315,11 +315,11 @@ type ClientInterface interface {
 	// GetAdminStatisticsSolveMatrix request
 	GetAdminStatisticsSolveMatrix(ctx context.Context, params *GetAdminStatisticsSolveMatrixParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteAdminStorage request
+	DeleteAdminStorage(ctx context.Context, params *DeleteAdminStorageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAdminStorage request
 	GetAdminStorage(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// DeleteAdminStoragePath request
-	DeleteAdminStoragePath(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetAdminSubmissions request
 	GetAdminSubmissions(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -367,6 +367,21 @@ type ClientInterface interface {
 
 	// GetAdminTeams request
 	GetAdminTeams(ctx context.Context, params *GetAdminTeamsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminTeamsBulkBanWithBody request with any body
+	PostAdminTeamsBulkBanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminTeamsBulkBan(ctx context.Context, body PostAdminTeamsBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PatchAdminTeamsBulkHiddenWithBody request with any body
+	PatchAdminTeamsBulkHiddenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PatchAdminTeamsBulkHidden(ctx context.Context, body PatchAdminTeamsBulkHiddenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminTeamsBulkUnbanWithBody request with any body
+	PostAdminTeamsBulkUnbanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminTeamsBulkUnban(ctx context.Context, body PostAdminTeamsBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteAdminTeamsID request
 	DeleteAdminTeamsID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -440,6 +455,16 @@ type ClientInterface interface {
 	PostAdminUsersWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	PostAdminUsers(ctx context.Context, body PostAdminUsersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminUsersBulkBanWithBody request with any body
+	PostAdminUsersBulkBanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminUsersBulkBan(ctx context.Context, body PostAdminUsersBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostAdminUsersBulkUnbanWithBody request with any body
+	PostAdminUsersBulkUnbanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostAdminUsersBulkUnban(ctx context.Context, body PostAdminUsersBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteAdminUsersID request
 	DeleteAdminUsersID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1842,8 +1867,8 @@ func (c *Client) GetAdminStatisticsSolveMatrix(ctx context.Context, params *GetA
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetAdminStorage(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetAdminStorageRequest(c.Server, params)
+func (c *Client) DeleteAdminStorage(ctx context.Context, params *DeleteAdminStorageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteAdminStorageRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1854,8 +1879,8 @@ func (c *Client) GetAdminStorage(ctx context.Context, params *GetAdminStoragePar
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteAdminStoragePath(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteAdminStoragePathRequest(c.Server, path)
+func (c *Client) GetAdminStorage(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAdminStorageRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -2060,6 +2085,78 @@ func (c *Client) PutAdminTagsID(ctx context.Context, id string, body PutAdminTag
 
 func (c *Client) GetAdminTeams(ctx context.Context, params *GetAdminTeamsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetAdminTeamsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminTeamsBulkBanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminTeamsBulkBanRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminTeamsBulkBan(ctx context.Context, body PostAdminTeamsBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminTeamsBulkBanRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchAdminTeamsBulkHiddenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchAdminTeamsBulkHiddenRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PatchAdminTeamsBulkHidden(ctx context.Context, body PatchAdminTeamsBulkHiddenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPatchAdminTeamsBulkHiddenRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminTeamsBulkUnbanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminTeamsBulkUnbanRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminTeamsBulkUnban(ctx context.Context, body PostAdminTeamsBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminTeamsBulkUnbanRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2384,6 +2481,54 @@ func (c *Client) PostAdminUsersWithBody(ctx context.Context, contentType string,
 
 func (c *Client) PostAdminUsers(ctx context.Context, body PostAdminUsersJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPostAdminUsersRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminUsersBulkBanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminUsersBulkBanRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminUsersBulkBan(ctx context.Context, body PostAdminUsersBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminUsersBulkBanRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminUsersBulkUnbanWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminUsersBulkUnbanRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostAdminUsersBulkUnban(ctx context.Context, body PostAdminUsersBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostAdminUsersBulkUnbanRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6509,6 +6654,51 @@ func NewGetAdminStatisticsSolveMatrixRequest(server string, params *GetAdminStat
 	return req, nil
 }
 
+// NewDeleteAdminStorageRequest generates requests for DeleteAdminStorage
+func NewDeleteAdminStorageRequest(server string, params *DeleteAdminStorageParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/storage")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "path", params.Path, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetAdminStorageRequest generates requests for GetAdminStorage
 func NewGetAdminStorageRequest(server string, params *GetAdminStorageParams) (*http.Request, error) {
 	var err error
@@ -6551,40 +6741,6 @@ func NewGetAdminStorageRequest(server string, params *GetAdminStorageParams) (*h
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewDeleteAdminStoragePathRequest generates requests for DeleteAdminStoragePath
-func NewDeleteAdminStoragePathRequest(server string, path string) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "path", path, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/admin/storage/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -7307,6 +7463,38 @@ func NewGetAdminTeamsRequest(server string, params *GetAdminTeamsParams) (*http.
 
 		}
 
+		if params.BanStatus != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "ban_status", *params.BanStatus, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Visibility != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "visibility", *params.Visibility, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Page != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -7346,6 +7534,126 @@ func NewGetAdminTeamsRequest(server string, params *GetAdminTeamsParams) (*http.
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewPostAdminTeamsBulkBanRequest calls the generic PostAdminTeamsBulkBan builder with application/json body
+func NewPostAdminTeamsBulkBanRequest(server string, body PostAdminTeamsBulkBanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminTeamsBulkBanRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminTeamsBulkBanRequestWithBody generates requests for PostAdminTeamsBulkBan with any type of body
+func NewPostAdminTeamsBulkBanRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/teams/bulk/ban")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPatchAdminTeamsBulkHiddenRequest calls the generic PatchAdminTeamsBulkHidden builder with application/json body
+func NewPatchAdminTeamsBulkHiddenRequest(server string, body PatchAdminTeamsBulkHiddenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPatchAdminTeamsBulkHiddenRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPatchAdminTeamsBulkHiddenRequestWithBody generates requests for PatchAdminTeamsBulkHidden with any type of body
+func NewPatchAdminTeamsBulkHiddenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/teams/bulk/hidden")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostAdminTeamsBulkUnbanRequest calls the generic PostAdminTeamsBulkUnban builder with application/json body
+func NewPostAdminTeamsBulkUnbanRequest(server string, body PostAdminTeamsBulkUnbanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminTeamsBulkUnbanRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminTeamsBulkUnbanRequestWithBody generates requests for PostAdminTeamsBulkUnban with any type of body
+func NewPostAdminTeamsBulkUnbanRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/teams/bulk/unban")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -8099,6 +8407,22 @@ func NewGetAdminUsersRequest(server string, params *GetAdminUsersParams) (*http.
 
 		}
 
+		if params.BanStatus != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "ban_status", *params.BanStatus, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
 		if params.Page != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -8163,6 +8487,86 @@ func NewPostAdminUsersRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/admin/users")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostAdminUsersBulkBanRequest calls the generic PostAdminUsersBulkBan builder with application/json body
+func NewPostAdminUsersBulkBanRequest(server string, body PostAdminUsersBulkBanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminUsersBulkBanRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminUsersBulkBanRequestWithBody generates requests for PostAdminUsersBulkBan with any type of body
+func NewPostAdminUsersBulkBanRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/users/bulk/ban")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPostAdminUsersBulkUnbanRequest calls the generic PostAdminUsersBulkUnban builder with application/json body
+func NewPostAdminUsersBulkUnbanRequest(server string, body PostAdminUsersBulkUnbanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostAdminUsersBulkUnbanRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostAdminUsersBulkUnbanRequestWithBody generates requests for PostAdminUsersBulkUnban with any type of body
+func NewPostAdminUsersBulkUnbanRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/users/bulk/unban")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -13172,11 +13576,11 @@ type ClientWithResponsesInterface interface {
 	// GetAdminStatisticsSolveMatrixWithResponse request
 	GetAdminStatisticsSolveMatrixWithResponse(ctx context.Context, params *GetAdminStatisticsSolveMatrixParams, reqEditors ...RequestEditorFn) (*GetAdminStatisticsSolveMatrixResponse, error)
 
+	// DeleteAdminStorageWithResponse request
+	DeleteAdminStorageWithResponse(ctx context.Context, params *DeleteAdminStorageParams, reqEditors ...RequestEditorFn) (*DeleteAdminStorageResponse, error)
+
 	// GetAdminStorageWithResponse request
 	GetAdminStorageWithResponse(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*GetAdminStorageResponse, error)
-
-	// DeleteAdminStoragePathWithResponse request
-	DeleteAdminStoragePathWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*DeleteAdminStoragePathResponse, error)
 
 	// GetAdminSubmissionsWithResponse request
 	GetAdminSubmissionsWithResponse(ctx context.Context, params *GetAdminSubmissionsParams, reqEditors ...RequestEditorFn) (*GetAdminSubmissionsResponse, error)
@@ -13224,6 +13628,21 @@ type ClientWithResponsesInterface interface {
 
 	// GetAdminTeamsWithResponse request
 	GetAdminTeamsWithResponse(ctx context.Context, params *GetAdminTeamsParams, reqEditors ...RequestEditorFn) (*GetAdminTeamsResponse, error)
+
+	// PostAdminTeamsBulkBanWithBodyWithResponse request with any body
+	PostAdminTeamsBulkBanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkBanResponse, error)
+
+	PostAdminTeamsBulkBanWithResponse(ctx context.Context, body PostAdminTeamsBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkBanResponse, error)
+
+	// PatchAdminTeamsBulkHiddenWithBodyWithResponse request with any body
+	PatchAdminTeamsBulkHiddenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminTeamsBulkHiddenResponse, error)
+
+	PatchAdminTeamsBulkHiddenWithResponse(ctx context.Context, body PatchAdminTeamsBulkHiddenJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminTeamsBulkHiddenResponse, error)
+
+	// PostAdminTeamsBulkUnbanWithBodyWithResponse request with any body
+	PostAdminTeamsBulkUnbanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkUnbanResponse, error)
+
+	PostAdminTeamsBulkUnbanWithResponse(ctx context.Context, body PostAdminTeamsBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkUnbanResponse, error)
 
 	// DeleteAdminTeamsIDWithResponse request
 	DeleteAdminTeamsIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminTeamsIDResponse, error)
@@ -13297,6 +13716,16 @@ type ClientWithResponsesInterface interface {
 	PostAdminUsersWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminUsersResponse, error)
 
 	PostAdminUsersWithResponse(ctx context.Context, body PostAdminUsersJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminUsersResponse, error)
+
+	// PostAdminUsersBulkBanWithBodyWithResponse request with any body
+	PostAdminUsersBulkBanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkBanResponse, error)
+
+	PostAdminUsersBulkBanWithResponse(ctx context.Context, body PostAdminUsersBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkBanResponse, error)
+
+	// PostAdminUsersBulkUnbanWithBodyWithResponse request with any body
+	PostAdminUsersBulkUnbanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkUnbanResponse, error)
+
+	PostAdminUsersBulkUnbanWithResponse(ctx context.Context, body PostAdminUsersBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkUnbanResponse, error)
 
 	// DeleteAdminUsersIDWithResponse request
 	DeleteAdminUsersIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeleteAdminUsersIDResponse, error)
@@ -14854,6 +15283,7 @@ type PostAdminNotificationsUserUserIDResponse struct {
 	JSON400      *ErrorResponse
 	JSON401      *ErrorResponse
 	JSON403      *ErrorResponse
+	JSON404      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -15172,6 +15602,30 @@ func (r GetAdminStatisticsSolveMatrixResponse) StatusCode() int {
 	return 0
 }
 
+type DeleteAdminStorageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteAdminStorageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteAdminStorageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetAdminStorageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -15190,30 +15644,6 @@ func (r GetAdminStorageResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetAdminStorageResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type DeleteAdminStoragePathResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON400      *ErrorResponse
-	JSON401      *ErrorResponse
-	JSON403      *ErrorResponse
-}
-
-// Status returns HTTPResponse.Status
-func (r DeleteAdminStoragePathResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r DeleteAdminStoragePathResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -15537,6 +15967,87 @@ func (r GetAdminTeamsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetAdminTeamsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminTeamsBulkBanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BulkActionResponse
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON404      *ErrorResponse
+	JSON409      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminTeamsBulkBanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminTeamsBulkBanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PatchAdminTeamsBulkHiddenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BulkActionResponse
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON404      *ErrorResponse
+	JSON409      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PatchAdminTeamsBulkHiddenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PatchAdminTeamsBulkHiddenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminTeamsBulkUnbanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BulkActionResponse
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON404      *ErrorResponse
+	JSON409      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminTeamsBulkUnbanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminTeamsBulkUnbanResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -16019,6 +16530,60 @@ func (r PostAdminUsersResponse) StatusCode() int {
 	return 0
 }
 
+type PostAdminUsersBulkBanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BulkActionResponse
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON404      *ErrorResponse
+	JSON409      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminUsersBulkBanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminUsersBulkBanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostAdminUsersBulkUnbanResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *BulkActionResponse
+	JSON400      *ErrorResponse
+	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
+	JSON404      *ErrorResponse
+	JSON409      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r PostAdminUsersBulkUnbanResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PostAdminUsersBulkUnbanResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type DeleteAdminUsersIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -16368,9 +16933,10 @@ func (r GetAuthMeResponse) StatusCode() int {
 type PatchAuthMeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *MeResponse
+	JSON200      *UpdateProfileResponse
 	JSON400      *ErrorResponse
 	JSON401      *ErrorResponse
+	JSON403      *ErrorResponse
 	JSON409      *ErrorResponse
 }
 
@@ -16588,6 +17154,7 @@ type PostAuthResetPasswordResponse struct {
 	HTTPResponse *http.Response
 	JSON200      *MessageResponse
 	JSON400      *ErrorResponse
+	JSON404      *ErrorResponse
 	JSON410      *ErrorResponse
 	JSON429      *ErrorResponse
 }
@@ -16613,6 +17180,7 @@ type PostAuthVerifyEmailResponse struct {
 	HTTPResponse *http.Response
 	JSON200      *MessageResponse
 	JSON400      *ErrorResponse
+	JSON404      *ErrorResponse
 	JSON410      *ErrorResponse
 	JSON429      *ErrorResponse
 }
@@ -19650,6 +20218,15 @@ func (c *ClientWithResponses) GetAdminStatisticsSolveMatrixWithResponse(ctx cont
 	return ParseGetAdminStatisticsSolveMatrixResponse(rsp)
 }
 
+// DeleteAdminStorageWithResponse request returning *DeleteAdminStorageResponse
+func (c *ClientWithResponses) DeleteAdminStorageWithResponse(ctx context.Context, params *DeleteAdminStorageParams, reqEditors ...RequestEditorFn) (*DeleteAdminStorageResponse, error) {
+	rsp, err := c.DeleteAdminStorage(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteAdminStorageResponse(rsp)
+}
+
 // GetAdminStorageWithResponse request returning *GetAdminStorageResponse
 func (c *ClientWithResponses) GetAdminStorageWithResponse(ctx context.Context, params *GetAdminStorageParams, reqEditors ...RequestEditorFn) (*GetAdminStorageResponse, error) {
 	rsp, err := c.GetAdminStorage(ctx, params, reqEditors...)
@@ -19657,15 +20234,6 @@ func (c *ClientWithResponses) GetAdminStorageWithResponse(ctx context.Context, p
 		return nil, err
 	}
 	return ParseGetAdminStorageResponse(rsp)
-}
-
-// DeleteAdminStoragePathWithResponse request returning *DeleteAdminStoragePathResponse
-func (c *ClientWithResponses) DeleteAdminStoragePathWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*DeleteAdminStoragePathResponse, error) {
-	rsp, err := c.DeleteAdminStoragePath(ctx, path, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseDeleteAdminStoragePathResponse(rsp)
 }
 
 // GetAdminSubmissionsWithResponse request returning *GetAdminSubmissionsResponse
@@ -19815,6 +20383,57 @@ func (c *ClientWithResponses) GetAdminTeamsWithResponse(ctx context.Context, par
 		return nil, err
 	}
 	return ParseGetAdminTeamsResponse(rsp)
+}
+
+// PostAdminTeamsBulkBanWithBodyWithResponse request with arbitrary body returning *PostAdminTeamsBulkBanResponse
+func (c *ClientWithResponses) PostAdminTeamsBulkBanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkBanResponse, error) {
+	rsp, err := c.PostAdminTeamsBulkBanWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminTeamsBulkBanResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminTeamsBulkBanWithResponse(ctx context.Context, body PostAdminTeamsBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkBanResponse, error) {
+	rsp, err := c.PostAdminTeamsBulkBan(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminTeamsBulkBanResponse(rsp)
+}
+
+// PatchAdminTeamsBulkHiddenWithBodyWithResponse request with arbitrary body returning *PatchAdminTeamsBulkHiddenResponse
+func (c *ClientWithResponses) PatchAdminTeamsBulkHiddenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PatchAdminTeamsBulkHiddenResponse, error) {
+	rsp, err := c.PatchAdminTeamsBulkHiddenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchAdminTeamsBulkHiddenResponse(rsp)
+}
+
+func (c *ClientWithResponses) PatchAdminTeamsBulkHiddenWithResponse(ctx context.Context, body PatchAdminTeamsBulkHiddenJSONRequestBody, reqEditors ...RequestEditorFn) (*PatchAdminTeamsBulkHiddenResponse, error) {
+	rsp, err := c.PatchAdminTeamsBulkHidden(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePatchAdminTeamsBulkHiddenResponse(rsp)
+}
+
+// PostAdminTeamsBulkUnbanWithBodyWithResponse request with arbitrary body returning *PostAdminTeamsBulkUnbanResponse
+func (c *ClientWithResponses) PostAdminTeamsBulkUnbanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkUnbanResponse, error) {
+	rsp, err := c.PostAdminTeamsBulkUnbanWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminTeamsBulkUnbanResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminTeamsBulkUnbanWithResponse(ctx context.Context, body PostAdminTeamsBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminTeamsBulkUnbanResponse, error) {
+	rsp, err := c.PostAdminTeamsBulkUnban(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminTeamsBulkUnbanResponse(rsp)
 }
 
 // DeleteAdminTeamsIDWithResponse request returning *DeleteAdminTeamsIDResponse
@@ -20050,6 +20669,40 @@ func (c *ClientWithResponses) PostAdminUsersWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParsePostAdminUsersResponse(rsp)
+}
+
+// PostAdminUsersBulkBanWithBodyWithResponse request with arbitrary body returning *PostAdminUsersBulkBanResponse
+func (c *ClientWithResponses) PostAdminUsersBulkBanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkBanResponse, error) {
+	rsp, err := c.PostAdminUsersBulkBanWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminUsersBulkBanResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminUsersBulkBanWithResponse(ctx context.Context, body PostAdminUsersBulkBanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkBanResponse, error) {
+	rsp, err := c.PostAdminUsersBulkBan(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminUsersBulkBanResponse(rsp)
+}
+
+// PostAdminUsersBulkUnbanWithBodyWithResponse request with arbitrary body returning *PostAdminUsersBulkUnbanResponse
+func (c *ClientWithResponses) PostAdminUsersBulkUnbanWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkUnbanResponse, error) {
+	rsp, err := c.PostAdminUsersBulkUnbanWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminUsersBulkUnbanResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostAdminUsersBulkUnbanWithResponse(ctx context.Context, body PostAdminUsersBulkUnbanJSONRequestBody, reqEditors ...RequestEditorFn) (*PostAdminUsersBulkUnbanResponse, error) {
+	rsp, err := c.PostAdminUsersBulkUnban(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostAdminUsersBulkUnbanResponse(rsp)
 }
 
 // DeleteAdminUsersIDWithResponse request returning *DeleteAdminUsersIDResponse
@@ -23470,6 +24123,13 @@ func ParsePostAdminNotificationsUserUserIDResponse(rsp *http.Response) (*PostAdm
 		}
 		response.JSON403 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	}
 
 	return response, nil
@@ -24039,26 +24699,26 @@ func ParseGetAdminStatisticsSolveMatrixResponse(rsp *http.Response) (*GetAdminSt
 	return response, nil
 }
 
-// ParseGetAdminStorageResponse parses an HTTP response from a GetAdminStorageWithResponse call
-func ParseGetAdminStorageResponse(rsp *http.Response) (*GetAdminStorageResponse, error) {
+// ParseDeleteAdminStorageResponse parses an HTTP response from a DeleteAdminStorageWithResponse call
+func ParseDeleteAdminStorageResponse(rsp *http.Response) (*DeleteAdminStorageResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetAdminStorageResponse{
+	response := &DeleteAdminStorageResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest StorageListResponse
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON200 = &dest
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest ErrorResponse
@@ -24079,26 +24739,26 @@ func ParseGetAdminStorageResponse(rsp *http.Response) (*GetAdminStorageResponse,
 	return response, nil
 }
 
-// ParseDeleteAdminStoragePathResponse parses an HTTP response from a DeleteAdminStoragePathWithResponse call
-func ParseDeleteAdminStoragePathResponse(rsp *http.Response) (*DeleteAdminStoragePathResponse, error) {
+// ParseGetAdminStorageResponse parses an HTTP response from a GetAdminStorageWithResponse call
+func ParseGetAdminStorageResponse(rsp *http.Response) (*GetAdminStorageResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &DeleteAdminStoragePathResponse{
+	response := &GetAdminStorageResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorResponse
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StorageListResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest ErrorResponse
@@ -24710,6 +25370,189 @@ func ParseGetAdminTeamsResponse(rsp *http.Response) (*GetAdminTeamsResponse, err
 			return nil, err
 		}
 		response.JSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminTeamsBulkBanResponse parses an HTTP response from a PostAdminTeamsBulkBanWithResponse call
+func ParsePostAdminTeamsBulkBanResponse(rsp *http.Response) (*PostAdminTeamsBulkBanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminTeamsBulkBanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BulkActionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePatchAdminTeamsBulkHiddenResponse parses an HTTP response from a PatchAdminTeamsBulkHiddenWithResponse call
+func ParsePatchAdminTeamsBulkHiddenResponse(rsp *http.Response) (*PatchAdminTeamsBulkHiddenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PatchAdminTeamsBulkHiddenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BulkActionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminTeamsBulkUnbanResponse parses an HTTP response from a PostAdminTeamsBulkUnbanWithResponse call
+func ParsePostAdminTeamsBulkUnbanResponse(rsp *http.Response) (*PostAdminTeamsBulkUnbanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminTeamsBulkUnbanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BulkActionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 
@@ -25616,6 +26459,128 @@ func ParsePostAdminUsersResponse(rsp *http.Response) (*PostAdminUsersResponse, e
 	return response, nil
 }
 
+// ParsePostAdminUsersBulkBanResponse parses an HTTP response from a PostAdminUsersBulkBanWithResponse call
+func ParsePostAdminUsersBulkBanResponse(rsp *http.Response) (*PostAdminUsersBulkBanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminUsersBulkBanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BulkActionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostAdminUsersBulkUnbanResponse parses an HTTP response from a PostAdminUsersBulkUnbanWithResponse call
+func ParsePostAdminUsersBulkUnbanResponse(rsp *http.Response) (*PostAdminUsersBulkUnbanResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostAdminUsersBulkUnbanResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BulkActionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteAdminUsersIDResponse parses an HTTP response from a DeleteAdminUsersIDWithResponse call
 func ParseDeleteAdminUsersIDResponse(rsp *http.Response) (*DeleteAdminUsersIDResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -26261,7 +27226,7 @@ func ParsePatchAuthMeResponse(rsp *http.Response) (*PatchAuthMeResponse, error) 
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest MeResponse
+		var dest UpdateProfileResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -26280,6 +27245,13 @@ func ParsePatchAuthMeResponse(rsp *http.Response) (*PatchAuthMeResponse, error) 
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest ErrorResponse
@@ -26648,6 +27620,13 @@ func ParsePostAuthResetPasswordResponse(rsp *http.Response) (*PostAuthResetPassw
 		}
 		response.JSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 410:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -26694,6 +27673,13 @@ func ParsePostAuthVerifyEmailResponse(rsp *http.Response) (*PostAuthVerifyEmailR
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 410:
 		var dest ErrorResponse

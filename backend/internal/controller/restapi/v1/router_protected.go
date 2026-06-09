@@ -85,11 +85,12 @@ func setupBasicAuthRoutes(
 	requireVerified := restapimiddleware.RequireVerifiedFromSettings(verifyEmails, deps.Admin.SettingsUC, deps.Infra.Logger)
 	accountVisibility := restapimiddleware.VisibilityGuard(deps.Admin.CompetitionParamUC, "account_visibility")
 	challengeVisibility := restapimiddleware.VisibilityGuard(deps.Admin.CompetitionParamUC, "challenge_visibility")
+	challengeStarted := restapimiddleware.ChallengeVisibility(deps.Comp.CompetitionUC)
 
 	router.Group(func(r chi.Router) {
 		r.Use(protectedMiddlewareStack(deps, sharedCache, ipTracking, notUserBanned)...)
 
-		r.With(profileUpdateLimit).Patch("/auth/me", wrapper.PatchAuthMe)
+		r.With(restapimiddleware.RequireBearerAuth(), profileUpdateLimit).Patch("/auth/me", wrapper.PatchAuthMe)
 
 		r.Group(func(me chi.Router) {
 			me.Use(notBanned)
@@ -134,13 +135,17 @@ func setupBasicAuthRoutes(
 			ch.Use(challengeVisibility)
 			ch.Use(challengeReadLimit)
 			ch.Get("/challenges", wrapper.GetChallenges)
-			ch.Get("/challenges/solutions", wrapper.GetChallengesSolutions)
-			ch.Get("/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
-			ch.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
-			ch.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
-			ch.Get("/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
-			ch.Get("/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)
-			ch.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
+
+			ch.Group(func(direct chi.Router) {
+				direct.Use(challengeStarted)
+				direct.Get("/challenges/solutions", wrapper.GetChallengesSolutions)
+				direct.Get("/challenges/{challengeID}", wrapper.GetChallengesChallengeID)
+				direct.Get("/challenges/{challengeID}/files", wrapper.GetChallengesChallengeIDFiles)
+				direct.Get("/challenges/{challengeID}/hints", wrapper.GetChallengesChallengeIDHints)
+				direct.Get("/challenges/{challengeID}/tags", wrapper.GetChallengesChallengeIDTags)
+				direct.Get("/challenges/{challengeID}/requirements", wrapper.GetChallengesChallengeIDRequirements)
+				direct.Get("/challenges/{challengeID}/solution", wrapper.GetChallengesChallengeIDSolution)
+			})
 		})
 
 		setupTeamRoutes(r, wrapper, requireVerified, deps.Infra.RedisClient, deps.Infra.Logger, notBanned)

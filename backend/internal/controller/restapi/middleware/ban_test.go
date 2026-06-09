@@ -91,6 +91,18 @@ func TestRequireUserNotBanned_Banned_Returns403(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, rr.Code)
 }
 
+func TestRequireUserNotBanned_WasInBannedTeam_Returns403(t *testing.T) {
+	t.Parallel()
+
+	teamID := uuid.New()
+	user := &domain.User{ID: uuid.New(), Role: domain.RoleUser, WasInBannedTeam: true, TeamID: &teamID}
+	r := buildRouter(injectUser(user), RequireUserNotBanned())
+	req := newRequest(http.MethodGet, "/", http.NoBody)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusForbidden, rr.Code)
+}
+
 func TestRequireTeamNotBanned_NoUser_PassesThrough(t *testing.T) {
 	t.Parallel()
 

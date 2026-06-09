@@ -24,8 +24,9 @@ func ProvideBanAppealUseCase(
 	appealRepo repo.BanAppealRepository,
 	userRepo repo.UserRepository,
 	tm repo.TransactionManager,
+	userUC *user.UserUseCase,
 ) *user.BanAppealUseCase {
-	return user.NewBanAppealUseCase(appealRepo, userRepo, tm)
+	return user.NewBanAppealUseCase(appealRepo, userRepo, tm, userUC)
 }
 
 func ProvideUserUseCase(
@@ -43,6 +44,7 @@ func ProvideUserUseCase(
 	fieldValueRepo repo.FieldValueRepository,
 	settingsRepo repo.SettingsRepository,
 	emailUC *email.EmailUseCase,
+	apiTokenUC *user.APITokenUseCase,
 	failedLoginTracker *loginlockout.Tracker,
 	compRepo repo.CompetitionRepository,
 	soloTeamCreator user.SoloTeamCreator,
@@ -60,7 +62,7 @@ func ProvideUserUseCase(
 		SubmissionRepo: submissionRepo, AwardRepo: awardRepo, HintRepo: hintRepo,
 		TM: TM, JWTService: jwtService,
 		FieldValidator: fieldValidator, FieldRepo: fieldRepo, FieldValueRepo: fieldValueRepo,
-		SettingsRepo: settingsRepo, EmailSender: emailUC, FailedLogin: failedLoginTracker,
+		SettingsRepo: settingsRepo, EmailSender: emailUC, APITokenRevoker: apiTokenUC, FailedLogin: failedLoginTracker,
 		CompRepo: compRepo, SoloTeamCreator: soloTeamCreator,
 		PersonalNotificationSender: notificationUC,
 		UserCache:                  userCacheSvc,
@@ -110,14 +112,16 @@ func ProvideEmailUseCase(
 	mailerSvc mailer.Mailer,
 	cfg *config.Config,
 	competitionParamUC *competition.CompetitionParamUseCase,
+	apiTokenUC *user.APITokenUseCase,
 	jwtService *jwtkit.JWTService,
 	l logkit.Logger,
 ) *email.EmailUseCase {
 	return email.NewEmailUseCase(email.EmailDeps{
 		UserRepo: userRepo, TokenRepo: tokenRepo, TM: TM, Mailer: emailMailerAdapter{mailer: mailerSvc},
-		ConfigUC:   competitionParamUC,
-		JWTRevoker: jwtService,
-		VerifyTTL:  cfg.VerifyTTL, ResetTTL: cfg.ResetTTL, FrontendURL: cfg.FrontendURL, Enabled: cfg.Enabled,
+		ConfigUC:        competitionParamUC,
+		JWTRevoker:      jwtService,
+		APITokenRevoker: apiTokenUC,
+		VerifyTTL:       cfg.VerifyTTL, ResetTTL: cfg.ResetTTL, FrontendURL: cfg.FrontendURL, Enabled: cfg.Enabled,
 		Logger: l,
 	})
 }

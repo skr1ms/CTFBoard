@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -78,4 +80,15 @@ func TestIPTracking_NoUser_Skips(t *testing.T) {
 	r.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
+func TestSanitizeUserAgent_RespectsByteLimitWithMultibyteRune(t *testing.T) {
+	t.Parallel()
+
+	prefix := strings.Repeat("a", trackingUserAgentMax-1)
+	got := sanitizeUserAgent(prefix + "🚀")
+
+	assert.LessOrEqual(t, len(got), trackingUserAgentMax)
+	assert.True(t, utf8.ValidString(got))
+	assert.Equal(t, prefix, got)
 }

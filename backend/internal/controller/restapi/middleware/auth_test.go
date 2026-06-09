@@ -185,3 +185,41 @@ func TestAuth_TokenError(t *testing.T) {
 
 	require.Equal(t, http.StatusUnauthorized, rr.Code)
 }
+
+func TestAuth_TokenBlockedUserDoesNotUpdateLastUsedAt(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		user *domain.User
+	}{
+		{name: "direct ban", user: &domain.User{ID: uuid.New(), Role: domain.RoleUser, IsBanned: true}},
+		{name: "team inherited ban", user: &domain.User{ID: uuid.New(), Role: domain.RoleUser, WasInBannedTeam: true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tokenID := uuid.New()
+			apiToken := &domain.APIToken{ID: tokenID, UserID: tt.user.ID}
+			apiAuth := midMock.NewMockAPITokenAuther(t)
+			apiAuth.On("AuthenticatePlaintext", mock.Anything, "blocked-token").Return(apiToken, nil)
+
+			userGet := midMock.NewMockUserByIDGetter(t)
+			userGet.On("GetByID", mock.Anything, tt.user.ID).Return(tt.user, nil)
+
+			r := chi.NewRouter()
+			r.Use(Auth(nil, apiAuth, userGet, logkit.Noop()))
+			r.Get("/", okHandler())
+
+			req := newRequest(http.MethodGet, "/", http.NoBody)
+			req.Header.Set("Authorization", "Token blocked-token")
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			require.Equal(t, http.StatusUnauthorized, rr.Code)
+		})
+	}
+}

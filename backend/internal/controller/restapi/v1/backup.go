@@ -2,7 +2,9 @@ package v1
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -17,8 +19,10 @@ import (
 )
 
 const (
-	maxBackupZIPSize = 500 << 20 // 500 MB
-	maxBackupCSVSize = 50 << 20  // 50 MB
+	maxBackupZIPSize       = 500 << 20 // 500 MB
+	maxBackupZIPMemorySize = 16 << 20  // 16 MB
+	maxBackupCSVSize       = 50 << 20  // 50 MB
+	zipMagicLen            = 2
 
 	tosHTML = `<!DOCTYPE html>
 <html>
@@ -66,13 +70,13 @@ Allow: /
 // (GET /tos).
 func (h *Server) GetTos(w http.ResponseWriter, r *http.Request) {
 	setPublicCache(w, cacheStatic, false)
-	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", tosHTML)
+	helper.RenderTrustedHTML(w, http.StatusOK, tosHTML)
 }
 
 // (GET /privacy).
 func (h *Server) GetPrivacy(w http.ResponseWriter, r *http.Request) {
 	setPublicCache(w, cacheStatic, false)
-	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", privacyHTML)
+	helper.RenderTrustedHTML(w, http.StatusOK, privacyHTML)
 }
 
 // (GET /debug).
@@ -134,10 +138,10 @@ func (h *Server) PostAdminReset(w http.ResponseWriter, r *http.Request) {
 
 // PostAdminImport imports a competition backup from an uploaded ZIP file. The
 // handler validates the ZIP magic bytes (PK: 0x50 0x4B) before passing to the
-// use-case to prevent processing arbitrary binary uploads. It supports conflict
-// modes (overwrite, skip), optional table erasure, file
-// validation, and admin-role preservation - the requesting admin's ID and IP
-// are recorded in ImportOptions for the audit trail.
+// use-case to prevent processing arbitrary binary uploads. It supports the
+// overwrite conflict mode, optional table erasure, file validation, and
+// admin-role preservation - the requesting admin's ID and IP are recorded in
+// ImportOptions for the audit trail.
 // (POST /admin/import).
 func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 	user, ok := helper.RequireUser(w, r)
@@ -145,17 +149,28 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, ok := helper.DecodeMultipartWithLimit[openapi.PostAdminImportMultipartBody](w, r, maxBackupZIPSize, maxBackupZIPSize, h.infra.Validator, h.OnError, "PostAdminImport")
+	body, ok := helper.DecodeMultipartWithLimit[openapi.PostAdminImportMultipartBody](w, r, maxBackupZIPSize, maxBackupZIPMemorySize, h.infra.Validator, h.OnError, "PostAdminImport")
 	if !ok {
 		return
 	}
 
-	data, ok := helper.MultipartFileBytes(w, r, h.OnError, "PostAdminImport", "FileRequired", &body.File)
+	file, ok := helper.OpenMultipartFile(w, r, h.OnError, "PostAdminImport", &body.File)
 	if !ok {
 		return
 	}
+	defer file.Close()
 
-	if err := request.ValidateZIPArchive(data); h.OnError(w, r, err, "PostAdminImport", "MIMECheck") {
+	header := make([]byte, zipMagicLen)
+
+	n, err := io.ReadFull(file, header)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+		if h.OnError(w, r, err, "PostAdminImport", "ReadZIPHeader") {
+			return
+		}
+	}
+
+	header = header[:n]
+	if err := request.ValidateZIPArchive(header); h.OnError(w, r, err, "PostAdminImport", "MIMECheck") {
 		return
 	}
 
@@ -164,7 +179,7 @@ func (h *Server) PostAdminImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reader := bytes.NewReader(data)
+	reader := io.MultiReader(bytes.NewReader(header), file)
 
 	job, err := h.admin.BackupUC.StartImportZIPJob(r.Context(), reader, body.File.FileSize(), opts, body.File.Filename())
 	if h.OnError(w, r, err, "PostAdminImport", "StartImportZIPJob") {

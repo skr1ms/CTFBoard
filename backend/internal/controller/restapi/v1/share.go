@@ -54,5 +54,5 @@ func (h *Server) GetSharesSolve(w http.ResponseWriter, r *http.Request, params o
 		return
 	}
 
-	httputil.RenderText(w, r, http.StatusOK, "text/html; charset=utf-8", html)
+	helper.RenderTrustedHTML(w, http.StatusOK, html)
 }

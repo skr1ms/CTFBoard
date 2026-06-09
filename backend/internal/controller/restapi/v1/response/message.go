@@ -6,3 +6,7 @@ import "github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
 func Message(msg string) openapi.MessageResponse {
 	return openapi.MessageResponse{Message: msg}
 }
+
+func BulkAction(msg string, affectedCount int) openapi.BulkActionResponse {
+	return openapi.BulkActionResponse{Message: msg, AffectedCount: affectedCount}
+}

@@ -128,7 +128,13 @@ func (h *Server) GetChallengesChallengeIDSolves(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	solves, err := h.challenge.ReadUC.GetSolves(r.Context(), challengeIDParsed)
+	var teamID *uuid.UUID
+
+	if user, ok := helper.CurrentUser(r); ok {
+		teamID = user.TeamID
+	}
+
+	solves, err := h.challenge.ReadUC.GetSolves(r.Context(), challengeIDParsed, teamID)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDSolves", "GetSolves") {
 		return
 	}
@@ -143,7 +149,12 @@ func (h *Server) GetChallengesChallengeIDTags(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	tags, err := h.challenge.TagUC.GetByChallengeID(r.Context(), challengeIDParsed)
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	tags, err := h.challenge.TagUC.GetByChallengeID(r.Context(), challengeIDParsed, user.TeamID)
 	if h.OnError(w, r, err, "GetChallengesChallengeIDTags", "GetByChallengeID") {
 		return
 	}
@@ -169,7 +180,12 @@ func (h *Server) GetChallengesChallengeIDRequirements(w http.ResponseWriter, r *
 		return
 	}
 
-	requirements, err := h.challenge.ReadUC.GetRequirements(r.Context(), challengeIDParsed)
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	requirements, err := h.challenge.ReadUC.GetRequirements(r.Context(), challengeIDParsed, user.TeamID, helper.IsAdmin(user))
 	if h.OnError(w, r, err, "GetChallengesChallengeIDRequirements", "GetRequirements") {
 		return
 	}

@@ -292,8 +292,8 @@
                 description: Erase existing data before import
               conflict_mode:
                 type: string
-                enum: [overwrite, skip]
-                description: How to handle conflicts
+                enum: [overwrite]
+                description: Conflict handling mode. ZIP imports currently support overwrite only.
               validate_files:
                 type: boolean
                 description: Validate file checksums

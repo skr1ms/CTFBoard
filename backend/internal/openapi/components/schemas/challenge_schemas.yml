@@ -249,10 +249,13 @@ schemas:
         x-oapi-codegen-extra-tags:
           validate: "omitempty,challenge_flag"
       flag_format_regex:
-        description: Optional regex for flag format validation for this challenge; overrides competition default
+        description: Optional regex for flag format validation for this challenge; overrides competition default. Omit to keep current value, send null to clear.
         example: '^CTF\{[a-zA-Z0-9_]+\}$'
         maxLength: 1024
         type: string
+        nullable: true
+        x-go-type: nullable.Nullable[string]
+        x-go-type-skip-optional-pointer: true
         x-oapi-codegen-extra-tags:
           validate: "omitempty,max=1024"
       initial_value:

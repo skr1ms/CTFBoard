@@ -33,8 +33,8 @@ func ChallengeFileTypeFromParams(t *openapi.GetChallengesChallengeIDFilesParamsT
 	return "", apperr.NewValidationErrorf(errMsgFileTypeMustBe)
 }
 
-func ValidateUploadFilename(filename string) error {
-	if !validator.ValidateUploadFilename(filename) {
+func ValidateChallengeUploadFilename(filename string) error {
+	if !validator.ValidateChallengeUploadFilename(filename) {
 		return apperr.NewValidationErrorf("file type not allowed")
 	}
 

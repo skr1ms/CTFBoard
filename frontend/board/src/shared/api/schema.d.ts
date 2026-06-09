@@ -207,7 +207,7 @@ export interface paths {
         head?: never;
         /**
          * Update current user profile
-         * @description Updates current user profile (username, email, password)
+         * @description Updates current user profile (username, email, password, editable custom fields)
          */
         patch: operations["PatchAuthMe"];
         trace?: never;
@@ -223,7 +223,7 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description Invalidates the refresh cookie. Client should discard the access token.
+         * @description Invalidates the refresh cookie and revokes the current bearer access token when Authorization is provided. Client should discard the access token.
          */
         post: operations["PostAuthLogout"];
         delete?: never;
@@ -430,6 +430,46 @@ export interface paths {
          * @description Creates a new user. Admin only.
          */
         post: operations["PostAdminUsers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/bulk/ban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk ban users
+         * @description Bans multiple users in a single all-or-nothing admin operation.
+         */
+        post: operations["PostAdminUsersBulkBan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/bulk/unban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk unban users
+         * @description Unbans multiple directly banned users in a single all-or-nothing admin operation.
+         */
+        post: operations["PostAdminUsersBulkUnban"];
         delete?: never;
         options?: never;
         head?: never;
@@ -724,6 +764,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/user/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count unread user notifications
+         * @description Returns unread notification count for current user
+         */
+        get: operations["GetUserNotificationsUnreadCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/user/notifications/{ID}/read": {
         parameters: {
             query?: never;
@@ -937,7 +997,7 @@ export interface paths {
         };
         /**
          * Get team by ID
-         * @description Returns team information by ID for authenticated users. account_visibility gates authenticated non-admin users.
+         * @description Returns team information by ID for authenticated users, including public team custom fields. account_visibility gates authenticated non-admin users.
          */
         get: operations["GetTeamsID"];
         put?: never;
@@ -997,7 +1057,7 @@ export interface paths {
         };
         /**
          * Get my team
-         * @description Returns information about current user's team. If no team, returns 404.
+         * @description Returns information about current user's team, including public or editable team custom fields. If no team, returns 404.
          */
         get: operations["GetTeamsMy"];
         put?: never;
@@ -1027,7 +1087,7 @@ export interface paths {
         head?: never;
         /**
          * Update my team
-         * @description Updates current user's team. Captain only.
+         * @description Updates current user's team name and/or editable custom fields. Captain only. Name changes follow team-switch rules; custom-field-only updates do not.
          */
         patch: operations["PatchTeamsMe"];
         trace?: never;
@@ -1347,7 +1407,11 @@ export interface paths {
         put?: never;
         /**
          * Submit flag
-         * @description Verifies flag for challenge. Rate limit: 5 attempts per minute
+         * @description Verifies the submitted flag against the challenge's single answer definition.
+         *     The answer is either a fixed flag hash or an encrypted regex flag. The v1
+         *     answer model has no multi-flag groups or partial submission state: a
+         *     submission is correct or incorrect, while ratelimited/discarded attempts
+         *     remain audit/status records. Rate limit: 5 attempts per minute.
          */
         post: operations["PostChallengesChallengeIDSubmit"];
         delete?: never;
@@ -1500,6 +1564,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a solve share link
+         * @description Creates a signed public link for a challenge already solved by the authenticated user's team.
+         */
+        post: operations["PostShares"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shares/solve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve a solve share link
+         * @description Returns a public HTML preview for a signed solve share link.
+         */
+        get: operations["GetSharesSolve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/comments/{ID}": {
         parameters: {
             query?: never;
@@ -1548,8 +1652,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get download URL
-         * @description Returns presigned URL for file download
+         * Get signed backend download URL
+         * @description Returns an authenticated signed backend URL for file download
          */
         get: operations["GetFilesIDDownload"];
         put?: never;
@@ -1569,7 +1673,16 @@ export interface paths {
         };
         /**
          * Get scoreboard
-         * @description Returns current scoreboard state sorted by points descending. Optional bracket (category ID) filters by team category. When competition is frozen, returns frozen view unless live=true and requester is admin. Requires authentication (scoreboard visibility applies).
+         * @description Returns current scoreboard state. Score is accepted solve `points_at_solve`
+         *     plus active awards for each team. Public rows exclude banned, hidden, and
+         *     deleted teams; solves and awards soft-banned for moderation are also
+         *     excluded. Rows are ordered by points descending, last counted solve time
+         *     ascending, then team ID ascending. Teams without counted solves sort after
+         *     teams with counted solves at the same score. Award timestamps only affect
+         *     freeze inclusion; awards do not participate in the tie-break timestamp.
+         *     Optional bracket (category ID) filters by team category. When competition
+         *     is frozen, returns the frozen view unless live=true and requester is admin.
+         *     Requires authentication (scoreboard visibility applies).
          */
         get: operations["GetScoreboard"];
         put?: never;
@@ -1820,6 +1933,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/statistics/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get engagement funnel
+         * @description Returns admin-only engagement funnel analytics from challenge open to attempt to solve. When frozen, use live=true for live data.
+         */
+        get: operations["GetAdminStatisticsFunnel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/competition/status": {
         parameters: {
             query?: never;
@@ -1952,6 +2085,26 @@ export interface paths {
          * @description Returns list of global notifications
          */
         get: operations["GetNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count global notifications
+         * @description Returns count of global notifications, optionally newer than since_created_at
+         */
+        get: operations["GetNotificationsCount"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2334,10 +2487,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import competition backup
-         * @description Imports competition data from ZIP backup. Admin only.
+         * Start backup import job
+         * @description Starts an asynchronous competition data import from ZIP backup. Admin only.
          */
         post: operations["PostAdminImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import/jobs/{ID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get backup import job
+         * @description Returns asynchronous ZIP import job status. Admin only.
+         */
+        get: operations["GetAdminImportJobsID"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2544,8 +2717,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List all solutions for solved challenges
-         * @description Returns all solutions for challenges solved by the requesting user's team. Requires writeup_enabled=true.
+         * List all visible challenge solutions
+         * @description Returns all challenge solutions visible to the requesting user according to solution state and writeup_enabled.
          */
         get: operations["GetChallengesSolutions"];
         put?: never;
@@ -2565,7 +2738,7 @@ export interface paths {
         };
         /**
          * Get challenge solution
-         * @description Returns challenge solution/writeup if available and user has solved the challenge
+         * @description Returns challenge solution/writeup if available and visible to the requesting user according to solution state and writeup_enabled.
          */
         get: operations["GetChallengesChallengeIDSolution"];
         put?: never;
@@ -2585,7 +2758,7 @@ export interface paths {
         };
         /**
          * Get challenge flags
-         * @description Returns flags for a challenge. Admin only.
+         * @description Returns the challenge's single answer configuration for admin verification. Fixed flags are returned as hashes, regex flags as regex metadata; plaintext flags are never exposed. Admin only.
          */
         get: operations["GetAdminChallengesChallengeIDFlags"];
         put?: never;
@@ -2607,7 +2780,7 @@ export interface paths {
         put?: never;
         /**
          * Upsert challenge solution
-         * @description Creates or updates challenge solution/writeup content. Admin only.
+         * @description Creates or updates challenge solution/writeup content and visibility state. Admin only.
          */
         post: operations["PostAdminChallengesChallengeIDSolution"];
         /**
@@ -2659,6 +2832,78 @@ export interface paths {
          * @description Deletes a tag. Admin only.
          */
         delete: operations["DeleteAdminTagsID"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List topics
+         * @description Returns all organizer challenge topics. Admin only.
+         */
+        get: operations["GetAdminTopics"];
+        put?: never;
+        /**
+         * Create topic
+         * @description Creates an organizer challenge topic. Admin only.
+         */
+        post: operations["PostAdminTopics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/topics/{ID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update topic
+         * @description Updates an organizer challenge topic. Admin only.
+         */
+        put: operations["PutAdminTopicsID"];
+        post?: never;
+        /**
+         * Delete topic
+         * @description Deletes an organizer challenge topic. Admin only.
+         */
+        delete: operations["DeleteAdminTopicsID"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/challenges/{challengeID}/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get challenge topics
+         * @description Returns organizer topics attached to a challenge. Admin only.
+         */
+        get: operations["GetAdminChallengesChallengeIDTopics"];
+        /**
+         * Set challenge topics
+         * @description Replaces organizer topics attached to a challenge. Admin only.
+         */
+        put: operations["PutAdminChallengesChallengeIDTopics"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2774,6 +3019,66 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/admin/teams/bulk/ban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk ban teams
+         * @description Bans multiple teams in a single all-or-nothing admin operation.
+         */
+        post: operations["PostAdminTeamsBulkBan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/teams/bulk/unban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk unban teams
+         * @description Unbans multiple teams in a single all-or-nothing admin operation.
+         */
+        post: operations["PostAdminTeamsBulkUnban"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/teams/bulk/hidden": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Bulk set team hidden status
+         * @description Sets hidden status for multiple teams in a single all-or-nothing admin operation.
+         */
+        patch: operations["PatchAdminTeamsBulkHidden"];
         trace?: never;
     };
     "/admin/teams/{ID}": {
@@ -3044,6 +3349,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/notifications/team/{teamID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create team notification
+         * @description Creates a personal notification for each current active member of a team. Admin only.
+         */
+        post: operations["PostAdminNotificationsTeamTeamID"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/notifications/{ID}": {
         parameters: {
             query?: never;
@@ -3099,7 +3424,7 @@ export interface paths {
         put?: never;
         /**
          * Create challenge
-         * @description Creates new challenge. Admin only
+         * @description Creates a new challenge with one v1 answer definition, either a fixed flag or a regex flag. Multi-flag groups and partial submissions are not part of the v1 answer model. Admin only.
          */
         post: operations["PostAdminChallenges"];
         delete?: never;
@@ -3118,7 +3443,7 @@ export interface paths {
         get?: never;
         /**
          * Update challenge
-         * @description Updates challenge data. Admin only
+         * @description Updates challenge data and its single v1 answer definition. Multi-flag groups and partial submissions are not part of the v1 answer model. Admin only.
          */
         put: operations["PutAdminChallengesID"];
         post?: never;
@@ -3224,8 +3549,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get all hint unlocks
-         * @description Returns paginated list of all hint unlocks. Admin only.
+         * Get all unlocks
+         * @description Returns paginated list of unlock records. In v1, unlocks are backed by hint unlocks. Admin only.
          */
         get: operations["GetAdminUnlocks"];
         put?: never;
@@ -3374,27 +3699,11 @@ export interface paths {
         get: operations["GetAdminStorage"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/storage/{path}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
         /**
          * Delete a storage object
          * @description Permanently delete a file from storage. Creates an audit log entry. Admin only.
          */
-        delete: operations["DeleteAdminStoragePath"];
+        delete: operations["DeleteAdminStorage"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3602,8 +3911,10 @@ export interface components {
             username: string;
             /** @description Custom field values (field_id -> value) */
             custom_fields?: {
-                [key: string]: string;
+                [key: string]: unknown;
             };
+            /** @description Optional access code required when registration_code is configured by admins. */
+            registration_code?: string;
         };
         RegisterResponse: {
             created_at?: string;
@@ -3613,6 +3924,11 @@ export interface components {
         };
         BanStatus: {
             is_banned?: boolean;
+            /**
+             * @description direct user ban or inherited restriction from a previously banned team
+             * @enum {string}
+             */
+            source?: "direct" | "team_inherited";
             reason?: string;
             banned_at?: string;
             can_appeal?: boolean;
@@ -3627,6 +3943,10 @@ export interface components {
             team_id?: string;
             username?: string;
             avatar_url?: string;
+            /** @description Current user's custom field values (field_id -> value) */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
             /** @description true when the account has a local password set (false for OAuth-only accounts) */
             has_password?: boolean;
             ban_status?: components["schemas"]["BanStatus"];
@@ -3636,6 +3956,14 @@ export interface components {
             email?: string;
             password?: string;
             current_password?: string;
+            /** @description Editable custom field values to patch (field_id -> value) */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
+        };
+        UpdateProfileResponse: {
+            user: components["schemas"]["MeResponse"];
+            token_pair?: components["schemas"]["TokenPair"];
         };
         OAuthProvidersResponse: {
             github: boolean;
@@ -3673,6 +4001,10 @@ export interface components {
             team_id?: string;
             is_verified?: boolean;
             is_banned?: boolean;
+            was_in_banned_team?: boolean;
+            is_blocked?: boolean;
+            /** @enum {string} */
+            ban_source?: "none" | "direct" | "team_inherited";
             /** Format: date-time */
             banned_at?: string;
             banned_reason?: string;
@@ -3700,6 +4032,18 @@ export interface components {
             /** @example user */
             role?: string;
         };
+        BulkBanUsersRequest: {
+            ids: string[];
+            /** @example Violation of rules */
+            reason: string;
+        };
+        BulkActionResponse: {
+            message: string;
+            affected_count: number;
+        };
+        BulkUserIDsRequest: {
+            ids: string[];
+        };
         AdminUpdateUserRequest: {
             username?: string;
             email?: string;
@@ -3724,6 +4068,10 @@ export interface components {
             team_id?: string;
             username?: string;
             avatar_url?: string;
+            /** @description Public custom field values (field_id -> value) */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
         };
         SolveWithDetailsResponse: {
             id?: string;
@@ -3789,10 +4137,13 @@ export interface components {
         };
         ChallengeResponse: {
             category?: string;
+            attribution?: string;
             connection_info?: string;
             max_attempts?: number;
             max_attempts_window?: number;
             position?: number;
+            /** Format: uuid */
+            next_id?: string | null;
             description?: string;
             id?: string;
             /** @enum {string} */
@@ -3814,6 +4165,9 @@ export interface components {
             type?: string;
             is_read?: boolean;
             created_at?: string;
+        };
+        NotificationUnreadCountResponse: {
+            unread_count?: number;
         };
         APITokenResponse: {
             id?: string;
@@ -3858,6 +4212,10 @@ export interface components {
             is_solo?: boolean;
             name?: string;
             avatar_url?: string;
+            /** @description Team custom field values visible to the caller (field_id -> value). */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
         };
         TeamListResponse: {
             data?: components["schemas"]["TeamResponse"][];
@@ -3899,9 +4257,17 @@ export interface components {
             /** @description True if the non-solo team has at least min_team_size members. Solo participants are always eligible. */
             meets_min_size?: boolean;
             avatar_url?: string;
+            /** @description Current team's public or captain-editable custom field values (field_id -> value). */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
         };
         UpdateTeamRequest: {
-            name: string;
+            name?: string;
+            /** @description Editable team custom field values to patch (field_id -> value). */
+            custom_fields?: {
+                [key: string]: unknown;
+            };
         };
         TeamInviteResponse: {
             invite_token?: string;
@@ -3943,10 +4309,13 @@ export interface components {
             title?: string;
             description?: string;
             category?: string;
+            attribution?: string;
             connection_info?: string;
             max_attempts?: number;
             max_attempts_window?: number;
             position?: number;
+            /** Format: uuid */
+            next_id?: string | null;
             /** @enum {string} */
             state?: "visible" | "hidden" | "locked";
             points?: number;
@@ -3964,11 +4333,16 @@ export interface components {
             solved_at?: string;
         };
         SubmitFlagRequest: {
-            /** @example CTF{flag_here} */
+            /**
+             * @description Submitted candidate for the challenge's single v1 answer. Partial submissions and multi-flag groups are not supported in v1.
+             * @example CTF{flag_here}
+             */
             flag: string;
         };
         SubmitFlagResponse: {
+            /** @description True only when the submitted flag completes the challenge answer; v1 has no partial state. */
             correct: boolean;
+            /** @description Human-readable submit outcome. */
             message: string;
         };
         HintResponse: {
@@ -4010,6 +4384,20 @@ export interface components {
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
+        };
+        CreateShareRequest: {
+            /** @enum {string} */
+            type: "solve";
+            /** Format: uuid */
+            challenge_id: string;
+        };
+        ShareResponse: {
+            /** @enum {string} */
+            type: "solve";
+            /** Format: uri */
+            url: string;
+            /** Format: uuid */
+            solve_id: string;
         };
         FileDownloadURLResponse: {
             url: string;
@@ -4108,6 +4496,68 @@ export interface components {
             /** Format: date-time */
             solved_at?: string | null;
         };
+        FunnelChallengeRow: {
+            /** Format: uuid */
+            challenge_id?: string;
+            challenge_title?: string;
+            challenge_category?: string;
+            opened_count?: number;
+            attempted_count?: number;
+            solved_count?: number;
+        };
+        FunnelTeamRow: {
+            /** Format: uuid */
+            team_id?: string;
+            team_name?: string;
+            opened_count?: number;
+            attempted_count?: number;
+            solved_count?: number;
+        };
+        FunnelTeamCell: {
+            /** Format: uuid */
+            team_id?: string;
+            /** Format: uuid */
+            challenge_id?: string;
+            opened?: boolean;
+            attempted?: boolean;
+            solved?: boolean;
+            /** Format: date-time */
+            first_opened_at?: string | null;
+            /** Format: date-time */
+            first_attempted_at?: string | null;
+            /** Format: date-time */
+            solved_at?: string | null;
+        };
+        FunnelUserRow: {
+            /** Format: uuid */
+            user_id?: string;
+            username?: string;
+            opened_count?: number;
+            attempted_count?: number;
+            solved_count?: number;
+        };
+        FunnelUserCell: {
+            /** Format: uuid */
+            user_id?: string;
+            /** Format: uuid */
+            challenge_id?: string;
+            opened?: boolean;
+            attempted?: boolean;
+            solved?: boolean;
+            /** Format: date-time */
+            first_opened_at?: string | null;
+            /** Format: date-time */
+            first_attempted_at?: string | null;
+            /** Format: date-time */
+            solved_at?: string | null;
+        };
+        AdminStatisticsFunnel: {
+            challenges?: components["schemas"]["FunnelChallengeRow"][];
+            teams?: components["schemas"]["FunnelTeamRow"][];
+            team_cells?: components["schemas"]["FunnelTeamCell"][];
+            users?: components["schemas"]["FunnelUserRow"][];
+            user_cells?: components["schemas"]["FunnelUserCell"][];
+        };
         CompetitionStatusResponse: {
             end_time?: string;
             freeze_time?: string;
@@ -4129,11 +4579,14 @@ export interface components {
         FieldResponse: {
             id?: string;
             name?: string;
+            description?: string;
             /** @enum {string} */
-            field_type?: "text" | "number" | "select" | "boolean";
+            field_type?: "text" | "number" | "select" | "boolean" | "json";
             /** @enum {string} */
             entity_type?: "user" | "team";
             required?: boolean;
+            public?: boolean;
+            editable?: boolean;
             options?: string[];
             order_index?: number;
             /** Format: date-time */
@@ -4173,6 +4626,9 @@ export interface components {
             is_pinned?: boolean;
             created_at?: string;
         };
+        NotificationCountResponse: {
+            count?: number;
+        };
         CreateAwardRequest: {
             team_id: string;
             value: number;
@@ -4207,6 +4663,19 @@ export interface components {
              */
             mode?: "teams_only" | "solo_only";
         };
+        BackupTag: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            color?: string;
+        };
+        BackupTopic: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
         Hint: {
             id?: string;
             challenge_id?: string;
@@ -4221,60 +4690,264 @@ export interface components {
             description?: string;
             category?: string;
             points?: number;
+            initial_value?: number;
+            min_value?: number;
+            decay?: number;
+            solve_count?: number;
             flag_hash?: string;
+            flag_regex?: string;
             /** @enum {string} */
             state?: "visible" | "hidden" | "locked";
+            attribution?: string;
             connection_info?: string;
             max_attempts?: number;
+            /** Format: int64 */
+            max_attempts_window?: number;
             position?: number;
+            /** Format: uuid */
+            next_id?: string | null;
+            is_regex?: boolean;
+            is_case_insensitive?: boolean;
+            flag_format_regex?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
             hints?: components["schemas"]["Hint"][];
+            tag_ids?: string[];
+            topic_ids?: string[];
         };
-        TeamExport: {
+        BackupBracket: {
+            /** Format: uuid */
             id?: string;
             name?: string;
+            description?: string;
+            is_default?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        ChallengeRequirementPair: {
+            /** Format: uuid */
+            challenge_id?: string;
+            /** Format: uuid */
+            required_challenge_id?: string;
+        };
+        SolutionBackup: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            challenge_id?: string;
+            content?: string;
+            /** @enum {string} */
+            state?: "hidden" | "solved_only" | "after_event" | "admin_only";
+        };
+        TeamExport: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            /** Format: uuid */
+            invite_token?: string;
+            /** Format: date-time */
+            invite_token_expires_at?: string | null;
+            /** Format: uuid */
             captain_id?: string;
+            /** Format: uuid */
+            bracket_id?: string | null;
+            is_solo?: boolean;
+            is_auto_created?: boolean;
             is_banned?: boolean;
+            /** Format: date-time */
+            banned_at?: string | null;
+            banned_reason?: string | null;
+            is_hidden?: boolean;
+            avatar_url?: string | null;
+            /** Format: date-time */
+            created_at?: string;
             member_ids?: string[];
         };
         UserExport: {
+            /** Format: uuid */
             id?: string;
             username?: string;
             email?: string;
             role?: string;
+            /** Format: uuid */
+            team_id?: string | null;
+            is_verified?: boolean;
+            /** Format: date-time */
+            verified_at?: string | null;
+            is_banned?: boolean;
+            /** Format: date-time */
+            banned_at?: string | null;
+            banned_reason?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        BackupAward: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
             team_id?: string;
+            value?: number;
+            description?: string;
+            /** Format: uuid */
+            created_by?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: uuid */
+            banned_team_id?: string | null;
         };
         Solve: {
             id?: string;
             user_id?: string;
             team_id?: string;
             challenge_id?: string;
+            /** Format: date-time */
             solved_at?: string;
+            points_at_solve?: number;
+            /** Format: uuid */
+            banned_team_id?: string | null;
+            /** Format: uuid */
+            banned_user_id?: string | null;
+        };
+        BackupHintUnlock: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            hint_id?: string;
+            /** Format: uuid */
+            team_id?: string;
+            /** Format: date-time */
+            unlocked_at?: string;
+            /** Format: uuid */
+            banned_team_id?: string | null;
         };
         File: {
             id?: string;
             type?: string;
+            /** Format: uuid */
             challenge_id?: string;
+            /** Format: uuid */
+            page_id?: string;
             location?: string;
             filename?: string;
+            /** Format: int64 */
             size?: number;
             sha256?: string;
+            /** Format: date-time */
             created_at?: string;
+        };
+        BackupComment: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            user_id?: string;
+            username?: string;
+            /** Format: uuid */
+            challenge_id?: string;
+            content?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        BackupField: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            description?: string;
+            /** @enum {string} */
+            field_type?: "text" | "number" | "select" | "boolean" | "json";
+            /** @enum {string} */
+            entity_type?: "user" | "team";
+            required?: boolean;
+            public?: boolean;
+            editable?: boolean;
+            options?: string[];
+            order_index?: number;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        BackupFieldValue: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            field_id?: string;
+            /** Format: uuid */
+            entity_id?: string;
+            value?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        BackupRating: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            challenge_id?: string;
+            /** Format: uuid */
+            user_id?: string;
+            /** Format: uuid */
+            team_id?: string;
+            /** Format: uuid */
+            banned_team_id?: string | null;
+            value?: number;
+            review?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
         };
         BackupData: {
             version?: string;
+            /** Format: date-time */
             exported_at?: string;
             competition?: components["schemas"]["Competition"];
+            tags?: components["schemas"]["BackupTag"][];
+            topics?: components["schemas"]["BackupTopic"][];
             challenges?: components["schemas"]["ChallengeExport"][];
+            brackets?: components["schemas"]["BackupBracket"][];
+            challenge_requirements?: components["schemas"]["ChallengeRequirementPair"][];
+            solutions?: components["schemas"]["SolutionBackup"][];
             teams?: components["schemas"]["TeamExport"][];
             users?: components["schemas"]["UserExport"][];
-            awards?: components["schemas"]["AwardResponse"][];
+            awards?: components["schemas"]["BackupAward"][];
             solves?: components["schemas"]["Solve"][];
+            hint_unlocks?: components["schemas"]["BackupHintUnlock"][];
             files?: components["schemas"]["File"][];
+            comments?: components["schemas"]["BackupComment"][];
+            fields?: components["schemas"]["BackupField"][];
+            field_values?: components["schemas"]["BackupFieldValue"][];
+            ratings?: components["schemas"]["BackupRating"][];
         };
         ImportResult: {
             success?: boolean;
             errors?: string[];
+            warnings?: string[];
             skipped_count?: number;
+        };
+        ImportJobResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            requested_by?: string;
+            client_ip?: string;
+            archive_filename?: string;
+            /** Format: int64 */
+            archive_size?: number;
+            /** @enum {string} */
+            status?: "queued" | "running" | "completed" | "failed";
+            /** @enum {string} */
+            phase?: "queued" | "validating" | "importing_db" | "restoring_files" | "cleanup" | "finished";
+            result?: components["schemas"]["ImportResult"];
+            error?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            started_at?: string;
+            /** Format: date-time */
+            finished_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
         };
         CSVImportResult: {
             success?: boolean;
@@ -4313,15 +4986,19 @@ export interface components {
             challenge_title?: string;
             challenge_category?: string;
             content?: string;
+            /** @enum {string} */
+            state?: "hidden" | "solved_only" | "after_event" | "admin_only";
             files?: components["schemas"]["FileItem"][];
         };
         ChallengeSolutionResponse: {
             challenge_id?: string;
             content?: string;
+            /** @enum {string} */
+            state?: "hidden" | "solved_only" | "after_event" | "admin_only";
             files?: components["schemas"]["FileItem"][];
         };
         ChallengeFlagsResponse: {
-            /** @description Hashes of challenge flags (not plaintext); used for admin verification */
+            /** @description Hashes of the challenge's single fixed flag answer, when the challenge is not regex-based; plaintext flags are not returned */
             flags?: string[];
             is_regex?: boolean;
             is_case_insensitive?: boolean;
@@ -4331,6 +5008,12 @@ export interface components {
         AdminUpsertSolutionRequest: {
             /** @description Markdown writeup content */
             content: string;
+            /**
+             * @description Solution visibility policy
+             * @default solved_only
+             * @enum {string}
+             */
+            state: "hidden" | "solved_only" | "after_event" | "admin_only";
         };
         CreateTagRequest: {
             name: string;
@@ -4341,14 +5024,36 @@ export interface components {
             name: string;
             color?: string;
         };
+        TopicResponse: {
+            id?: string;
+            name?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        CreateTopicRequest: {
+            name: string;
+        };
+        UpdateTopicRequest: {
+            name: string;
+        };
+        SetChallengeTopicsRequest: {
+            /** @description Topic IDs attached to the challenge. Empty array clears all topics. */
+            topic_ids?: string[];
+        };
         CreateFieldRequest: {
             name: string;
+            /** @default  */
+            description: string;
             /** @enum {string} */
-            field_type: "text" | "number" | "select" | "boolean";
+            field_type: "text" | "number" | "select" | "boolean" | "json";
             /** @enum {string} */
             entity_type: "user" | "team";
             /** @default false */
             required: boolean;
+            /** @default false */
+            public: boolean;
+            /** @default false */
+            editable: boolean;
             /** @description Options for select type */
             options?: string[];
             /** @default 0 */
@@ -4356,9 +5061,15 @@ export interface components {
         };
         UpdateFieldRequest: {
             name: string;
+            /** @default  */
+            description: string;
             /** @enum {string} */
-            field_type: "text" | "number" | "select" | "boolean";
+            field_type: "text" | "number" | "select" | "boolean" | "json";
             required?: boolean;
+            /** @default false */
+            public: boolean;
+            /** @default false */
+            editable: boolean;
             options?: string[];
             order_index?: number;
         };
@@ -4392,6 +5103,23 @@ export interface components {
         AdminTeamListResponse: {
             data?: components["schemas"]["AdminTeamResponse"][];
             meta?: components["schemas"]["PaginationMeta"];
+        };
+        BulkBanTeamsRequest: {
+            ids: string[];
+            /** @example Violation of rules */
+            reason: string;
+            /**
+             * @description If true, ban each team member as a user.
+             * @default false
+             */
+            ban_members: boolean;
+        };
+        BulkTeamIDsRequest: {
+            ids: string[];
+        };
+        BulkSetHiddenRequest: {
+            ids: string[];
+            hidden: boolean;
         };
         AdminUpdateTeamRequest: {
             name?: string;
@@ -4504,6 +5232,11 @@ export interface components {
              */
             type: "info" | "warning" | "success" | "error";
         };
+        NotificationDeliveryResponse: {
+            target_type?: string;
+            target_id?: string;
+            created_count?: number;
+        };
         UpdateNotificationRequest: {
             title: string;
             content: string;
@@ -4522,6 +5255,11 @@ export interface components {
              */
             connection_info?: string;
             /**
+             * @description Optional author, sponsor, or source attribution shown with the challenge
+             * @example
+             */
+            attribution?: string;
+            /**
              * @description Max submission attempts per team (0 = unlimited)
              * @example 0
              */
@@ -4536,9 +5274,17 @@ export interface components {
              * @example 0
              */
             position?: number;
+            /**
+             * Format: uuid
+             * @description Optional next challenge navigation pointer
+             */
+            next_id?: string | null;
             /** @example Challenge description */
             description: string;
-            /** @example CTF{flag_here} */
+            /**
+             * @description Single v1 answer for the challenge. When `is_regex` is false this value is hashed; when `is_regex` is true this value is stored as encrypted regex material.
+             * @example CTF{flag_here}
+             */
             flag: string;
             /**
              * @description Optional regex for flag format validation for this challenge; overrides competition default
@@ -4573,13 +5319,16 @@ export interface components {
             decay?: number;
             /** @example Updated description */
             description: string;
-            /** @example CTF{new_flag} */
+            /**
+             * @description Single v1 answer for the challenge. When `is_regex` is false this value is hashed; when `is_regex` is true this value is stored as encrypted regex material.
+             * @example CTF{new_flag}
+             */
             flag?: string;
             /**
-             * @description Optional regex for flag format validation for this challenge; overrides competition default
+             * @description Optional regex for flag format validation for this challenge; overrides competition default. Omit to keep current value, send null to clear.
              * @example ^CTF\{[a-zA-Z0-9_]+\}$
              */
-            flag_format_regex?: string;
+            flag_format_regex?: string | null;
             /** @example 500 */
             initial_value?: number;
             /** @example false */
@@ -4596,6 +5345,11 @@ export interface components {
              */
             connection_info?: string;
             /**
+             * @description Optional author, sponsor, or source attribution shown with the challenge
+             * @example
+             */
+            attribution?: string;
+            /**
              * @description Max submission attempts per team (0 = unlimited)
              * @example 0
              */
@@ -4610,6 +5364,11 @@ export interface components {
              * @example 0
              */
             position?: number;
+            /**
+             * Format: uuid
+             * @description Optional next challenge navigation pointer. Send null to clear the pointer.
+             */
+            next_id?: string | null;
             /**
              * @description Challenge visibility and submit policy
              * @example visible
@@ -4660,8 +5419,11 @@ export interface components {
             /** @example 1 */
             order_index?: number;
         };
-        HintUnlockResponse: {
+        UnlockResponse: {
             id?: string;
+            /** @enum {string} */
+            type?: "hint";
+            resource_id?: string;
             hint_id?: string;
             team_id?: string;
             /** Format: date-time */
@@ -4669,8 +5431,8 @@ export interface components {
             challenge_id?: string;
             hint_cost?: number;
         };
-        HintUnlockListResponse: {
-            data?: components["schemas"]["HintUnlockResponse"][];
+        UnlockListResponse: {
+            data?: components["schemas"]["UnlockResponse"][];
             meta?: components["schemas"]["PaginationMeta"];
         };
         AppSettingsResponse: {
@@ -4682,6 +5444,8 @@ export interface components {
             max_per_page?: number;
             /** @description Maximum number of teams allowed (0 = unlimited) */
             max_teams?: number;
+            /** @description Maximum number of participant users allowed (0 = unlimited) */
+            max_users?: number;
             rate_limit_forgot_password_per_minute?: number;
             rate_limit_general_ip_per_minute?: number;
             rate_limit_login_per_minute?: number;
@@ -4699,7 +5463,6 @@ export interface components {
             resend_enabled?: boolean;
             resend_from_email?: string;
             resend_from_name?: string;
-            scoreboard_visible?: string;
             submit_limit_duration_min?: number;
             submit_limit_per_user?: number;
             updated_at?: string;
@@ -4721,6 +5484,8 @@ export interface components {
             max_per_page?: number;
             /** @description Maximum number of teams allowed (0 = unlimited) */
             max_teams?: number;
+            /** @description Maximum number of participant users allowed (0 = unlimited) */
+            max_users?: number;
             rate_limit_forgot_password_per_minute?: number;
             rate_limit_general_ip_per_minute?: number;
             rate_limit_login_per_minute?: number;
@@ -4738,8 +5503,6 @@ export interface components {
             resend_enabled?: boolean;
             resend_from_email?: string;
             resend_from_name?: string;
-            /** @enum {string} */
-            scoreboard_visible?: "public" | "hidden" | "admins_only";
             submit_limit_duration_min?: number;
             submit_limit_per_user?: number;
             verify_emails?: boolean;
@@ -5257,7 +6020,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MeResponse"];
+                    "application/json": components["schemas"]["UpdateProfileResponse"];
                 };
             };
             /** @description Bad Request */
@@ -5271,6 +6034,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden (Bearer token required) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5424,7 +6196,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Redirect to frontend with tokens in fragment */
+            /** @description Redirect to frontend with a one-time OAuth exchange code in the query string */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -5551,6 +6323,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Not Found (token not found) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Gone */
             410: {
                 headers: {
@@ -5639,6 +6420,15 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found (token not found) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5753,6 +6543,8 @@ export interface operations {
                 q?: string;
                 /** @description Search field (username or ip) */
                 field?: "username" | "ip";
+                /** @description Admin ban-state filter */
+                ban_status?: "all" | "not_banned" | "direct" | "team_inherited" | "blocked";
                 page?: number;
                 per_page?: number;
             };
@@ -5833,6 +6625,144 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostAdminUsersBulkBan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkBanUsersRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkActionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostAdminUsersBulkUnban: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkUserIDsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkActionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6111,7 +7041,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden (not owner and not admin) */
+            /** @description Forbidden (score visibility is private) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6195,7 +7125,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden (not owner and not admin) */
+            /** @description Forbidden (score visibility is private) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6273,7 +7203,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Forbidden (not owner and not admin) */
+            /** @description Forbidden (score visibility is private) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6558,6 +7488,44 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    GetUserNotificationsUnreadCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationUnreadCountResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8800,6 +9768,127 @@ export interface operations {
             };
         };
     };
+    PostShares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShareRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    GetSharesSolve: {
+        parameters: {
+            query: {
+                /** @description Solve ID from the share link */
+                solve_id: string;
+                /** @description Hex-encoded HMAC-SHA256 signature */
+                mac: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     DeleteCommentsID: {
         parameters: {
             query?: never;
@@ -9602,6 +10691,58 @@ export interface operations {
             };
         };
     };
+    GetAdminStatisticsFunnel: {
+        parameters: {
+            query?: {
+                /** @description Number of top teams and users to include in matrix cells. Challenge summaries include all visible and locked challenges. */
+                limit?: number;
+                /** @description If true, return live data during freeze (admin only). */
+                live?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStatisticsFunnel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     GetCompetitionStatus: {
         parameters: {
             query?: never;
@@ -9808,6 +10949,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationResponse"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    GetNotificationsCount: {
+        parameters: {
+            query?: {
+                since_created_at?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationCountResponse"];
                 };
             };
             /** @description Bad Request */
@@ -10487,10 +11668,10 @@ export interface operations {
                     /** @description Erase existing data before import */
                     erase_existing?: boolean;
                     /**
-                     * @description How to handle conflicts
+                     * @description Conflict handling mode. ZIP imports currently support overwrite only.
                      * @enum {string}
                      */
-                    conflict_mode?: "merge" | "overwrite" | "skip";
+                    conflict_mode?: "overwrite";
                     /** @description Validate file checksums */
                     validate_files?: boolean;
                     /** @description Preserve admin roles for existing users during import */
@@ -10499,13 +11680,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Import result */
-            200: {
+            /** @description Import job accepted */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImportResult"];
+                    "application/json": components["schemas"]["ImportJobResponse"];
                 };
             };
             /** @description Bad Request */
@@ -10528,6 +11709,65 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    GetAdminImportJobsID: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Import job ID */
+                ID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import job status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Import job not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11564,6 +12804,315 @@ export interface operations {
             };
         };
     };
+    GetAdminTopics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicResponse"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostAdminTopics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTopicRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PutAdminTopicsID: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTopicRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    DeleteAdminTopicsID: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    GetAdminChallengesChallengeIDTopics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Challenge ID */
+                challengeID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopicResponse"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PutAdminChallengesChallengeIDTopics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Challenge ID */
+                challengeID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetChallengeTopicsRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     PostAdminFields: {
         parameters: {
             query?: never;
@@ -11956,6 +13505,10 @@ export interface operations {
             query?: {
                 /** @description Search query (team name) */
                 q?: string;
+                /** @description Admin team ban-state filter */
+                ban_status?: "all" | "not_banned" | "banned";
+                /** @description Admin team visibility filter */
+                visibility?: "all" | "visible" | "hidden";
                 page?: number;
                 per_page?: number;
             };
@@ -11985,6 +13538,213 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostAdminTeamsBulkBan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkBanTeamsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkActionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostAdminTeamsBulkUnban: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkTeamIDsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkActionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PatchAdminTeamsBulkHidden: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkSetHiddenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkActionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13000,6 +14760,77 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    PostAdminNotificationsTeamTeamID: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                teamID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserNotificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDeliveryResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     PutAdminNotificationsID: {
@@ -13621,7 +15452,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HintUnlockListResponse"];
+                    "application/json": components["schemas"]["UnlockListResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -14004,13 +15835,13 @@ export interface operations {
             };
         };
     };
-    DeleteAdminStoragePath: {
+    DeleteAdminStorage: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
+            query: {
                 path: string;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

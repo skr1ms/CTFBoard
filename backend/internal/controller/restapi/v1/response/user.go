@@ -9,6 +9,11 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
+const (
+	banSourceDirect        = openapi.BanStatusSourceDirect
+	banSourceTeamInherited = openapi.BanStatusSourceTeamInherited
+)
+
 func FromUserForRegister(u *domain.User) openapi.RegisterResponse {
 	if u == nil {
 		return openapi.RegisterResponse{}
@@ -30,6 +35,23 @@ func FromUserMe(me *usecase.UserMe) openapi.MeResponse {
 	return FromUserForMe(me.User, me.CustomFields)
 }
 
+func FromUpdateProfileResult(result *usecase.UserProfileUpdateResult) openapi.UpdateProfileResponse {
+	if result == nil {
+		return openapi.UpdateProfileResponse{}
+	}
+
+	resp := openapi.UpdateProfileResponse{
+		User: FromUserMe(result.Me),
+	}
+
+	if result.TokenPair != nil {
+		tokenPair := FromTokenPair(result.TokenPair)
+		resp.TokenPair = &tokenPair
+	}
+
+	return resp
+}
+
 func FromUserForMe(u *domain.User, customFields ...usecase.CustomFieldValues) openapi.MeResponse {
 	if u == nil {
 		return openapi.MeResponse{}
@@ -41,7 +63,7 @@ func FromUserForMe(u *domain.User, customFields ...usecase.CustomFieldValues) op
 		teamIDStr = new(u.TeamID.String())
 	}
 
-	hasPassword := u.PasswordHash != "" && u.PasswordHash != domain.OAuthOnlyPasswordSentinel
+	hasPassword := u.HasLocalPassword()
 
 	resp := openapi.MeResponse{
 		ID:          new(u.ID.String()),
@@ -54,11 +76,23 @@ func FromUserForMe(u *domain.User, customFields ...usecase.CustomFieldValues) op
 		HasPassword: &hasPassword,
 	}
 
-	if u.IsBanned {
+	isBlocked := u.IsBanned || (u.WasInBannedTeam && u.Role != domain.RoleAdmin)
+	if isBlocked {
+		source := banSourceDirect
+		canAppeal := false
+		hasPendingAppeal := false
+
+		if !u.IsBanned {
+			source = banSourceTeamInherited
+		}
+
 		resp.BanStatus = &openapi.BanStatus{
-			IsBanned: &u.IsBanned,
-			Reason:   u.BannedReason,
-			BannedAt: timePtr(u.BannedAt),
+			IsBanned:         &isBlocked,
+			Source:           &source,
+			Reason:           u.BannedReason,
+			BannedAt:         timePtr(u.BannedAt),
+			CanAppeal:        &canAppeal,
+			HasPendingAppeal: &hasPendingAppeal,
 		}
 	}
 
@@ -172,19 +206,37 @@ func FromAdminUser(u *domain.User) openapi.AdminUserResponse {
 		teamIDStr = new(u.TeamID.String())
 	}
 
+	isBlocked := u.IsBanned || (u.WasInBannedTeam && u.Role != domain.RoleAdmin)
+	banSource := adminUserBanSource(u)
+
 	return openapi.AdminUserResponse{
-		ID:           new(u.ID.String()),
-		Username:     new(u.Username),
-		Email:        new(u.Email),
-		Role:         new(string(u.Role)),
-		TeamID:       teamIDStr,
-		IsVerified:   new(u.IsVerified),
-		CreatedAt:    new(u.CreatedAt),
-		IsBanned:     new(u.IsBanned),
-		BannedAt:     u.BannedAt,
-		BannedReason: u.BannedReason,
-		AvatarURL:    u.AvatarURL,
+		ID:              new(u.ID.String()),
+		Username:        new(u.Username),
+		Email:           new(u.Email),
+		Role:            new(string(u.Role)),
+		TeamID:          teamIDStr,
+		IsVerified:      new(u.IsVerified),
+		CreatedAt:       new(u.CreatedAt),
+		IsBanned:        new(u.IsBanned),
+		WasInBannedTeam: new(u.WasInBannedTeam),
+		IsBlocked:       new(isBlocked),
+		BanSource:       &banSource,
+		BannedAt:        u.BannedAt,
+		BannedReason:    u.BannedReason,
+		AvatarURL:       u.AvatarURL,
 	}
+}
+
+func adminUserBanSource(u *domain.User) openapi.AdminUserResponseBanSource {
+	if u.IsBanned {
+		return openapi.AdminUserResponseBanSourceDirect
+	}
+
+	if u.WasInBannedTeam && u.Role != domain.RoleAdmin {
+		return openapi.AdminUserResponseBanSourceTeamInherited
+	}
+
+	return openapi.AdminUserResponseBanSourceNone
 }
 
 func FromAdminUserList(users []*domain.User, total int64, page, perPage int) openapi.AdminUserListResponse {

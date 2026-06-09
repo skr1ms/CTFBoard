@@ -14,6 +14,7 @@ import (
 	restapimiddleware "github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/middleware"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	wsController "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/avatar"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
@@ -67,6 +68,7 @@ func ProvideServerDeps(
 	wsHub *wskit.Hub,
 	v validator.Validator,
 	runtimeInvalidator *runtimeSettingsInvalidator,
+	TM repo.TransactionManager,
 	l logkit.Logger,
 ) (*helper.ServerDeps, error) {
 	forgotLimiter, err := restapimiddleware.NewPerKeyRateLimiter(redisClient, rlKeyForgot, forgotPasswordRateLimit, perKeyRateLimitWindow)
@@ -153,6 +155,7 @@ func ProvideServerDeps(
 			ResendVerificationRateLimiter: resendLimiter,
 			ResetPasswordTokenRateLimiter: resetTokenLimiter,
 			RatelimitAuditWG:              ratelimitAuditWG,
+			TM:                            TM,
 		},
 	}, nil
 }

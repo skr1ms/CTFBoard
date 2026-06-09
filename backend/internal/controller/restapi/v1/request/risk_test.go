@@ -11,6 +11,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func TestSetupRequestToParamsNilRequest(t *testing.T) {
@@ -147,12 +148,13 @@ func TestFileTypeMappings(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-func TestValidateUploadFilenameRejectsDangerousExtensions(t *testing.T) {
+func TestValidateChallengeUploadFilenameAllowsCTFArtifacts(t *testing.T) {
 	t.Parallel()
 
-	assert.NoError(t, ValidateUploadFilename("archive.tar.gz"))
+	assert.NoError(t, ValidateChallengeUploadFilename("archive.tar.gz"))
+	assert.NoError(t, ValidateChallengeUploadFilename("shell.php.txt"))
 
-	err := ValidateUploadFilename("shell.php.txt")
+	err := ValidateChallengeUploadFilename("")
 	require.Error(t, err)
 
 	var validationErr *apperr.ValidationError
@@ -178,6 +180,82 @@ func TestAdminUsersSearchParams(t *testing.T) {
 	assert.NoError(t, ValidateAdminUsersSearch(UserSearchFieldUsername, new("not an ip")))
 	assert.NoError(t, ValidateAdminUsersSearch(UserSearchFieldIP, new("192.0.2.1")))
 	assert.Error(t, ValidateAdminUsersSearch(UserSearchFieldIP, new("not an ip")))
+}
+
+func TestAdminUsersBanStatusParamsAndBulkRequests(t *testing.T) {
+	t.Parallel()
+
+	status, err := AdminUsersBanStatusFromParams(openapi.GetAdminUsersParams{})
+	require.NoError(t, err)
+	assert.Equal(t, usecase.AdminUserBanStatusAll, status)
+
+	direct := openapi.GetAdminUsersParamsBanStatusDirect
+	status, err = AdminUsersBanStatusFromParams(openapi.GetAdminUsersParams{BanStatus: &direct})
+	require.NoError(t, err)
+	assert.Equal(t, usecase.AdminUserBanStatusDirect, status)
+
+	invalid := openapi.GetAdminUsersParamsBanStatus("legacy")
+	_, err = AdminUsersBanStatusFromParams(openapi.GetAdminUsersParams{BanStatus: &invalid})
+	require.Error(t, err)
+
+	userID := uuid.New()
+	ids, reason := BulkBanUsersRequestToParams(&openapi.BulkBanUsersRequest{
+		Ids:    []uuid.UUID{userID},
+		Reason: "abuse",
+	})
+	assert.Equal(t, []uuid.UUID{userID}, ids)
+	assert.Equal(t, "abuse", reason)
+
+	ids = BulkUserIDsRequestToParams(&openapi.BulkUserIDsRequest{Ids: []uuid.UUID{userID}})
+	assert.Equal(t, []uuid.UUID{userID}, ids)
+}
+
+func TestAdminTeamsBanStatusVisibilityAndBulkRequests(t *testing.T) {
+	t.Parallel()
+
+	banStatus, err := AdminTeamsBanStatusFromParams(openapi.GetAdminTeamsParams{})
+	require.NoError(t, err)
+	assert.Equal(t, usecase.AdminTeamBanStatusAll, banStatus)
+
+	banned := openapi.GetAdminTeamsParamsBanStatusBanned
+	banStatus, err = AdminTeamsBanStatusFromParams(openapi.GetAdminTeamsParams{BanStatus: &banned})
+	require.NoError(t, err)
+	assert.Equal(t, usecase.AdminTeamBanStatusBanned, banStatus)
+
+	invalidBanStatus := openapi.GetAdminTeamsParamsBanStatus("blocked")
+	_, err = AdminTeamsBanStatusFromParams(openapi.GetAdminTeamsParams{BanStatus: &invalidBanStatus})
+	require.Error(t, err)
+
+	visibility, err := AdminTeamsVisibilityFromParams(openapi.GetAdminTeamsParams{})
+	require.NoError(t, err)
+	assert.Equal(t, usecase.AdminTeamVisibilityAll, visibility)
+
+	hidden := openapi.GetAdminTeamsParamsVisibilityHidden
+	visibility, err = AdminTeamsVisibilityFromParams(openapi.GetAdminTeamsParams{Visibility: &hidden})
+	require.NoError(t, err)
+	assert.Equal(t, usecase.AdminTeamVisibilityHidden, visibility)
+
+	invalidVisibility := openapi.GetAdminTeamsParamsVisibility("archived")
+	_, err = AdminTeamsVisibilityFromParams(openapi.GetAdminTeamsParams{Visibility: &invalidVisibility})
+	require.Error(t, err)
+
+	teamID := uuid.New()
+	banMembers := true
+	ids, reason, gotBanMembers := BulkBanTeamsRequestToParams(&openapi.BulkBanTeamsRequest{
+		Ids:        []uuid.UUID{teamID},
+		Reason:     "abuse",
+		BanMembers: &banMembers,
+	})
+	assert.Equal(t, []uuid.UUID{teamID}, ids)
+	assert.Equal(t, "abuse", reason)
+	assert.True(t, gotBanMembers)
+
+	ids = BulkTeamIDsRequestToParams(&openapi.BulkTeamIDsRequest{Ids: []uuid.UUID{teamID}})
+	assert.Equal(t, []uuid.UUID{teamID}, ids)
+
+	ids, hiddenFlag := BulkSetHiddenRequestToParams(&openapi.BulkSetHiddenRequest{Ids: []uuid.UUID{teamID}, Hidden: true})
+	assert.Equal(t, []uuid.UUID{teamID}, ids)
+	assert.True(t, hiddenFlag)
 }
 
 func TestAdminUserRoleParams(t *testing.T) {
@@ -221,4 +299,24 @@ func TestUpdateProfileRequestToParamsMapsCustomFields(t *testing.T) {
 	assert.Equal(t, &username, got.Username)
 	require.NotNil(t, got.CustomFields)
 	assert.Equal(t, customFields, *got.CustomFields)
+}
+
+func TestOAuthExchangeRequestToParamsTrimsCode(t *testing.T) {
+	t.Parallel()
+
+	got, err := OAuthExchangeRequestToParams(&openapi.OAuthExchangeRequest{Code: "  abc123  "})
+
+	require.NoError(t, err)
+	assert.Equal(t, "abc123", got)
+}
+
+func TestOAuthExchangeRequestToParamsRejectsEmptyCode(t *testing.T) {
+	t.Parallel()
+
+	_, err := OAuthExchangeRequestToParams(&openapi.OAuthExchangeRequest{Code: " \t\n "})
+
+	require.Error(t, err)
+
+	var validationErr *apperr.ValidationError
+	assert.ErrorAs(t, err, &validationErr)
 }

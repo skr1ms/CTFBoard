@@ -59,6 +59,12 @@ schemas:
     properties:
       is_banned:
         type: boolean
+      source:
+        type: string
+        enum:
+          - direct
+          - team_inherited
+        description: direct user ban or inherited restriction from a previously banned team
       reason:
         type: string
       banned_at:
@@ -94,6 +100,15 @@ schemas:
       ban_status:
         $ref: '#/schemas/response.BanStatus'
     type: object
+  response.UpdateProfileResponse:
+    type: object
+    required:
+      - user
+    properties:
+      user:
+        $ref: '#/schemas/response.MeResponse'
+      token_pair:
+        $ref: '#/schemas/jwt.TokenPair'
   response.RegisterResponse:
     properties:
       created_at:

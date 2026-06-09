@@ -266,6 +266,10 @@ schemas:
       team_id:
         type: string
         format: uuid
+      banned_team_id:
+        type: string
+        format: uuid
+        nullable: true
       value:
         type: integer
       review:

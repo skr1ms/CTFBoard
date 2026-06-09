@@ -15,12 +15,13 @@ const (
 	rlKeyResetTok = "reset-token"
 	rlKeyGeneral  = "general:ip"
 
-	requestTimeout    = 60 * time.Second
-	rateLimitCacheTTL = 30 * time.Second
+	requestTimeout     = 60 * time.Second
+	longRequestTimeout = 10 * time.Minute
+	rateLimitCacheTTL  = 30 * time.Second
 
-	httpReadTimeout  = 15 * time.Second
-	httpWriteTimeout = 100 * time.Second
-	httpIdleTimeout  = time.Minute
+	httpReadHeaderTimeout = 15 * time.Second
+	httpWriteTimeout      = 10 * time.Minute
+	httpIdleTimeout       = time.Minute
 
 	loginLockoutMaxAttempts      = 5
 	loginLockoutTTL              = time.Minute
@@ -35,9 +36,8 @@ const (
 type healthCheckerFunc func(context.Context) error
 
 type runtimeSettingsInvalidator struct {
-	mu                        sync.RWMutex
-	rateLimitCache            *restapimiddleware.RateLimitConfigCache
-	scoreboardVisibilityCache *restapimiddleware.ScoreboardVisibilityCache
+	mu             sync.RWMutex
+	rateLimitCache *restapimiddleware.RateLimitConfigCache
 }
 
 type teamBracketIDGetter struct {

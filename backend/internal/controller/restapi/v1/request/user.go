@@ -19,6 +19,14 @@ func BanUserRequestToParams(req *openapi.BanUserRequest) string {
 	return req.Reason
 }
 
+func BulkBanUsersRequestToParams(req *openapi.BulkBanUsersRequest) ([]uuid.UUID, string) {
+	return req.Ids, req.Reason
+}
+
+func BulkUserIDsRequestToParams(req *openapi.BulkUserIDsRequest) []uuid.UUID {
+	return req.Ids
+}
+
 func AdminUsersFieldFromParams(params openapi.GetAdminUsersParams) (string, error) {
 	if params.Field == nil {
 		return UserSearchFieldUsername, nil
@@ -29,6 +37,18 @@ func AdminUsersFieldFromParams(params openapi.GetAdminUsersParams) (string, erro
 	}
 
 	return string(*params.Field), nil
+}
+
+func AdminUsersBanStatusFromParams(params openapi.GetAdminUsersParams) (usecase.AdminUserBanStatus, error) {
+	if params.BanStatus == nil {
+		return usecase.AdminUserBanStatusAll, nil
+	}
+
+	if !params.BanStatus.Valid() {
+		return "", apperr.NewValidationErrorf("ban_status must be one of: all, not_banned, direct, team_inherited, blocked")
+	}
+
+	return usecase.AdminUserBanStatus(*params.BanStatus), nil
 }
 
 func ValidateAdminUsersSearch(field string, q *string) error {

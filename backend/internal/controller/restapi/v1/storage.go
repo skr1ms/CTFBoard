@@ -5,9 +5,11 @@ import (
 
 	"github.com/wahrwelt-kit/go-httpkit/httputil"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/helper"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/request"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/controller/restapi/v1/response"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // (GET /admin/storage).
@@ -30,14 +32,25 @@ func (h *Server) GetAdminStorage(w http.ResponseWriter, r *http.Request, params 
 	httputil.RenderOK(w, r, response.FromStorageList(paths))
 }
 
-// (DELETE /admin/storage/{path}).
-func (h *Server) DeleteAdminStoragePath(w http.ResponseWriter, r *http.Request, path string) {
-	if err := request.ValidateStoragePath(path); h.OnError(w, r, err, "DeleteAdminStoragePath", "Validate") {
+// (DELETE /admin/storage).
+func (h *Server) DeleteAdminStorage(w http.ResponseWriter, r *http.Request, params openapi.DeleteAdminStorageParams) {
+	path := params.Path
+
+	if err := request.ValidateStoragePath(path); h.OnError(w, r, err, "DeleteAdminStorage", "Validate") {
 		return
 	}
 
-	err := h.admin.StorageAdminUC.Delete(r.Context(), path)
-	if h.OnError(w, r, err, "DeleteAdminStoragePath", "Delete") {
+	user, ok := helper.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	err := h.admin.StorageAdminUC.Delete(r.Context(), usecase.StorageAdminDeleteParams{
+		Path:     path,
+		ActorID:  user.ID,
+		ClientIP: helper.ClientIP(r),
+	})
+	if h.OnError(w, r, err, "DeleteAdminStorage", "Delete") {
 		return
 	}
 

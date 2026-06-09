@@ -47,7 +47,7 @@ func setupAdminAppealRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapp
 
 func setupAdminStorageRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 	adm.Get("/admin/storage", wrapper.GetAdminStorage)
-	adm.Delete("/admin/storage/{path}", wrapper.DeleteAdminStoragePath)
+	adm.Delete("/admin/storage", wrapper.DeleteAdminStorage)
 }
 
 func setupAdminConfigRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
@@ -88,6 +88,8 @@ func setupAdminAwardRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrappe
 func setupAdminUserRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 	adm.Get("/admin/users", wrapper.GetAdminUsers)
 	adm.Post("/admin/users", wrapper.PostAdminUsers)
+	adm.Post("/admin/users/bulk/ban", wrapper.PostAdminUsersBulkBan)
+	adm.Post("/admin/users/bulk/unban", wrapper.PostAdminUsersBulkUnban)
 	adm.Patch("/admin/users/{ID}", wrapper.PatchAdminUsersID)
 	adm.Delete("/admin/users/{ID}", wrapper.DeleteAdminUsersID)
 	adm.Get("/admin/users/{ID}/tracking", wrapper.GetAdminUsersIDTracking)
@@ -100,6 +102,9 @@ func setupAdminUserRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper
 
 func setupAdminTeamRoutes(adm chi.Router, wrapper openapi.ServerInterfaceWrapper) {
 	adm.Get("/admin/teams", wrapper.GetAdminTeams)
+	adm.Post("/admin/teams/bulk/ban", wrapper.PostAdminTeamsBulkBan)
+	adm.Post("/admin/teams/bulk/unban", wrapper.PostAdminTeamsBulkUnban)
+	adm.Patch("/admin/teams/bulk/hidden", wrapper.PatchAdminTeamsBulkHidden)
 	adm.Patch("/admin/teams/{ID}", wrapper.PatchAdminTeamsID)
 	adm.Delete("/admin/teams/{ID}", wrapper.DeleteAdminTeamsID)
 	adm.Get("/admin/teams/{ID}/members", wrapper.GetAdminTeamsIDMembers)

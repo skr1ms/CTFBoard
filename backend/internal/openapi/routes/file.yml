@@ -52,7 +52,7 @@
 /files/by-id/{ID}/download:
   get:
     operationId: GetFilesIDDownload
-    description: Returns presigned URL for file download
+    description: Returns an authenticated signed backend URL for file download
     parameters:
       - description: File ID
         in: path
@@ -88,7 +88,7 @@
     security:
       - BearerAuth: []
       - ApiTokenAuth: []
-    summary: Get download URL
+    summary: Get signed backend download URL
     tags:
       - Challenges
 
