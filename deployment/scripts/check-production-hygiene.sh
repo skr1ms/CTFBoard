@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-generated_tracked="$(git ls-files deployment/seaweedfs/s3.json monitoring/alertmanager/alertmanager.yml)"
+generated_tracked="$(git ls-files deployment/seaweedfs/s3.json monitoring/alertmanager/alertmanager.yml .vault-keys '.vault-keys.*')"
 if [ -n "$generated_tracked" ]; then
   echo "Generated secret-bearing files must not be tracked:" >&2
   printf '%s\n' "$generated_tracked" >&2

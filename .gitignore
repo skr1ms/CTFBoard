@@ -74,6 +74,7 @@ backend/internal/openapi/components/schemas.yml
 backend/internal/openapi/openapi.yaml
 PRD/
 .vault-keys
+.vault-keys.*
 deployment/haproxy/certs/
 deployment/seaweedfs/s3.json
 monitoring/alertmanager/alertmanager.yml
