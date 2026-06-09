@@ -85,7 +85,7 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	shareUseCase := ProvideShareUseCase(cfg, solveRepo, challengeRepo, userRepo, teamRepo, competitionParamUseCase)
 	backupRepo := ProvideBackupRepo(pool)
 	commentRepo := ProvideCommentRepo(pool)
-	backupUseCase := ProvideBackupUseCase(ctx, competitionRepo, challengeRepo, tagRepo, topicRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, submissionRepo, fileRepo, backupRepo, settingsRepo, auditLogRepo, bracketRepo, commentRepo, fieldRepo, fieldValueRepo, ratingRepo, storageProvider, transactionManager, l)
+	backupUseCase := ProvideBackupUseCase(ctx, competitionRepo, challengeRepo, pageRepo, tagRepo, topicRepo, hintRepo, teamRepo, userRepo, awardRepo, solveRepo, submissionRepo, fileRepo, backupRepo, settingsRepo, auditLogRepo, bracketRepo, commentRepo, fieldRepo, fieldValueRepo, ratingRepo, storageProvider, transactionManager, l)
 	useCase := ProvideStorageAdminUseCase(storageProvider, auditLogRepo)
 	commentUseCase := ProvideCommentUseCase(commentRepo, challengeRepo, solveRepo, userRepo, teamRepo, transactionManager)
 	ratingUseCase := ProvideRatingUseCase(challengeRepo, solveRepo, ratingRepo, userRepo, teamRepo, transactionManager)

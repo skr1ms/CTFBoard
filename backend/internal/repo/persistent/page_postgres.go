@@ -12,6 +12,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
 	pageuc "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page"
 )
@@ -22,6 +23,7 @@ type PageRepo struct {
 
 var _ pageuc.PageRepository = (*PageRepo)(nil)
 var _ challenge.PageReader = (*PageRepo)(nil)
+var _ backup.PageRepository = (*PageRepo)(nil)
 
 func NewPageRepo(pool *pgxpool.Pool) *PageRepo {
 	return &PageRepo{BaseRepo: BaseRepo{pool: pool}}

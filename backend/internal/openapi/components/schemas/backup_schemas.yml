@@ -31,6 +31,10 @@ schemas:
         type: array
         items:
           $ref: "#/schemas/BackupBracket"
+      pages:
+        type: array
+        items:
+          $ref: "#/schemas/BackupPage"
       challenge_requirements:
         type: array
         items:
@@ -113,6 +117,28 @@ schemas:
       is_default:
         type: boolean
       created_at:
+        type: string
+        format: date-time
+    type: object
+  BackupPage:
+    properties:
+      id:
+        type: string
+        format: uuid
+      title:
+        type: string
+      slug:
+        type: string
+      content:
+        type: string
+      is_draft:
+        type: boolean
+      order_index:
+        type: integer
+      created_at:
+        type: string
+        format: date-time
+      updated_at:
         type: string
         format: date-time
     type: object

@@ -35,9 +35,8 @@ func TestBackupRepo_EraseAllTablesTx_Success(t *testing.T) {
 	_, err = f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	assert.Error(t, err)
 
-	gotPage, err := f.PageRepo.GetByID(ctx, page.ID)
-	require.NoError(t, err)
-	assert.Equal(t, page.ID, gotPage.ID)
+	_, err = f.PageRepo.GetByID(ctx, page.ID)
+	assert.Error(t, err)
 
 	gotNotification, err := f.NotificationRepo.GetByID(ctx, notification.ID)
 	require.NoError(t, err)

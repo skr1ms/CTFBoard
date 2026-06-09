@@ -34,6 +34,30 @@ func (uc *BackupUseCase) exportBrackets(ctx context.Context, backup *domain.Back
 	})
 }
 
+func (uc *BackupUseCase) exportPages(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
+	if uc.deps.PageRepo == nil {
+		return
+	}
+
+	g.Go(func() error {
+		list, err := uc.deps.PageRepo.GetAllList(ctx)
+		if err != nil {
+			return fmt.Errorf("BackupUseCase - Export - PageRepo.GetAllList: %w", err)
+		}
+
+		out := make([]domain.Page, len(list))
+		for i, p := range list {
+			out[i] = *p
+		}
+
+		mu.Lock()
+		backup.Pages = out
+		mu.Unlock()
+
+		return nil
+	})
+}
+
 func (uc *BackupUseCase) exportChallengeRequirements(ctx context.Context, backup *domain.BackupData, mu *sync.Mutex, g *errgroup.Group) {
 	g.Go(func() error {
 		list, err := uc.deps.ChallengeRepo.GetAllRequirementPairs(ctx)

@@ -221,6 +221,57 @@ func (_c *MockBackupRepository_EraseAllTables_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// ErasePages provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ErasePages(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ErasePages")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ErasePages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErasePages'
+type MockBackupRepository_ErasePages_Call struct {
+	*mock.Call
+}
+
+// ErasePages is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockBackupRepository_Expecter) ErasePages(ctx interface{}) *MockBackupRepository_ErasePages_Call {
+	return &MockBackupRepository_ErasePages_Call{Call: _e.mock.On("ErasePages", ctx)}
+}
+
+func (_c *MockBackupRepository_ErasePages_Call) Run(run func(ctx context.Context)) *MockBackupRepository_ErasePages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ErasePages_Call) Return(err error) *MockBackupRepository_ErasePages_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ErasePages_Call) RunAndReturn(run func(ctx context.Context) error) *MockBackupRepository_ErasePages_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EraseTables provides a mock function for the type MockBackupRepository
 func (_mock *MockBackupRepository) EraseTables(ctx context.Context, tables []string) error {
 	ret := _mock.Called(ctx, tables)
@@ -1226,6 +1277,63 @@ func (_c *MockBackupRepository_ImportHintUnlocks_Call) Return(err error) *MockBa
 }
 
 func (_c *MockBackupRepository_ImportHintUnlocks_Call) RunAndReturn(run func(ctx context.Context, data *domain.BackupData) error) *MockBackupRepository_ImportHintUnlocks_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ImportPages provides a mock function for the type MockBackupRepository
+func (_mock *MockBackupRepository) ImportPages(ctx context.Context, data *domain.BackupData) error {
+	ret := _mock.Called(ctx, data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ImportPages")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.BackupData) error); ok {
+		r0 = returnFunc(ctx, data)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockBackupRepository_ImportPages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ImportPages'
+type MockBackupRepository_ImportPages_Call struct {
+	*mock.Call
+}
+
+// ImportPages is a helper method to define mock.On call
+//   - ctx context.Context
+//   - data *domain.BackupData
+func (_e *MockBackupRepository_Expecter) ImportPages(ctx interface{}, data interface{}) *MockBackupRepository_ImportPages_Call {
+	return &MockBackupRepository_ImportPages_Call{Call: _e.mock.On("ImportPages", ctx, data)}
+}
+
+func (_c *MockBackupRepository_ImportPages_Call) Run(run func(ctx context.Context, data *domain.BackupData)) *MockBackupRepository_ImportPages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.BackupData
+		if args[1] != nil {
+			arg1 = args[1].(*domain.BackupData)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportPages_Call) Return(err error) *MockBackupRepository_ImportPages_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockBackupRepository_ImportPages_Call) RunAndReturn(run func(ctx context.Context, data *domain.BackupData) error) *MockBackupRepository_ImportPages_Call {
 	_c.Call.Return(run)
 	return _c
 }

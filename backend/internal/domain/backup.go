@@ -40,6 +40,7 @@ type BackupData struct {
 	Topics                []Topic                    `json:"topics,omitempty"`
 	Challenges            []ChallengeExport          `json:"challenges"`
 	Brackets              []Bracket                  `json:"brackets,omitempty"`
+	Pages                 []Page                     `json:"pages,omitempty"`
 	ChallengeRequirements []ChallengeRequirementPair `json:"challenge_requirements,omitempty"`
 	Solutions             []SolutionBackup           `json:"solutions,omitempty"`
 	Teams                 []TeamExport               `json:"teams,omitempty"`

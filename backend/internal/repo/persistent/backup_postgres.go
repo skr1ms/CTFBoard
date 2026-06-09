@@ -17,23 +17,29 @@ const (
 )
 
 var backupEraseTables = []string{
-	"submissions", "solves", "awards", "ratings", "hint_unlocks", "files", "hints", "challenge_topics", "challenge_tags", "challenge_requirements", "solutions", "challenges", "topics", "tags", "users", "teams", "comments", "field_values", "fields", "brackets",
+	"submissions", "solves", "awards", "ratings", "hint_unlocks", "files", "hints", "challenge_topics", "challenge_tags", "challenge_requirements", "solutions", "challenges", "topics", "tags", "users", "teams", "comments", "field_values", "fields", "brackets", "pages",
 }
+
+var backupResetEraseTables = append(append([]string{}, backupEraseTables...), "notifications")
 
 // quoteIdentifier returns a PostgreSQL-quoted identifier (double-quote escaped).
 func quoteIdentifier(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
-// backupEraseTablesQuoted maps each allowed table name to its PostgreSQL-quoted form
-// Used so TRUNCATE is built only from fixed quoted identifiers, not string concatenation of input.
-var backupEraseTablesQuoted = func() map[string]string {
-	m := make(map[string]string, len(backupEraseTables))
-	for _, t := range backupEraseTables {
+func backupQuotedTables(tables []string) map[string]string {
+	m := make(map[string]string, len(tables))
+	for _, t := range tables {
 		m[t] = quoteIdentifier(t)
 	}
 
 	return m
+}
+
+// backupEraseTablesQuoted maps each allowed table name to its PostgreSQL-quoted form
+// Used so TRUNCATE is built only from fixed quoted identifiers, not string concatenation of input.
+var backupEraseTablesQuoted = func() map[string]string {
+	return backupQuotedTables(backupResetEraseTables)
 }()
 
 var (
@@ -56,6 +62,7 @@ var (
 	backupHintUnlockImportCols = []string{"id", "hint_id", "team_id", "unlocked_at", "banned_team_id"}
 	backupFileImportCols       = []string{"id", "type", "challenge_id", "page_id", "location", "filename", "size", "sha256", "created_at"}
 	backupBracketImportCols    = []string{"id", "name", "description", "is_default", "created_at"}
+	backupPageImportCols       = []string{"id", "title", "slug", "content", "is_draft", "order_index", "created_at", "updated_at"}
 	backupChallengeReqCols     = []string{"challenge_id", "required_challenge_id"}
 	backupSolutionImportCols   = []string{"id", "challenge_id", "content", "state"}
 	backupCommentImportCols    = []string{"id", "user_id", "challenge_id", "content", "created_at", "updated_at"}
@@ -82,6 +89,7 @@ const (
 	backupHintUnlockConflictSuffix = `ON CONFLICT (team_id, hint_id) DO NOTHING`
 	backupFileUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, challenge_id = EXCLUDED.challenge_id, page_id = EXCLUDED.page_id, location = EXCLUDED.location, filename = EXCLUDED.filename, size = EXCLUDED.size, sha256 = EXCLUDED.sha256`
 	backupBracketUpsertSuffix      = `ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, is_default = EXCLUDED.is_default`
+	backupPageUpsertSuffix         = `ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, slug = EXCLUDED.slug, content = EXCLUDED.content, is_draft = EXCLUDED.is_draft, order_index = EXCLUDED.order_index, updated_at = EXCLUDED.updated_at`
 	backupChallengeReqConflict     = `ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING`
 	backupSolutionUpsertSuffix     = `ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content, state = EXCLUDED.state`
 	backupRatingUpsertSuffix       = `ON CONFLICT (team_id, challenge_id) DO UPDATE SET user_id = EXCLUDED.user_id, banned_team_id = EXCLUDED.banned_team_id, value = EXCLUDED.value, review = EXCLUDED.review, updated_at = EXCLUDED.updated_at`
@@ -122,7 +130,7 @@ func (r *BackupRepo) EraseAllTables(ctx context.Context) error {
 
 // EraseTables truncates a dynamic set of tables with CASCADE. Each table name is
 // validated against an allowlist before inclusion to prevent SQL injection; names
-// not in the allowlist are silently skipped.
+// not in the allowlist return an error.
 func (r *BackupRepo) EraseTables(ctx context.Context, tables []string) error {
 	if len(tables) == 0 {
 		return nil
@@ -144,6 +152,15 @@ func (r *BackupRepo) EraseTables(ctx context.Context, tables []string) error {
 	_, err := r.DB(ctx).Exec(ctx, sql)
 	if err != nil {
 		return fmt.Errorf("BackupRepo - EraseTables: %w", err)
+	}
+
+	return nil
+}
+
+func (r *BackupRepo) ErasePages(ctx context.Context) error {
+	_, err := r.DB(ctx).Exec(ctx, "DELETE FROM pages")
+	if err != nil {
+		return fmt.Errorf("BackupRepo - ErasePages: %w", err)
 	}
 
 	return nil

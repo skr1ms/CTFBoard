@@ -37,6 +37,7 @@ the payload to that exact path.
 - `version`, `exported_at`, and the singleton `competition` record.
 - Challenge content, challenge tags, hints, requirements, and official
   solutions.
+- Static pages authored by admins.
 - Optional teams, users, awards, solves, hint unlocks, file metadata, comments,
   custom fields, field values, ratings, brackets, and tags.
 
@@ -63,8 +64,9 @@ Import options:
   accounts are downgraded to participant users.
 
 Database records are imported in one transaction. The restore order is:
-competition, tags, challenges, challenge tags, brackets, users, teams, user team
-membership links, awards, solves, hint unlocks, file metadata, challenge
+competition, tags, topics, challenges, challenge tags, challenge topics,
+brackets, pages, users, teams, user team membership links, awards, solves,
+hint unlocks, file metadata, challenge
 requirements, solutions, ratings, comments, fields, and field values.
 
 File payload upload happens after the database transaction commits because

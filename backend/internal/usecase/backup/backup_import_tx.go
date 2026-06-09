@@ -42,7 +42,7 @@ func (uc *BackupUseCase) importZIPRunTx(ctx context.Context, backupData *domain.
 
 // importZIPRunTxImports inserts all backup entities in dependency order inside
 // the caller's transaction: competition settings -> tags -> topics -> challenges -> brackets ->
-// users -> teams -> memberships -> awards -> solves -> hint unlocks -> files -> requirements
+// pages -> users -> teams -> memberships -> awards -> solves -> hint unlocks -> files -> requirements
 // -> challenge topics -> solutions -> ratings -> comments -> fields -> field values. Each step calls a repo
 // method that uses ON CONFLICT DO NOTHING so re-imports are idempotent.
 func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *domain.BackupData, opts domain.ImportOptions) error {
@@ -79,6 +79,11 @@ func (uc *BackupUseCase) importZIPRunTxImports(ctx context.Context, backupData *
 	err = uc.deps.BackupRepo.ImportBrackets(ctx, backupData)
 	if err != nil {
 		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportBrackets: %w", err)
+	}
+
+	err = uc.deps.BackupRepo.ImportPages(ctx, backupData)
+	if err != nil {
+		return fmt.Errorf("BackupUseCase - ImportZIP - BackupRepo.ImportPages: %w", err)
 	}
 
 	uc.importNormalizeUserRoles(backupData, opts)

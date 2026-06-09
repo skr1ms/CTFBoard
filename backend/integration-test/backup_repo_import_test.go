@@ -125,6 +125,44 @@ func TestBackupRepo_ImportChallengesTx_Error_InvalidHintChallengeID(t *testing.T
 	assert.Error(t, err)
 }
 
+func TestBackupRepo_ImportPagesTx_Success(t *testing.T) {
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	pageID := uuid.New()
+	now := time.Now().UTC().Truncate(time.Second)
+	data := &domain.BackupData{
+		Pages: []domain.Page{
+			{
+				ID:         pageID,
+				Title:      "Rules",
+				Slug:       "rules",
+				Content:    "No spoilers",
+				IsDraft:    true,
+				OrderIndex: 7,
+				CreatedAt:  now,
+				UpdatedAt:  now.Add(time.Minute),
+			},
+		},
+	}
+
+	err := f.TM.Run(ctx, func(txCtx context.Context) error {
+		return f.BackupRepo.ImportPages(txCtx, data)
+	})
+	require.NoError(t, err)
+
+	got, err := f.PageRepo.GetBySlug(ctx, "rules")
+	require.NoError(t, err)
+	assert.Equal(t, pageID, got.ID)
+	assert.Equal(t, "Rules", got.Title)
+	assert.Equal(t, "No spoilers", got.Content)
+	assert.True(t, got.IsDraft)
+	assert.Equal(t, 7, got.OrderIndex)
+	assert.WithinDuration(t, now, got.CreatedAt, time.Second)
+	assert.WithinDuration(t, now.Add(time.Minute), got.UpdatedAt, time.Second)
+}
+
 func TestBackupRepo_ImportTeamsTx_Success(t *testing.T) {
 	testPool := SetupTestPool(t)
 	f := NewTestFixture(testPool.Pool)

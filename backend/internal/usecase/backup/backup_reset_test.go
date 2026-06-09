@@ -40,6 +40,51 @@ func TestBackupUseCase_Reset_Success(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestBackupUseCase_ResetPages_UsesScopedErase(t *testing.T) {
+	t.Parallel()
+	tm := backupMock.NewMockTransactionManager(t)
+	backupRepo := backupMock.NewMockBackupRepository(t)
+	log := logMock.NewMockLogger(t)
+
+	tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	backupRepo.EXPECT().ErasePages(mock.Anything).Return(nil).Once()
+
+	uc := NewBackupUseCase(BackupDeps{
+		TM:         tm,
+		BackupRepo: backupRepo,
+		Logger:     log,
+	})
+
+	err := uc.Reset(context.Background(), domain.AdminResetOptions{Pages: true})
+
+	require.NoError(t, err)
+}
+
+func TestBackupUseCase_ResetPagesAndSubmissions_RunsBothErasers(t *testing.T) {
+	t.Parallel()
+	tm := backupMock.NewMockTransactionManager(t)
+	backupRepo := backupMock.NewMockBackupRepository(t)
+	log := logMock.NewMockLogger(t)
+
+	tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	backupRepo.EXPECT().EraseTables(mock.Anything, mock.AnythingOfType("[]string")).Return(nil).Once()
+	backupRepo.EXPECT().ErasePages(mock.Anything).Return(nil).Once()
+
+	uc := NewBackupUseCase(BackupDeps{
+		TM:         tm,
+		BackupRepo: backupRepo,
+		Logger:     log,
+	})
+
+	err := uc.Reset(context.Background(), domain.AdminResetOptions{Pages: true, Submissions: true})
+
+	require.NoError(t, err)
+}
+
 func TestBackupUseCase_Reset_Error(t *testing.T) {
 	t.Parallel()
 	tm := backupMock.NewMockTransactionManager(t)

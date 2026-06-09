@@ -330,6 +330,13 @@ func (r *BackupRepo) ImportBrackets(ctx context.Context, data *domain.BackupData
 		})
 }
 
+func (r *BackupRepo) ImportPages(ctx context.Context, data *domain.BackupData) error {
+	return execImportBatches(ctx, r, "ImportPages", data.Pages, "pages", backupPageImportCols, backupPageUpsertSuffix,
+		func(q squirrel.InsertBuilder, p domain.Page) squirrel.InsertBuilder {
+			return q.Values(p.ID, p.Title, p.Slug, p.Content, p.IsDraft, p.OrderIndex, p.CreatedAt, p.UpdatedAt)
+		})
+}
+
 func (r *BackupRepo) ImportChallengeRequirements(ctx context.Context, data *domain.BackupData) error {
 	return execImportBatches(ctx, r, "ImportChallengeRequirements", data.ChallengeRequirements, "challenge_requirements", backupChallengeReqCols, backupChallengeReqConflict,
 		func(q squirrel.InsertBuilder, p domain.ChallengeRequirementPair) squirrel.InsertBuilder {

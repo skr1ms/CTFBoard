@@ -170,6 +170,7 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 	apiToken := userUC.NewAPITokenUseCase(userUC.APITokenDeps{Repo: repos.apiTokenRepo})
 	bk := backupUC.NewBackupUseCase(backupUC.BackupDeps{
 		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo,
+		PageRepo: repos.pageRepo,
 		HintRepo: repos.hintRepo, TeamRepo: repos.teamRepo, UserRepo: repos.userRepo,
 		AwardRepo: repos.awardRepo, SolveRepo: repos.solveRepo,
 		SubmissionRepo: repos.submissionRepo, FileRepo: repos.fileRepo,

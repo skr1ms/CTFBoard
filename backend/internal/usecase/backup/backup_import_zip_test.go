@@ -49,6 +49,7 @@ func TestBackupUseCase_ImportZIP_Success(t *testing.T) {
 	backupRepo.EXPECT().ImportChallengeTags(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportChallengeTopics(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportBrackets(mock.Anything, mock.Anything).Return(nil).Once()
+	backupRepo.EXPECT().ImportPages(mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportUsers(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().ImportTeams(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	backupRepo.EXPECT().UpdateUserTeamIDs(mock.Anything, mock.Anything).Return(nil).Once()

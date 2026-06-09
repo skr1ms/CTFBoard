@@ -434,6 +434,7 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 	apiTokenUC := user.NewAPITokenUseCase(user.APITokenDeps{Repo: repos.apiTokenRepo})
 	backupUC := backup.NewBackupUseCase(backup.BackupDeps{
 		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo, TagRepo: repos.tagRepo, HintRepo: repos.hintRepo,
+		PageRepo: repos.pageRepo,
 		TeamRepo: repos.teamRepo, UserRepo: repos.userRepo, AwardRepo: repos.awardRepo,
 		SolveRepo: repos.solveRepo, SubmissionRepo: repos.submissionRepo, FileRepo: repos.fileRepo,
 		BackupRepo: repos.backupRepo, SettingsRepo: repos.SettingsRepo, AuditLogRepo: repos.auditLogRepo,

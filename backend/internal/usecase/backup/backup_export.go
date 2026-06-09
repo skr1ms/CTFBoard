@@ -133,6 +133,7 @@ func (uc *BackupUseCase) Export(ctx context.Context, opts domain.ExportOptions) 
 	})
 
 	uc.exportBrackets(gCtx, backup, &mu, g)
+	uc.exportPages(gCtx, backup, &mu, g)
 	uc.exportChallengeRequirements(gCtx, backup, &mu, g)
 	uc.exportSolutions(gCtx, backup, &mu, g)
 	uc.exportComments(gCtx, backup, &mu, g)

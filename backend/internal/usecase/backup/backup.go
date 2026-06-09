@@ -24,6 +24,7 @@ type BackupDeps struct {
 	StopContext     context.Context
 	CompetitionRepo repo.CompetitionRepository
 	ChallengeRepo   repo.ChallengeRepository
+	PageRepo        PageRepository
 	TagRepo         repo.TagRepository
 	TopicRepo       repo.TopicRepository
 	HintRepo        repo.HintRepository
@@ -44,6 +45,10 @@ type BackupDeps struct {
 	Storage         BackupStorage
 	TM              repo.TransactionManager
 	Logger          logkit.Logger
+}
+
+type PageRepository interface {
+	GetAllList(ctx context.Context) ([]*domain.Page, error)
 }
 
 var _ usecase.BackupUseCase = (*BackupUseCase)(nil)
@@ -82,18 +87,23 @@ func (uc *BackupUseCase) Reset(ctx context.Context, opts domain.AdminResetOption
 		tables = append(tables, "notifications")
 	}
 
-	if opts.Pages {
-		tables = append(tables, "pages")
-	}
-
-	if len(tables) == 0 {
+	if len(tables) == 0 && !opts.Pages {
 		return nil
 	}
 
 	return uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		err := uc.deps.BackupRepo.EraseTables(ctx, tables)
-		if err != nil {
-			return fmt.Errorf("BackupUseCase - Reset - BackupRepo.EraseTables: %w", err)
+		if len(tables) > 0 {
+			err := uc.deps.BackupRepo.EraseTables(ctx, tables)
+			if err != nil {
+				return fmt.Errorf("BackupUseCase - Reset - BackupRepo.EraseTables: %w", err)
+			}
+		}
+
+		if opts.Pages {
+			err := uc.deps.BackupRepo.ErasePages(ctx)
+			if err != nil {
+				return fmt.Errorf("BackupUseCase - Reset - BackupRepo.ErasePages: %w", err)
+			}
 		}
 
 		return nil

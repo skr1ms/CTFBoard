@@ -28,9 +28,11 @@ type (
 	BackupRepository interface {
 		EraseAllTables(ctx context.Context) error
 		EraseTables(ctx context.Context, tables []string) error
+		ErasePages(ctx context.Context) error
 		ImportCompetition(ctx context.Context, comp *domain.Competition) error
 		ImportTags(ctx context.Context, data *domain.BackupData) error
 		ImportTopics(ctx context.Context, data *domain.BackupData) error
+		ImportPages(ctx context.Context, data *domain.BackupData) error
 		ImportChallenges(ctx context.Context, data *domain.BackupData) error
 		ImportChallengeTags(ctx context.Context, data *domain.BackupData) error
 		ImportChallengeTopics(ctx context.Context, data *domain.BackupData) error

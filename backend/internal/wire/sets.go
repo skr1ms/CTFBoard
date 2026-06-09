@@ -72,6 +72,7 @@ var RepoSet = wire.NewSet(
 	wire.Bind(new(notification.NotificationRepository), new(*persistent.NotificationRepo)),
 	wire.Bind(new(page.PageRepository), new(*persistent.PageRepo)),
 	wire.Bind(new(challenge.PageReader), new(*persistent.PageRepo)),
+	wire.Bind(new(backup.PageRepository), new(*persistent.PageRepo)),
 	wire.Bind(new(repo.CommentRepository), new(*persistent.CommentRepo)),
 	wire.Bind(new(repo.RatingRepository), new(*persistent.RatingRepo)),
 	wire.Bind(new(repo.BracketRepository), new(*persistent.BracketRepo)),
