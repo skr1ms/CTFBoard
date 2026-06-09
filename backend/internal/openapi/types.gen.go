@@ -1365,6 +1365,7 @@ type BackupData struct {
 	Fields                *[]BackupField              `json:"fields,omitempty"`
 	Files                 *[]File                     `json:"files,omitempty"`
 	HintUnlocks           *[]BackupHintUnlock         `json:"hint_unlocks,omitempty"`
+	Pages                 *[]BackupPage               `json:"pages,omitempty"`
 	Ratings               *[]BackupRating             `json:"ratings,omitempty"`
 	Solutions             *[]SolutionBackup           `json:"solutions,omitempty"`
 	Solves                *[]Solve                    `json:"solves,omitempty"`
@@ -1412,6 +1413,18 @@ type BackupHintUnlock struct {
 	ID           *openapi_types.UUID `json:"id,omitempty"`
 	TeamID       *openapi_types.UUID `json:"team_id,omitempty"`
 	UnlockedAt   *time.Time          `json:"unlocked_at,omitempty"`
+}
+
+// BackupPage defines model for BackupPage.
+type BackupPage struct {
+	Content    *string             `json:"content,omitempty"`
+	CreatedAt  *time.Time          `json:"created_at,omitempty"`
+	ID         *openapi_types.UUID `json:"id,omitempty"`
+	IsDraft    *bool               `json:"is_draft,omitempty"`
+	OrderIndex *int                `json:"order_index,omitempty"`
+	Slug       *string             `json:"slug,omitempty"`
+	Title      *string             `json:"title,omitempty"`
+	UpdatedAt  *time.Time          `json:"updated_at,omitempty"`
 }
 
 // BackupRating defines model for BackupRating.
@@ -3161,7 +3174,8 @@ type DeleteAdminStorageParams struct {
 
 // GetAdminStorageParams defines parameters for GetAdminStorage.
 type GetAdminStorageParams struct {
-	Prefix *string `form:"prefix,omitempty" json:"prefix,omitempty"`
+	Prefix string `form:"prefix" json:"prefix"`
+	Limit  *int   `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // GetAdminSubmissionsParams defines parameters for GetAdminSubmissions.
