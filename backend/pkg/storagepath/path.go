@@ -24,7 +24,8 @@ var validTasksDownloadPathPattern = regexp.MustCompile(fmt.Sprintf(`^%s/[a-f0-9]
 
 func Generate(filename string) (string, error) {
 	safeName := filepath.Base(filename)
-	if safeName == "" || strings.Contains(safeName, "..") {
+	if safeName == "" || safeName == "." || safeName != filename ||
+		strings.Contains(safeName, "..") || strings.ContainsAny(safeName, `/\`) {
 		return "", ErrInvalidFilename
 	}
 

@@ -208,8 +208,13 @@ type (
 		ClientIP string
 	}
 
+	StorageAdminListParams struct {
+		Prefix string
+		Limit  int
+	}
+
 	StorageAdminUseCase interface {
-		List(ctx context.Context, prefix string) ([]string, error)
+		List(ctx context.Context, params StorageAdminListParams) ([]string, error)
 		Delete(ctx context.Context, params StorageAdminDeleteParams) error
 	}
 )

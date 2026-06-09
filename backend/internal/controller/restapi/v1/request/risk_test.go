@@ -74,10 +74,10 @@ func TestValidateStoragePathAndPrefix(t *testing.T) {
 	t.Parallel()
 
 	assert.NoError(t, ValidateStoragePath("uploads/file.txt"))
-	assert.NoError(t, ValidateStoragePrefix(""))
 	assert.NoError(t, ValidateStoragePrefix("uploads/"))
+	assert.Error(t, ValidateStoragePrefix(""))
 
-	for _, path := range []string{"../secret", "uploads/../secret", "/absolute"} {
+	for _, path := range []string{"../secret", "uploads/../secret", "/absolute", ".", `uploads\secret`} {
 		t.Run("path "+path, func(t *testing.T) {
 			t.Parallel()
 
@@ -90,7 +90,7 @@ func TestValidateStoragePathAndPrefix(t *testing.T) {
 		})
 	}
 
-	for _, prefix := range []string{"../secret", "uploads/../secret", "/absolute"} {
+	for _, prefix := range []string{"../secret", "uploads/../secret", "/absolute", ".", `uploads\secret`} {
 		t.Run("prefix "+prefix, func(t *testing.T) {
 			t.Parallel()
 

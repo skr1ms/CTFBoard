@@ -29,9 +29,9 @@ const (
 )
 
 type S3Provider struct {
-	client         *minio.Client
-	bucket         string
-	publicEndpoint string
+	client        *minio.Client
+	presignClient *minio.Client
+	bucket        string
 }
 
 var _ Provider = (*S3Provider)(nil)
@@ -41,22 +41,58 @@ func NewS3Provider(endpoint, publicEndpoint, accessKey, secretKey, bucket, regio
 		return nil, errors.New("S3Provider - NewS3Provider: S3 credentials (accessKey, secretKey) are required")
 	}
 
-	client, err := minio.New(endpoint, &minio.Options{
-		Creds:        credentials.NewStaticV4(accessKey, secretKey, ""),
+	creds := credentials.NewStaticV4(accessKey, secretKey, "")
+
+	client, err := newS3Client(endpoint, creds, region, useSSL)
+	if err != nil {
+		return nil, fmt.Errorf("S3Provider - NewS3Provider: %w", err)
+	}
+
+	presignClient := client
+
+	if publicEndpoint != "" {
+		presignClient, err = newS3PublicClient(publicEndpoint, creds, region)
+		if err != nil {
+			return nil, fmt.Errorf("S3Provider - NewS3Provider - public endpoint: %w", err)
+		}
+	}
+
+	return &S3Provider{
+		client:        client,
+		presignClient: presignClient,
+		bucket:        bucket,
+	}, nil
+}
+
+func newS3Client(endpoint string, creds *credentials.Credentials, region string, useSSL bool) (*minio.Client, error) {
+	return minio.New(endpoint, &minio.Options{
+		Creds:        creds,
 		Secure:       useSSL,
 		Region:       region,
 		BucketLookup: minio.BucketLookupPath,
 		Transport:    newS3HTTPTransport(),
 	})
+}
+
+func newS3PublicClient(publicEndpoint string, creds *credentials.Credentials, region string) (*minio.Client, error) {
+	publicURL, err := url.Parse(publicEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("S3Provider - NewS3Provider: %w", err)
+		return nil, err
 	}
 
-	return &S3Provider{
-		client:         client,
-		bucket:         bucket,
-		publicEndpoint: publicEndpoint,
-	}, nil
+	if publicURL.Host == "" || (publicURL.Scheme != "http" && publicURL.Scheme != "https") {
+		return nil, fmt.Errorf("invalid public endpoint %q", publicEndpoint)
+	}
+
+	if publicURL.Path != "" && publicURL.Path != "/" {
+		return nil, fmt.Errorf("invalid public endpoint %q", publicEndpoint)
+	}
+
+	if publicURL.RawQuery != "" || publicURL.Fragment != "" {
+		return nil, fmt.Errorf("invalid public endpoint %q", publicEndpoint)
+	}
+
+	return newS3Client(publicURL.Host, creds, region, publicURL.Scheme == "https")
 }
 
 func newS3HTTPTransport() *http.Transport {
@@ -134,20 +170,45 @@ func (p *S3Provider) Delete(ctx context.Context, path string) error {
 	return nil
 }
 
-func (p *S3Provider) List(ctx context.Context, prefix string) ([]string, error) {
-	opts := minio.ListObjectsOptions{Prefix: prefix, Recursive: true}
+func (p *S3Provider) List(ctx context.Context, prefix string, limit int) ([]string, error) {
+	paths, _, err := p.ListPage(ctx, prefix, "", limit)
+
+	return paths, err
+}
+
+func (p *S3Provider) ListPage(ctx context.Context, prefix, cursor string, limit int) ([]string, string, error) {
+	if limit <= 0 {
+		return nil, "", errors.New("S3Provider - ListPage: limit must be positive")
+	}
+
+	opts := minio.ListObjectsOptions{
+		Prefix:     prefix,
+		Recursive:  true,
+		MaxKeys:    limit,
+		StartAfter: cursor,
+	}
 
 	var paths []string
 
 	for obj := range p.client.ListObjects(ctx, p.bucket, opts) {
 		if obj.Err != nil {
-			return nil, fmt.Errorf("S3Provider - List: %w", obj.Err)
+			return nil, "", fmt.Errorf("S3Provider - ListPage: %w", obj.Err)
 		}
 
 		paths = append(paths, obj.Key)
+
+		if len(paths) >= limit {
+			break
+		}
 	}
 
-	return paths, nil
+	nextCursor := ""
+
+	if len(paths) >= limit {
+		nextCursor = paths[len(paths)-1]
+	}
+
+	return paths, nextCursor, nil
 }
 
 func (p *S3Provider) Ping(ctx context.Context) error {
@@ -160,30 +221,20 @@ func (p *S3Provider) Ping(ctx context.Context) error {
 }
 
 // GetPresignedURL generates a short-lived presigned GET URL for the object at
-// path with the same retry strategy as Upload. When publicEndpoint is set, the
-// scheme and host of the presigned URL are rewritten to match it so that
-// clients use the public-facing address rather than the internal MinIO endpoint.
+// path. When publicEndpoint is configured the provider signs against that public
+// origin directly; rewriting the host after SigV4 signing would invalidate URLs
+// on S3-compatible backends that include Host in the canonical request.
 func (p *S3Provider) GetPresignedURL(ctx context.Context, path string, expiry time.Duration) (string, error) {
 	var result string
 
 	operation := func() error {
-		presignedURL, err := p.client.PresignedGetObject(ctx, p.bucket, path, expiry, nil)
+		presignedURL, err := p.presignClient.PresignedGetObject(ctx, p.bucket, path, expiry, nil)
 		if err != nil {
 			if isS3PermanentError(err) {
 				return backoff.Permanent(fmt.Errorf("S3Provider - GetPresignedURL: %w", err))
 			}
 
 			return fmt.Errorf("S3Provider - GetPresignedURL: %w", err)
-		}
-
-		if p.publicEndpoint != "" {
-			publicURL, parseErr := url.Parse(p.publicEndpoint)
-			if parseErr != nil {
-				return backoff.Permanent(fmt.Errorf("S3Provider - GetPresignedURL: %w", parseErr))
-			}
-
-			presignedURL.Scheme = publicURL.Scheme
-			presignedURL.Host = publicURL.Host
 		}
 
 		result = presignedURL.String()

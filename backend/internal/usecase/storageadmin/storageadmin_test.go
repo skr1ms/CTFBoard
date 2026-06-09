@@ -16,10 +16,15 @@ import (
 type fakeStorageAdminStorage struct {
 	deletedPath string
 	deleteErr   error
+	listPrefix  string
+	listLimit   int
 }
 
-func (s *fakeStorageAdminStorage) List(context.Context, string) ([]string, error) {
-	return nil, nil
+func (s *fakeStorageAdminStorage) List(_ context.Context, prefix string, limit int) ([]string, error) {
+	s.listPrefix = prefix
+	s.listLimit = limit
+
+	return []string{"challenges/file.zip"}, nil
 }
 
 func (s *fakeStorageAdminStorage) Delete(_ context.Context, path string) error {
@@ -61,11 +66,12 @@ func TestUseCase_Delete_WritesAuditLog(t *testing.T) {
 	assert.Equal(t, domain.AuditEntityStorage, auditRepo.log.EntityType)
 	assert.Equal(t, storageAuditEntityID, auditRepo.log.EntityID)
 	assert.Equal(t, "192.0.2.10", auditRepo.log.IP)
-	assert.Equal(t, "storage object deleted", auditRepo.log.Details["message"])
+	assert.Equal(t, "storage object delete requested", auditRepo.log.Details["message"])
 	assert.Equal(t, "challenges/file.zip", auditRepo.log.Details["path"])
+	assert.Equal(t, "requested", auditRepo.log.Details["status"])
 }
 
-func TestUseCase_Delete_ReturnsAuditError(t *testing.T) {
+func TestUseCase_Delete_FailsClosedWhenAuditFails(t *testing.T) {
 	t.Parallel()
 
 	storage := &fakeStorageAdminStorage{}
@@ -79,10 +85,10 @@ func TestUseCase_Delete_ReturnsAuditError(t *testing.T) {
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, auditErr)
-	assert.Equal(t, "challenges/file.zip", storage.deletedPath)
+	assert.Empty(t, storage.deletedPath)
 }
 
-func TestUseCase_Delete_DoesNotAuditWhenStorageDeleteFails(t *testing.T) {
+func TestUseCase_Delete_AuditsBeforeStorageDelete(t *testing.T) {
 	t.Parallel()
 
 	storageErr := errors.New("storage unavailable")
@@ -98,7 +104,8 @@ func TestUseCase_Delete_DoesNotAuditWhenStorageDeleteFails(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, storageErr)
 	assert.Equal(t, "challenges/file.zip", storage.deletedPath)
-	assert.Nil(t, auditRepo.log)
+	require.NotNil(t, auditRepo.log)
+	assert.Equal(t, "challenges/file.zip", auditRepo.log.Details["path"])
 }
 
 func TestUseCase_Delete_RequiresActor(t *testing.T) {
@@ -112,4 +119,36 @@ func TestUseCase_Delete_RequiresActor(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "actor_id is required")
 	assert.Empty(t, storage.deletedPath)
+}
+
+func TestUseCase_List_RequiresPrefixAndAppliesDefaultLimit(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStorageAdminStorage{}
+	uc := NewUseCase(Deps{Storage: storage, AuditLog: &fakeStorageAdminAuditLogRepo{}})
+
+	paths, err := uc.List(context.Background(), usecase.StorageAdminListParams{Prefix: "challenges/"})
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"challenges/file.zip"}, paths)
+	assert.Equal(t, "challenges/", storage.listPrefix)
+	assert.Equal(t, defaultStorageListLimit, storage.listLimit)
+
+	_, err = uc.List(context.Background(), usecase.StorageAdminListParams{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "prefix is required")
+}
+
+func TestUseCase_List_RejectsLimitAboveMax(t *testing.T) {
+	t.Parallel()
+
+	uc := NewUseCase(Deps{Storage: &fakeStorageAdminStorage{}, AuditLog: &fakeStorageAdminAuditLogRepo{}})
+
+	_, err := uc.List(context.Background(), usecase.StorageAdminListParams{
+		Prefix: "challenges/",
+		Limit:  maxStorageListLimit + 1,
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "limit must be between")
 }

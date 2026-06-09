@@ -1,6 +1,9 @@
 package storagepath
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestValidateDownloadPath(t *testing.T) {
 	t.Parallel()
@@ -53,6 +56,21 @@ func TestDownloadFilename(t *testing.T) {
 			got := DownloadFilename(tt.path)
 			if got != tt.want {
 				t.Fatalf("DownloadFilename(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGenerateRejectsPathComponents(t *testing.T) {
+	t.Parallel()
+
+	for _, filename := range []string{"", ".", "/etc/passwd", "nested/archive.zip", `nested\archive.zip`, "..", "a..b"} {
+		t.Run(filename, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := Generate(filename)
+			if !errors.Is(err, ErrInvalidFilename) {
+				t.Fatalf("Generate(%q) error = %v, want ErrInvalidFilename", filename, err)
 			}
 		})
 	}

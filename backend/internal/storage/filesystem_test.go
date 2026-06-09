@@ -109,9 +109,9 @@ func TestStoragePathGenerate_SanitizesFilename(t *testing.T) {
 	t.Parallel()
 
 	path, err := storagepath.Generate("/etc/passwd")
-	require.NoError(t, err)
-	assert.NotContains(t, path, "..")
-	assert.Contains(t, path, "passwd")
+	require.Error(t, err)
+	assert.Empty(t, path)
+	assert.ErrorIs(t, err, storagepath.ErrInvalidFilename)
 }
 
 func TestStoragePathGenerate_RejectsDotDot(t *testing.T) {
@@ -185,7 +185,7 @@ func TestFilesystemProvider_CanceledContext(t *testing.T) {
 	require.Nil(t, rc)
 	assert.ErrorIs(t, err, context.Canceled)
 
-	_, err = provider.List(canceledCtx, ".")
+	_, err = provider.List(canceledCtx, "cancel/", 100)
 	assert.ErrorIs(t, err, context.Canceled)
 
 	err = provider.Delete(canceledCtx, path)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -37,6 +38,30 @@ func TestNewS3Provider_EmptySecretKey_Error(t *testing.T) {
 	_, err := storage.NewS3Provider("http://localhost:9000", "", "access", "", "bucket", "us-east-1", false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credentials")
+}
+
+func TestS3Provider_GetPresignedURL_UsesPublicEndpointForSignatureHost(t *testing.T) {
+	t.Parallel()
+
+	provider, err := storage.NewS3Provider(
+		"internal-minio:9000",
+		"https://s3.example.com",
+		"access",
+		"secret",
+		"bucket",
+		"us-east-1",
+		false,
+	)
+	require.NoError(t, err)
+
+	rawURL, err := provider.GetPresignedURL(context.Background(), "tasks/0123456789abcdef/file.txt", time.Hour)
+	require.NoError(t, err)
+
+	parsed, err := url.Parse(rawURL)
+	require.NoError(t, err)
+	assert.Equal(t, "https", parsed.Scheme)
+	assert.Equal(t, "s3.example.com", parsed.Host)
+	assert.Contains(t, parsed.RawQuery, "X-Amz-Signature=")
 }
 
 func TestS3Provider_Workflow(t *testing.T) {

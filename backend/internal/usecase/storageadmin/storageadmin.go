@@ -14,7 +14,7 @@ import (
 )
 
 type StoragePort interface {
-	List(ctx context.Context, prefix string) ([]string, error)
+	List(ctx context.Context, prefix string, limit int) ([]string, error)
 	Delete(ctx context.Context, path string) error
 }
 
@@ -32,16 +32,26 @@ var _ usecase.StorageAdminUseCase = (*UseCase)(nil)
 
 const storageAuditEntityID = "object"
 
+const (
+	defaultStorageListLimit = 500
+	maxStorageListLimit     = 1000
+)
+
 func NewUseCase(deps Deps) *UseCase {
 	return &UseCase{storage: deps.Storage, auditLog: deps.AuditLog}
 }
 
-func (uc *UseCase) List(ctx context.Context, prefix string) ([]string, error) {
-	if err := validatePrefix(prefix); err != nil {
+func (uc *UseCase) List(ctx context.Context, params usecase.StorageAdminListParams) ([]string, error) {
+	if err := validatePrefix(params.Prefix); err != nil {
 		return nil, fmt.Errorf("StorageAdminUseCase - List - validatePrefix: %w", err)
 	}
 
-	paths, err := uc.storage.List(ctx, prefix)
+	limit, err := normalizeListLimit(params.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("StorageAdminUseCase - List - normalizeListLimit: %w", err)
+	}
+
+	paths, err := uc.storage.List(ctx, params.Prefix, limit)
 	if err != nil {
 		return nil, fmt.Errorf("StorageAdminUseCase - List - Storage.List: %w", err)
 	}
@@ -62,10 +72,6 @@ func (uc *UseCase) Delete(ctx context.Context, params usecase.StorageAdminDelete
 		return fmt.Errorf("StorageAdminUseCase - Delete - AuditLogRepo not configured")
 	}
 
-	if err := uc.storage.Delete(ctx, params.Path); err != nil {
-		return fmt.Errorf("StorageAdminUseCase - Delete - Storage.Delete: %w", err)
-	}
-
 	auditLog := &domain.AuditLog{
 		UserID:     &params.ActorID,
 		Action:     domain.AuditActionDelete,
@@ -73,12 +79,17 @@ func (uc *UseCase) Delete(ctx context.Context, params usecase.StorageAdminDelete
 		EntityID:   storageAuditEntityID,
 		IP:         params.ClientIP,
 		Details: map[string]any{
-			"message": "storage object deleted",
+			"message": "storage object delete requested",
 			"path":    params.Path,
+			"status":  "requested",
 		},
 	}
 	if err := uc.auditLog.Create(ctx, auditLog); err != nil {
 		return fmt.Errorf("StorageAdminUseCase - Delete - AuditLogRepo.Create: %w", err)
+	}
+
+	if err := uc.storage.Delete(ctx, params.Path); err != nil {
+		return fmt.Errorf("StorageAdminUseCase - Delete - Storage.Delete: %w", err)
 	}
 
 	return nil
@@ -86,10 +97,22 @@ func (uc *UseCase) Delete(ctx context.Context, params usecase.StorageAdminDelete
 
 func validatePrefix(prefix string) error {
 	if prefix == "" {
-		return nil
+		return apperr.NewValidationErrorf("prefix is required")
 	}
 
 	return validateStoragePath("prefix", prefix)
+}
+
+func normalizeListLimit(limit int) (int, error) {
+	if limit == 0 {
+		return defaultStorageListLimit, nil
+	}
+
+	if limit < 0 || limit > maxStorageListLimit {
+		return 0, apperr.NewValidationErrorf("limit must be between 1 and %d", maxStorageListLimit)
+	}
+
+	return limit, nil
 }
 
 func validatePath(path string) error {
@@ -101,7 +124,7 @@ func validatePath(path string) error {
 }
 
 func validateStoragePath(name, path string) error {
-	if strings.Contains(path, "..") || strings.HasPrefix(path, "/") {
+	if path == "." || strings.Contains(path, "..") || strings.Contains(path, "\\") || strings.HasPrefix(path, "/") {
 		return apperr.NewValidationErrorf("invalid %s", name)
 	}
 

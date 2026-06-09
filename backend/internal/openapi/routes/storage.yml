@@ -2,13 +2,22 @@
   get:
     operationId: GetAdminStorage
     summary: List storage objects
-    description: List all objects in storage with an optional prefix filter. Admin only.
+    description: List storage objects under a required prefix. Admin only.
     parameters:
       - name: prefix
         in: query
-        required: false
+        required: true
         schema:
           type: string
+          minLength: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 500
     responses:
       "200":
         description: OK

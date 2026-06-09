@@ -3,6 +3,7 @@ package cleanup
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
 	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
 )
 
@@ -34,6 +36,48 @@ type fakeTrackingRepo struct {
 	countByUserCalled          bool
 	getChallengeOpensCalled    bool
 	countChallengeOpensCalled  bool
+}
+
+type fakeCleanupStorage struct {
+	paths     []string
+	deleted   []string
+	listCalls int
+}
+
+func (s *fakeCleanupStorage) ListPage(_ context.Context, prefix, cursor string, limit int) ([]string, string, error) {
+	s.listCalls++
+
+	var page []string
+
+	for _, path := range s.paths {
+		if len(page) >= limit {
+			break
+		}
+
+		if len(path) < len(prefix) || path[:len(prefix)] != prefix {
+			continue
+		}
+
+		if cursor != "" && path <= cursor {
+			continue
+		}
+
+		page = append(page, path)
+	}
+
+	nextCursor := ""
+
+	if len(page) >= limit {
+		nextCursor = page[len(page)-1]
+	}
+
+	return page, nextCursor, nil
+}
+
+func (s *fakeCleanupStorage) Delete(_ context.Context, path string) error {
+	s.deleted = append(s.deleted, path)
+
+	return nil
 }
 
 func (f *fakeTrackingRepo) Create(_ context.Context, _ *domain.TrackingEntry) error {
@@ -133,6 +177,31 @@ func TestCleanupUseCase_CleanupDeletedTeams_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "CleanupUseCase")
 	assert.Contains(t, err.Error(), expectedErr.Error())
 	d.teamRepo.AssertExpectations(t)
+}
+
+func TestCleanupUseCase_CleanupOrphanedStorageFiles_PagesBeyondStorageLimit(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	fileRepo := challengeMock.NewMockFileRepository(t)
+
+	storagePaths := make([]string, cleanupStorageListLimit+3)
+	for i := range storagePaths {
+		storagePaths[i] = fmt.Sprintf("files/%05d.bin", i)
+	}
+
+	storage := &fakeCleanupStorage{paths: storagePaths}
+
+	fileRepo.EXPECT().ListLocations(ctx, cleanupLocationsBatchSize, 0).Return(nil, nil).Once()
+
+	uc := NewCleanupUseCase(CleanupDeps{FileRepo: fileRepo, Storage: storage})
+
+	deleted, err := uc.CleanupOrphanedStorageFiles(ctx, "files/")
+
+	require.NoError(t, err)
+	assert.Equal(t, len(storagePaths), deleted)
+	assert.Len(t, storage.deleted, len(storagePaths))
+	assert.GreaterOrEqual(t, storage.listCalls, 2)
 }
 
 func TestCleanupUseCase_CleanupOldTracking_Success(t *testing.T) {

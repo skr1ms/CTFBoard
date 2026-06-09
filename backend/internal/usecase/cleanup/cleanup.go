@@ -16,7 +16,7 @@ type CleanupUseCase struct {
 }
 
 type CleanupStorage interface {
-	List(ctx context.Context, prefix string) ([]string, error)
+	ListPage(ctx context.Context, prefix, cursor string, limit int) ([]string, string, error)
 	Delete(ctx context.Context, path string) error
 }
 
@@ -49,6 +49,7 @@ func (uc *CleanupUseCase) CleanupDeletedTeams(ctx context.Context, olderThan tim
 
 const (
 	cleanupLocationsBatchSize = 1000
+	cleanupStorageListLimit   = 10000
 	cleanupUsersPrefix        = "users/"
 	cleanupTeamsPrefix        = "teams/"
 )
@@ -82,27 +83,28 @@ func (uc *CleanupUseCase) CleanupOrphanedStorageFiles(ctx context.Context, prefi
 		}
 	}
 
-	paths, err := uc.deps.Storage.List(ctx, prefix)
-	if err != nil {
-		return 0, fmt.Errorf("CleanupUseCase - CleanupOrphanedStorageFiles - Storage.List: %w", err)
+	var deleteErrs error
+
+	if err := forEachStoragePathPage(ctx, uc.deps.Storage, prefix, func(paths []string) {
+		for _, path := range paths {
+			if _, ok := known[path]; ok {
+				continue
+			}
+
+			delErr := uc.deps.Storage.Delete(ctx, path)
+			if delErr != nil {
+				deleteErrs = errors.Join(deleteErrs, fmt.Errorf("CleanupUseCase - CleanupOrphanedStorageFiles - Storage.Delete %q: %w", path, delErr))
+
+				continue
+			}
+
+			deleted++
+		}
+	}); err != nil {
+		return deleted, fmt.Errorf("CleanupUseCase - CleanupOrphanedStorageFiles - Storage.ListPage: %w", err)
 	}
 
-	for _, path := range paths {
-		if _, ok := known[path]; ok {
-			continue
-		}
-
-		delErr := uc.deps.Storage.Delete(ctx, path)
-		if delErr != nil {
-			err = errors.Join(err, fmt.Errorf("CleanupUseCase - CleanupOrphanedStorageFiles - Storage.Delete %q: %w", path, delErr))
-
-			continue
-		}
-
-		deleted++
-	}
-
-	return deleted, err
+	return deleted, deleteErrs
 }
 
 // CleanupOrphanedAvatars removes avatar objects from storage that are not
@@ -143,39 +145,55 @@ func (uc *CleanupUseCase) CleanupOrphanedAvatars(ctx context.Context) (int, erro
 		}
 	}
 
-	userFiles, err := uc.deps.Storage.List(ctx, cleanupUsersPrefix)
-	if err != nil {
-		return 0, fmt.Errorf("CleanupUseCase - CleanupOrphanedAvatars - Storage.List(users/): %w", err)
-	}
-
-	teamFiles, err := uc.deps.Storage.List(ctx, cleanupTeamsPrefix)
-	if err != nil {
-		return 0, fmt.Errorf("CleanupUseCase - CleanupOrphanedAvatars - Storage.List(teams/): %w", err)
-	}
-
-	allFiles := make([]string, 0, len(userFiles)+len(teamFiles))
-	allFiles = append(allFiles, userFiles...)
-	allFiles = append(allFiles, teamFiles...)
 	deleted := 0
 
 	var errs error
 
-	for _, filePath := range allFiles {
-		if _, exists := validPaths[filePath]; exists {
-			continue
+	for _, prefix := range []string{cleanupUsersPrefix, cleanupTeamsPrefix} {
+		if err := forEachStoragePathPage(ctx, uc.deps.Storage, prefix, func(paths []string) {
+			for _, filePath := range paths {
+				if _, exists := validPaths[filePath]; exists {
+					continue
+				}
+
+				delErr := uc.deps.Storage.Delete(ctx, filePath)
+				if delErr != nil {
+					errs = errors.Join(errs, fmt.Errorf("CleanupUseCase - CleanupOrphanedAvatars - Storage.Delete %q: %w", filePath, delErr))
+
+					continue
+				}
+
+				deleted++
+			}
+		}); err != nil {
+			return deleted, fmt.Errorf("CleanupUseCase - CleanupOrphanedAvatars - Storage.ListPage(%s): %w", prefix, err)
 		}
-
-		delErr := uc.deps.Storage.Delete(ctx, filePath)
-		if delErr != nil {
-			errs = errors.Join(errs, fmt.Errorf("CleanupUseCase - CleanupOrphanedAvatars - Storage.Delete %q: %w", filePath, delErr))
-
-			continue
-		}
-
-		deleted++
 	}
 
 	return deleted, errs
+}
+
+func forEachStoragePathPage(ctx context.Context, storage CleanupStorage, prefix string, fn func([]string)) error {
+	cursor := ""
+
+	for {
+		paths, nextCursor, err := storage.ListPage(ctx, prefix, cursor, cleanupStorageListLimit)
+		if err != nil {
+			return err
+		}
+
+		fn(paths)
+
+		if nextCursor == "" {
+			return nil
+		}
+
+		if nextCursor == cursor {
+			return fmt.Errorf("cursor did not advance for prefix %q", prefix)
+		}
+
+		cursor = nextCursor
+	}
 }
 
 // CleanupOldTracking deletes page-view tracking records and challenge-open events

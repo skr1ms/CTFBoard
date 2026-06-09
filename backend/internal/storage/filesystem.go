@@ -149,17 +149,36 @@ func (p *FilesystemProvider) Ping(ctx context.Context) error {
 // Rejects path traversal attempts (prefixes containing ".." or absolute paths)
 // before walking. Context cancellation is checked per-entry during the walk so
 // long listings are interruptible.
-func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string, error) {
+func (p *FilesystemProvider) List(ctx context.Context, prefix string, limit int) ([]string, error) {
+	paths, _, err := p.ListPage(ctx, prefix, "", limit)
+
+	return paths, err
+}
+
+// ListPage returns one lexicographically ordered page of file paths under prefix.
+// The cursor is the last path returned by the previous page.
+func (p *FilesystemProvider) ListPage(ctx context.Context, prefix, cursor string, limit int) ([]string, string, error) {
+	if limit <= 0 {
+		return nil, "", errors.New("FilesystemProvider - ListPage: limit must be positive")
+	}
+
 	cleanPrefix := filepath.Clean(prefix)
 	if strings.HasPrefix(cleanPrefix, "..") || filepath.IsAbs(cleanPrefix) {
-		return nil, fmt.Errorf("FilesystemProvider - List: invalid prefix %q", prefix)
+		return nil, "", fmt.Errorf("FilesystemProvider - ListPage: invalid prefix %q", prefix)
 	}
 
 	fullPath := filepath.Join(p.basePath, cleanPrefix)
 
 	relCheck, err := filepath.Rel(p.basePath, fullPath)
 	if err != nil || strings.HasPrefix(relCheck, "..") {
-		return nil, errors.New("FilesystemProvider - List: path traversal attempt blocked")
+		return nil, "", errors.New("FilesystemProvider - ListPage: path traversal attempt blocked")
+	}
+
+	if cursor != "" {
+		cleanCursor := filepath.Clean(cursor)
+		if strings.HasPrefix(cleanCursor, "..") || filepath.IsAbs(cleanCursor) {
+			return nil, "", fmt.Errorf("FilesystemProvider - ListPage: invalid cursor %q", cursor)
+		}
 	}
 
 	var paths []string
@@ -188,15 +207,31 @@ func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string,
 			return err
 		}
 
-		paths = append(paths, filepath.ToSlash(rel))
+		rel = filepath.ToSlash(rel)
+
+		if cursor != "" && rel <= cursor {
+			return nil
+		}
+
+		paths = append(paths, rel)
+
+		if len(paths) >= limit {
+			return filepath.SkipAll
+		}
 
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("FilesystemProvider - List: %w", err)
+		return nil, "", fmt.Errorf("FilesystemProvider - ListPage: %w", err)
 	}
 
-	return paths, nil
+	nextCursor := ""
+
+	if len(paths) >= limit {
+		nextCursor = paths[len(paths)-1]
+	}
+
+	return paths, nextCursor, nil
 }
 
 func (p *FilesystemProvider) GetPresignedURL(ctx context.Context, path string, _ time.Duration) (string, error) {
