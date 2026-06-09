@@ -16,6 +16,8 @@ const (
 	defaultPostgresUser           = "user"
 	defaultPostgresPassword       = "password"
 	defaultPostgresDB             = "test"
+	defaultPostgresImage          = "postgres:18.4-alpine3.23"
+	defaultRedisImage             = "redis:8.8.0-alpine3.23"
 	defaultPostgresStartupTimeout = 60 * time.Second
 	defaultPostgresReadyLogs      = 2
 )
@@ -84,7 +86,7 @@ func StartPostgres(ctx context.Context, opts ...PostgresOption) (*postgres.Postg
 		runOpts = append(runOpts, testcontainers.WithCmd(o.cmd...))
 	}
 
-	container, err := postgres.Run(ctx, "postgres:18-alpine", runOpts...)
+	container, err := postgres.Run(ctx, defaultPostgresImage, runOpts...)
 	if err != nil {
 		return nil, "", fmt.Errorf("StartPostgres - Run: %w", err)
 	}
@@ -100,7 +102,7 @@ func StartPostgres(ctx context.Context, opts ...PostgresOption) (*postgres.Postg
 // StartRedis starts a throwaway Redis container and returns its connection URI, a cleanup function,
 // and any startup error.
 func StartRedis(ctx context.Context) (string, func(), error) {
-	redisC, err := redisModule.Run(ctx, "redis:alpine")
+	redisC, err := redisModule.Run(ctx, defaultRedisImage)
 	if err != nil {
 		return "", nil, fmt.Errorf("StartRedis - Run: %w", err)
 	}

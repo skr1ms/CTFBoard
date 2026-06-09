@@ -79,6 +79,41 @@ vault_http_ready() {
   docker exec vault wget -qO- http://127.0.0.1:8200/v1/sys/seal-status >/dev/null 2>&1
 }
 
+shell_quote() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+secret_env_set() {
+  local file="$1" key="$2" value="$3"
+  printf '%s=%s\n' "$key" "$(shell_quote "$value")" >> "$file"
+}
+
+vault_root_env_file() {
+  local env_file
+  env_file="$(mktemp "${TMPDIR:-/tmp}/astroctfb-vault-env.XXXXXX")"
+  chmod 600 "$env_file"
+  secret_env_set "$env_file" VAULT_ADDR "http://127.0.0.1:8200"
+  secret_env_set "$env_file" VAULT_TOKEN "$ROOT_TOKEN"
+  printf '%s\n' "$env_file"
+}
+
+vault_exec_env_script() {
+  local env_file="$1"
+  local remote_env="/tmp/$(basename "$env_file")"
+
+  docker cp "$env_file" "vault:$remote_env" >/dev/null
+  docker exec vault chmod 600 "$remote_env" >/dev/null
+
+  {
+    printf 'set -eu\n'
+    printf 'set -a\n'
+    printf '. %s\n' "$remote_env"
+    printf 'set +a\n'
+    printf 'rm -f %s\n' "$remote_env"
+    cat
+  } | docker exec -i vault sh
+}
+
 bold()   { printf '\033[1m%b\033[0m' "$*"; }
 green()  { printf '\033[1;32m%b\033[0m' "$*"; }
 red()    { printf '\033[1;31m%b\033[0m' "$*"; }
@@ -241,6 +276,13 @@ env_set() {
   else
     printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
   fi
+}
+
+# In-place .env key remover - used to migrate away from obsolete keys.
+env_unset() {
+  local key="$1"
+  [ -f "$ENV_FILE" ] || return 0
+  sed -i -E "/^[[:space:]]*${key}=.*/d" "$ENV_FILE"
 }
 
 # Read current .env value, fall back to FALLBACK if empty or missing.
@@ -453,6 +495,7 @@ run_wizard() {
   HAPROXY_STATS_PASSWORD="$(gen_alphanum 16 16)"
   HAPROXY_BEHIND_CDN="false"
   TRUSTED_CDN_CIDRS=""
+  HAPROXY_REAL_IP_HEADER="CF-Connecting-IP"
 
   echo ""
   echo "  Default URLs (customize subdomains below):"
@@ -766,6 +809,7 @@ apply_env() {
   env_set ADMIN_ALLOWED_IPS    "$ADMIN_ALLOWED_IPS"
   env_set HAPROXY_BEHIND_CDN   "$HAPROXY_BEHIND_CDN"
   env_set TRUSTED_CDN_CIDRS    "$TRUSTED_CDN_CIDRS"
+  env_set HAPROXY_REAL_IP_HEADER "$HAPROXY_REAL_IP_HEADER"
 
   # DEFAULTS / Board SPA build args
   env_set VITE_API_BASE_URL    "$VITE_API_BASE_URL"
@@ -779,9 +823,13 @@ apply_env() {
 }
 
 generate_s3_json() {
+  local tmp
+  tmp="$(mktemp)"
   jq --arg ak "$SEAWEED_S3_ACCESS_KEY" --arg sk "$SEAWEED_S3_SECRET_KEY" \
     '.identities[0].credentials[0].accessKey = $ak | .identities[0].credentials[0].secretKey = $sk' \
-    "$SCRIPT_DIR/deployment/seaweedfs/s3.json.example" | jq 'del(._comment)' > "$S3_JSON_FILE"
+    "$SCRIPT_DIR/deployment/seaweedfs/s3.json.example" | jq 'del(._comment)' > "$tmp"
+  install -m 600 "$tmp" "$S3_JSON_FILE"
+  rm -f "$tmp"
 
   green "  s3.json generated"
   echo ""
@@ -813,21 +861,23 @@ ensure_s3_json_current() {
 }
 
 generate_alertmanager_conf() {
+  local tmp
   if [ ! -f "$ALERTMANAGER_TEMPLATE" ]; then
     red "  WARNING: $ALERTMANAGER_TEMPLATE not found, skipping alertmanager.yml generation."
     echo ""
     return
   fi
 
+  tmp="$(mktemp)"
   if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
     sed \
       -e "s/REPLACE_TELEGRAM_BOT_TOKEN/${TELEGRAM_BOT_TOKEN}/g" \
       -e "s/REPLACE_TELEGRAM_CHAT_ID/${TELEGRAM_CHAT_ID}/g" \
-      "$ALERTMANAGER_TEMPLATE" > "$ALERTMANAGER_CONF"
+      "$ALERTMANAGER_TEMPLATE" > "$tmp"
     green "  alertmanager.yml generated (Telegram enabled)"
   else
     # Telegram disabled - write a minimal config with a dummy receiver
-    cat > "$ALERTMANAGER_CONF" <<'AMEOF'
+    cat > "$tmp" <<'AMEOF'
 global:
   resolve_timeout: 5m
 
@@ -843,6 +893,8 @@ receivers:
 AMEOF
     green "  alertmanager.yml generated (Telegram disabled, null receiver)"
   fi
+  install -m 600 "$tmp" "$ALERTMANAGER_CONF"
+  rm -f "$tmp"
   echo ""
 }
 
@@ -941,14 +993,13 @@ VKEOF
     green "  Vault keys saved to .vault-keys (chmod 600)"
     echo ""
 
-    # Update .env with real token (awk avoids breakage on tokens containing sed delimiters)
-    awk -v tok="$root_token" 'BEGIN{FS=OFS="="} /^VAULT_TOKEN=/{$2=tok; print; next} 1' \
-      "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
+    # ROOT_TOKEN is intentionally kept only in .vault-keys. Backend receives a
+    # separate least-privilege token generated below.
   else
     echo "  Vault already initialized."
   fi
 
-  # Load keys and ensure VAULT_TOKEN in .env is up-to-date
+  # Load keys from the operator-only secret file.
   if [ ! -f "$VAULT_KEYS_FILE" ]; then
     red "  ERROR: .vault-keys not found but Vault is already initialized."
     echo "  You need to unseal Vault manually: docker exec vault vault operator unseal <KEY>"
@@ -959,9 +1010,8 @@ VKEOF
   # shellcheck source=/dev/null
   source "$VAULT_KEYS_FILE"
 
-  # Always sync VAULT_TOKEN in .env (critical after reconfigure)
-  awk -v tok="$ROOT_TOKEN" 'BEGIN{FS=OFS="="} /^VAULT_TOKEN=/{$2=tok; print; next} 1' \
-    "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
+  # Remove legacy runtime root token if an older setup wrote it to .env.
+  env_unset VAULT_TOKEN
 
   local sealed
   sealed="$(vault_cli status -format=json 2>/dev/null || true)"
@@ -977,6 +1027,7 @@ VKEOF
   fi
 
   vault_seed_secrets
+  vault_ensure_backend_token
 }
 
 # ---------------------------------------------------------------------------
@@ -1002,29 +1053,32 @@ vault_seed_secrets() {
   echo "  Seeding secrets into Vault..."
   docker cp "$INIT_VAULT_SCRIPT" vault:/tmp/init-vault.sh >/dev/null
 
-  local seed_exit=0
-  docker exec \
-    -e VAULT_ADDR=http://127.0.0.1:8200 \
-    -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-    -e "POSTGRES_USER=$(env_get POSTGRES_USER)" \
-    -e "POSTGRES_PASSWORD=$(env_get POSTGRES_PASSWORD)" \
-    -e "POSTGRES_DB=$(env_get POSTGRES_DB)" \
-    -e "REDIS_PASSWORD=$(env_get REDIS_PASSWORD)" \
-    -e "JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-}" \
-    -e "JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-}" \
-    -e "FLAG_ENCRYPTION_KEY=${FLAG_ENCRYPTION_KEY:-}" \
-    -e "RESEND_API_KEY=${RESEND_API_KEY:-}" \
-    -e "SEAWEED_S3_ACCESS_KEY=$(env_get SEAWEED_S3_ACCESS_KEY)" \
-    -e "SEAWEED_S3_SECRET_KEY=$(env_get SEAWEED_S3_SECRET_KEY)" \
-    -e "ADMIN_USERNAME=${ADMIN_USERNAME:-}" \
-    -e "ADMIN_EMAIL=${ADMIN_EMAIL:-}" \
-    -e "ADMIN_PASSWORD=${ADMIN_PASSWORD:-}" \
-    -e "OAUTH_STATE_SECRET=${OAUTH_STATE_SECRET:-}" \
-    -e "OAUTH_GITHUB_CLIENT_ID=${OAUTH_GITHUB_CLIENT_ID:-}" \
-    -e "OAUTH_GITHUB_CLIENT_SECRET=${OAUTH_GITHUB_CLIENT_SECRET:-}" \
-    -e "OAUTH_GOOGLE_CLIENT_ID=${OAUTH_GOOGLE_CLIENT_ID:-}" \
-    -e "OAUTH_GOOGLE_CLIENT_SECRET=${OAUTH_GOOGLE_CLIENT_SECRET:-}" \
-    vault sh /tmp/init-vault.sh || seed_exit=$?
+  local env_file seed_exit=0
+  env_file="$(vault_root_env_file)"
+  secret_env_set "$env_file" POSTGRES_USER "$(env_get POSTGRES_USER)"
+  secret_env_set "$env_file" POSTGRES_PASSWORD "$(env_get POSTGRES_PASSWORD)"
+  secret_env_set "$env_file" POSTGRES_DB "$(env_get POSTGRES_DB)"
+  secret_env_set "$env_file" REDIS_PASSWORD "$(env_get REDIS_PASSWORD)"
+  secret_env_set "$env_file" JWT_ACCESS_SECRET "${JWT_ACCESS_SECRET:-}"
+  secret_env_set "$env_file" JWT_REFRESH_SECRET "${JWT_REFRESH_SECRET:-}"
+  secret_env_set "$env_file" FLAG_ENCRYPTION_KEY "${FLAG_ENCRYPTION_KEY:-}"
+  secret_env_set "$env_file" RESEND_API_KEY "${RESEND_API_KEY:-}"
+  secret_env_set "$env_file" SEAWEED_S3_ACCESS_KEY "$(env_get SEAWEED_S3_ACCESS_KEY)"
+  secret_env_set "$env_file" SEAWEED_S3_SECRET_KEY "$(env_get SEAWEED_S3_SECRET_KEY)"
+  secret_env_set "$env_file" ADMIN_USERNAME "${ADMIN_USERNAME:-}"
+  secret_env_set "$env_file" ADMIN_EMAIL "${ADMIN_EMAIL:-}"
+  secret_env_set "$env_file" ADMIN_PASSWORD "${ADMIN_PASSWORD:-}"
+  secret_env_set "$env_file" OAUTH_STATE_SECRET "${OAUTH_STATE_SECRET:-}"
+  secret_env_set "$env_file" OAUTH_GITHUB_CLIENT_ID "${OAUTH_GITHUB_CLIENT_ID:-}"
+  secret_env_set "$env_file" OAUTH_GITHUB_CLIENT_SECRET "${OAUTH_GITHUB_CLIENT_SECRET:-}"
+  secret_env_set "$env_file" OAUTH_GOOGLE_CLIENT_ID "${OAUTH_GOOGLE_CLIENT_ID:-}"
+  secret_env_set "$env_file" OAUTH_GOOGLE_CLIENT_SECRET "${OAUTH_GOOGLE_CLIENT_SECRET:-}"
+
+  vault_exec_env_script "$env_file" <<'VAULT_SEED_SCRIPT' || seed_exit=$?
+sh /tmp/init-vault.sh
+rm -f /tmp/init-vault.sh
+VAULT_SEED_SCRIPT
+  rm -f "$env_file"
 
   if [ "$seed_exit" -ne 0 ]; then
     red "  ERROR: Vault secret seeding failed (exit $seed_exit)."
@@ -1033,6 +1087,64 @@ vault_seed_secrets() {
   fi
 
   green "  Vault secrets seeded"
+  echo ""
+}
+
+vault_ensure_backend_token() {
+  if [ ! -f "$VAULT_KEYS_FILE" ]; then
+    red "  WARNING: .vault-keys not found, cannot create backend Vault token."
+    return 1
+  fi
+
+  # shellcheck source=/dev/null
+  source "$VAULT_KEYS_FILE"
+
+  echo "  Ensuring backend Vault policy and token..."
+
+  local env_file
+  env_file="$(vault_root_env_file)"
+
+  if ! vault_exec_env_script "$env_file" <<'VAULT_POLICY' >/dev/null; then
+vault policy write astroctfb-backend - <<'POLICY'
+path "secret/data/ctf-platform/*" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/ctf-platform/*" {
+  capabilities = ["read", "list"]
+}
+POLICY
+VAULT_POLICY
+    rm -f "$env_file"
+    return 1
+  fi
+
+  local token_json backend_token
+  if ! token_json="$(vault_exec_env_script "$env_file" <<'VAULT_TOKEN_SCRIPT'
+vault token create \
+      -policy=astroctfb-backend \
+      -orphan \
+      -ttl=8760h \
+      -renewable=true \
+      -format=json
+VAULT_TOKEN_SCRIPT
+  )"; then
+    rm -f "$env_file"
+    return 1
+  fi
+  rm -f "$env_file"
+  backend_token="$(printf '%s\n' "$token_json" | jq -r '.auth.client_token // empty')"
+
+  if [ -z "$backend_token" ]; then
+    red "  ERROR: Vault did not return a backend token."
+    return 1
+  fi
+
+  env_set VAULT_BACKEND_TOKEN "$backend_token"
+  env_unset VAULT_TOKEN
+  chmod 600 "$ENV_FILE"
+
+  green "  Backend Vault token saved to .env as VAULT_BACKEND_TOKEN"
   echo ""
 }
 
@@ -1271,41 +1383,57 @@ secrets_edit() {
         red "  Must contain uppercase, lowercase, and a digit."
         echo ""
       done
-      docker exec \
-        -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-        -e VAULT_ADDR=http://127.0.0.1:8200 \
-        vault vault kv patch secret/ctf-platform/admin password="$new_pass"
+      local env_file
+      env_file="$(vault_root_env_file)"
+      secret_env_set "$env_file" ADMIN_PASSWORD "$new_pass"
+      vault_exec_env_script "$env_file" <<'VAULT_ADMIN_PATCH'
+vault kv patch secret/ctf-platform/admin password="$ADMIN_PASSWORD"
+VAULT_ADMIN_PATCH
+      rm -f "$env_file"
       green "  Admin password updated in Vault."
       ;;
     2)
       local new_key
       read_required "Resend API key" new_key
-      docker exec \
-        -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-        -e VAULT_ADDR=http://127.0.0.1:8200 \
-        vault vault kv patch secret/ctf-platform/resend api_key="$new_key"
+      local env_file
+      env_file="$(vault_root_env_file)"
+      secret_env_set "$env_file" RESEND_API_KEY "$new_key"
+      vault_exec_env_script "$env_file" <<'VAULT_RESEND_PATCH'
+vault kv patch secret/ctf-platform/resend api_key="$RESEND_API_KEY"
+VAULT_RESEND_PATCH
+      rm -f "$env_file"
       green "  Resend API key updated in Vault."
       ;;
     3)
       local gh_id gh_secret
       read_required "GitHub Client ID" gh_id
       read_required "GitHub Client Secret" gh_secret
-      docker exec \
-        -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-        -e VAULT_ADDR=http://127.0.0.1:8200 \
-        vault vault kv patch secret/ctf-platform/oauth \
-          github_client_id="$gh_id" github_client_secret="$gh_secret"
+      local env_file
+      env_file="$(vault_root_env_file)"
+      secret_env_set "$env_file" OAUTH_GITHUB_CLIENT_ID "$gh_id"
+      secret_env_set "$env_file" OAUTH_GITHUB_CLIENT_SECRET "$gh_secret"
+      vault_exec_env_script "$env_file" <<'VAULT_GITHUB_PATCH'
+vault kv patch secret/ctf-platform/oauth \
+  github_client_id="$OAUTH_GITHUB_CLIENT_ID" \
+  github_client_secret="$OAUTH_GITHUB_CLIENT_SECRET"
+VAULT_GITHUB_PATCH
+      rm -f "$env_file"
       green "  GitHub OAuth credentials updated in Vault."
       ;;
     4)
       local gg_id gg_secret
       read_required "Google Client ID" gg_id
       read_required "Google Client Secret" gg_secret
-      docker exec \
-        -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-        -e VAULT_ADDR=http://127.0.0.1:8200 \
-        vault vault kv patch secret/ctf-platform/oauth \
-          google_client_id="$gg_id" google_client_secret="$gg_secret"
+      local env_file
+      env_file="$(vault_root_env_file)"
+      secret_env_set "$env_file" OAUTH_GOOGLE_CLIENT_ID "$gg_id"
+      secret_env_set "$env_file" OAUTH_GOOGLE_CLIENT_SECRET "$gg_secret"
+      vault_exec_env_script "$env_file" <<'VAULT_GOOGLE_PATCH'
+vault kv patch secret/ctf-platform/oauth \
+  google_client_id="$OAUTH_GOOGLE_CLIENT_ID" \
+  google_client_secret="$OAUTH_GOOGLE_CLIENT_SECRET"
+VAULT_GOOGLE_PATCH
+      rm -f "$env_file"
       green "  Google OAuth credentials updated in Vault."
       ;;
     5|"") return ;;
@@ -1342,18 +1470,18 @@ secrets_rotate() {
   new_refresh="$(gen_alphanum 48 64)"
   new_oauth="$(gen_alphanum 48 64)"
 
-  docker exec \
-    -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-    -e VAULT_ADDR=http://127.0.0.1:8200 \
-    vault vault kv put secret/ctf-platform/jwt \
-      access_secret="$new_access" \
-      refresh_secret="$new_refresh"
-
-  docker exec \
-    -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-    -e VAULT_ADDR=http://127.0.0.1:8200 \
-    vault vault kv patch secret/ctf-platform/oauth \
-      state_secret="$new_oauth"
+  local env_file
+  env_file="$(vault_root_env_file)"
+  secret_env_set "$env_file" JWT_ACCESS_SECRET "$new_access"
+  secret_env_set "$env_file" JWT_REFRESH_SECRET "$new_refresh"
+  secret_env_set "$env_file" OAUTH_STATE_SECRET "$new_oauth"
+  vault_exec_env_script "$env_file" <<'VAULT_ROTATE_JWT'
+vault kv put secret/ctf-platform/jwt \
+  access_secret="$JWT_ACCESS_SECRET" \
+  refresh_secret="$JWT_REFRESH_SECRET"
+vault kv patch secret/ctf-platform/oauth state_secret="$OAUTH_STATE_SECRET"
+VAULT_ROTATE_JWT
+  rm -f "$env_file"
 
   green "  JWT and OAuth state secrets rotated."
   echo ""
@@ -1384,11 +1512,13 @@ secrets_rotate_flag_key() {
   local new_key
   new_key="$(gen_hex 32)"
 
-  docker exec \
-    -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-    -e VAULT_ADDR=http://127.0.0.1:8200 \
-    vault vault kv put secret/ctf-platform/app \
-      flag_encryption_key="$new_key"
+  local env_file
+  env_file="$(vault_root_env_file)"
+  secret_env_set "$env_file" FLAG_ENCRYPTION_KEY "$new_key"
+  vault_exec_env_script "$env_file" <<'VAULT_ROTATE_FLAG'
+vault kv put secret/ctf-platform/app flag_encryption_key="$FLAG_ENCRYPTION_KEY"
+VAULT_ROTATE_FLAG
+  rm -f "$env_file"
 
   green "  FLAG_ENCRYPTION_KEY rotated."
   echo ""
@@ -1425,18 +1555,22 @@ secrets_rotate_s3() {
 
   generate_s3_json
 
-  docker exec \
-    -e "VAULT_TOKEN=${ROOT_TOKEN}" \
-    -e VAULT_ADDR=http://127.0.0.1:8200 \
-    vault vault kv put secret/ctf-platform/storage \
-      access_key="$new_access" \
-      secret_key="$new_secret"
+  local env_file
+  env_file="$(vault_root_env_file)"
+  secret_env_set "$env_file" SEAWEED_S3_ACCESS_KEY "$new_access"
+  secret_env_set "$env_file" SEAWEED_S3_SECRET_KEY "$new_secret"
+  vault_exec_env_script "$env_file" <<'VAULT_ROTATE_S3'
+vault kv put secret/ctf-platform/storage \
+  access_key="$SEAWEED_S3_ACCESS_KEY" \
+  secret_key="$SEAWEED_S3_SECRET_KEY"
+VAULT_ROTATE_S3
+  rm -f "$env_file"
 
   green "  S3 credentials rotated."
   echo ""
   cyan "  Restarting seaweedfs and backend...\n"
 
-  docker compose -f "$COMPOSE_FILE" restart seaweedfs backend
+  compose restart seaweedfs backend
   echo ""
 }
 
@@ -1485,7 +1619,7 @@ _remove_generated_files() {
   if [ "$keep_vault_keys" != "yes" ]; then
     rm -f "$VAULT_KEYS_FILE"
   fi
-  rm -f "$S3_JSON_FILE" "$SCRIPT_DIR/deployment/seaweedfs/s3.local.json"
+  rm -f "$S3_JSON_FILE"
   rm -f "$ALERTMANAGER_CONF"
   rm -f "$SCRIPT_DIR/deploy.log"
 }

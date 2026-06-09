@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -52,21 +51,6 @@ func NewWithMount(
 		client:    client,
 		mountPath: mountPath,
 	}, nil
-}
-
-// NewFromEnv creates a Client from VAULT_ADDR and VAULT_TOKEN environment variables.
-func NewFromEnv() (*Client, error) {
-	addr := os.Getenv("VAULT_ADDR")
-	if addr == "" {
-		return nil, fmt.Errorf("vault.NewFromEnv: VAULT_ADDR environment variable is not set")
-	}
-
-	token := os.Getenv("VAULT_TOKEN")
-	if token == "" {
-		return nil, fmt.Errorf("vault.NewFromEnv: VAULT_TOKEN environment variable is not set")
-	}
-
-	return NewWithMount(addr, token, "secret")
 }
 
 // GetSecret reads all key-value pairs from a KV v2 secret at secretPath, retrying on transient errors.

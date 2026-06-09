@@ -2,7 +2,7 @@
 
 services:
   vault:
-    image: hashicorp/vault:latest
+    image: hashicorp/vault:2.0.2
     container_name: vault
     command: server -dev
     ports:
@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   vault-init:
-    image: hashicorp/vault:latest
+    image: hashicorp/vault:2.0.2
     container_name: vault-init
     env_file:
       - ../../.env.local
@@ -38,7 +38,7 @@ services:
     restart: "no"
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.4-alpine3.23
     container_name: postgres
     command:
       [
@@ -75,7 +75,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:alpine
+    image: redis:8.8.0-alpine3.23
     container_name: redis
     # Redis stores ephemeral cache / rate-limit state only. Disable RDB/AOF
     # so restricted hosts do not break writes on /data and poison the app
@@ -97,7 +97,7 @@ services:
       start_period: 10s
 
   seaweedfs:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.32
     container_name: seaweedfs
     command: >
       server
@@ -128,7 +128,7 @@ services:
     restart: unless-stopped
 
   seaweedfs-admin:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.32
     container_name: seaweedfs-admin
     command: >
       admin
@@ -195,7 +195,7 @@ services:
 
       # Vault - required; all secrets below are fetched from here at startup
       VAULT_ADDR: http://vault:8200
-      VAULT_TOKEN: ${VAULT_TOKEN:-root}
+      VAULT_BACKEND_TOKEN: ${VAULT_BACKEND_TOKEN:-root}
 
       # JWT TTLs - non-secret; actual signing keys come from Vault: ctf-platform/jwt
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
@@ -222,7 +222,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000,http://localhost:5173,http://localhost:5000}
 
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
-      METRICS_ALLOWED_IPS: ${METRICS_ALLOWED_IPS:-}
+      METRICS_ALLOWED_IPS: ${METRICS_ALLOWED_IPS:-172.16.0.0/12}
 
       RATE_LIMIT_SUBMIT_FLAG: ${RATE_LIMIT_SUBMIT_FLAG:-1000}
       RATE_LIMIT_SUBMIT_FLAG_DURATION: ${RATE_LIMIT_SUBMIT_FLAG_DURATION:-1}
@@ -234,7 +234,7 @@ services:
       - "${BACKEND_PORT:-8090}:8080"
     healthcheck:
       test:
-        ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/healthcheck"]
+        ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -279,7 +279,7 @@ services:
       start_period: 5s
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.12.0
     container_name: prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -317,7 +317,7 @@ services:
     build:
       context: .
       dockerfile: loki.Dockerfile
-    image: astroctfb-loki:latest
+    image: astroctfb-loki:dev
     container_name: loki
     command: -config.file=/etc/loki/loki-config.yml
     expose:
@@ -336,7 +336,7 @@ services:
     restart: unless-stopped
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.32.2
     container_name: alertmanager
     volumes:
       - ../../monitoring/alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml
@@ -354,7 +354,7 @@ services:
     restart: unless-stopped
 
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.16.3
     container_name: alloy
     command:
       - run
@@ -375,7 +375,7 @@ services:
         condition: service_healthy
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.2.9
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
@@ -413,7 +413,7 @@ services:
         condition: service_healthy
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.19.1
     container_name: postgres-exporter
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DB:-board}?sslmode=disable"
@@ -427,7 +427,7 @@ services:
         condition: service_healthy
 
   redis-exporter:
-    image: oliver006/redis_exporter:latest
+    image: oliver006/redis_exporter:v1.86.0
     container_name: redis-exporter
     environment:
       REDIS_ADDR: redis:6379
@@ -442,7 +442,7 @@ services:
         condition: service_healthy
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     command:
       - "-port=8180"
@@ -469,7 +469,7 @@ services:
       retries: 3
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.11.1
     container_name: node-exporter
     command:
       - "--path.procfs=/host/proc"

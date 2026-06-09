@@ -2,7 +2,7 @@
 
 services:
   vault:
-    image: hashicorp/vault:latest
+    image: hashicorp/vault:2.0.2
     container_name: vault
     expose:
       - "8200"
@@ -32,7 +32,7 @@ services:
       start_period: 15s
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.4-alpine3.23
     container_name: postgres
     command:
       [
@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:alpine
+    image: redis:8.8.0-alpine3.23
     container_name: redis
     # Redis stores ephemeral cache / rate-limit state only. Disable RDB/AOF
     # so restricted hosts do not break writes on /data and poison the app
@@ -105,7 +105,7 @@ services:
           cpus: "1.0"
 
   seaweedfs:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.32
     container_name: seaweedfs
     command: >
       server
@@ -135,7 +135,7 @@ services:
     restart: unless-stopped
 
   seaweedfs-admin:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.32
     container_name: seaweedfs-admin
     command: >
       admin
@@ -202,7 +202,7 @@ services:
 
       # Vault - required; all secrets below are fetched from here at startup
       VAULT_ADDR: http://vault:8200
-      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_BACKEND_TOKEN: ${VAULT_BACKEND_TOKEN:-}
 
       # JWT TTLs - non-secret; actual signing keys come from Vault: ctf-platform/jwt
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
@@ -241,7 +241,7 @@ services:
       - "8080"
     healthcheck:
       test:
-        ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/healthcheck"]
+        ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -299,7 +299,7 @@ services:
       start_period: 5s
 
   acme-webroot:
-    image: busybox:1.36
+    image: busybox:1.38.0-musl
     container_name: acme-webroot
     command:
       [
@@ -343,6 +343,7 @@ services:
       HAPROXY_STATS_PASSWORD: ${HAPROXY_STATS_PASSWORD:?HAPROXY_STATS_PASSWORD is required}
       HAPROXY_BEHIND_CDN: ${HAPROXY_BEHIND_CDN:-false}
       TRUSTED_CDN_CIDRS: ${TRUSTED_CDN_CIDRS:-}
+      HAPROXY_REAL_IP_HEADER: ${HAPROXY_REAL_IP_HEADER:-CF-Connecting-IP}
       HAPROXY_EDGE_REQ_RATE_PER_MINUTE: ${HAPROXY_EDGE_REQ_RATE_PER_MINUTE:-3000}
       HAPROXY_EDGE_CONN_RATE_PER_10S: ${HAPROXY_EDGE_CONN_RATE_PER_10S:-100}
       HAPROXY_EDGE_ERR_RATE_PER_30S: ${HAPROXY_EDGE_ERR_RATE_PER_30S:-120}
@@ -459,7 +460,7 @@ services:
     restart: "no"
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.12.0
     container_name: prometheus
     security_opt:
       - no-new-privileges:true
@@ -499,7 +500,7 @@ services:
     build:
       context: .
       dockerfile: loki.Dockerfile
-    image: astroctfb-loki:latest
+    image: astroctfb-loki:1.0.0
     container_name: loki
     security_opt:
       - no-new-privileges:true
@@ -522,7 +523,7 @@ services:
     restart: unless-stopped
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.32.2
     container_name: alertmanager
     security_opt:
       - no-new-privileges:true
@@ -544,7 +545,7 @@ services:
     restart: unless-stopped
 
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.16.3
     container_name: alloy
     security_opt:
       - no-new-privileges:true
@@ -569,7 +570,7 @@ services:
         condition: service_healthy
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.2.9
     container_name: grafana
     security_opt:
       - no-new-privileges:true
@@ -606,7 +607,7 @@ services:
         condition: service_healthy
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.19.1
     container_name: postgres-exporter
     security_opt:
       - no-new-privileges:true
@@ -624,7 +625,7 @@ services:
         condition: service_healthy
 
   redis-exporter:
-    image: oliver006/redis_exporter:latest
+    image: oliver006/redis_exporter:v1.86.0
     container_name: redis-exporter
     security_opt:
       - no-new-privileges:true
@@ -643,7 +644,7 @@ services:
         condition: service_healthy
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     command:
       - "-port=8180"
@@ -670,7 +671,7 @@ services:
       retries: 3
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.11.1
     container_name: node-exporter
     security_opt:
       - no-new-privileges:true

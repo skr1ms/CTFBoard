@@ -14,7 +14,7 @@ import (
 )
 
 func TestParseCORSOrigins_Success(t *testing.T) {
-	got := parseCORSOrigins("http://a.com, http://b.com ,https://c.com")
+	got := parseCORSOrigins("http://a.com, http://b.com ,, https://c.com")
 	assert.Equal(t, []string{"http://a.com", "http://b.com", "https://c.com"}, got)
 }
 
@@ -54,4 +54,17 @@ func TestVaultFetch_Error(t *testing.T) {
 	err := fn()
 	require.NoError(t, err)
 	assert.False(t, applied)
+}
+
+func TestVaultTokenFromEnvUsesBackendToken(t *testing.T) {
+	t.Setenv("VAULT_BACKEND_TOKEN", "backend-token")
+
+	assert.Equal(t, "backend-token", vaultTokenFromEnv())
+}
+
+func TestVaultTokenFromEnvIgnoresLegacyToken(t *testing.T) {
+	t.Setenv("VAULT_TOKEN", "legacy-token")
+	t.Setenv("VAULT_BACKEND_TOKEN", "")
+
+	assert.Empty(t, vaultTokenFromEnv())
 }

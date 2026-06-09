@@ -11,6 +11,8 @@ import (
 
 const jwtSecret32 = "12345678901234567890123456789012"
 
+const setupToken32 = "setup-token-12345678901234567890"
+
 const flagKey64Hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 func setupEnv(t *testing.T, env map[string]string) {
@@ -31,6 +33,7 @@ func disableVaultForTest(t *testing.T) {
 	t.Helper()
 	t.Setenv("VAULT_ADDR", "")
 	t.Setenv("VAULT_TOKEN", "")
+	t.Setenv("VAULT_BACKEND_TOKEN", "")
 }
 
 func TestNew_Success(t *testing.T) {
@@ -44,6 +47,7 @@ func TestNew_Success(t *testing.T) {
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
 		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         setupToken32,
 		"RESEND_ENABLED":      "false",
 	})
 
@@ -139,6 +143,7 @@ func TestNew_Error_FlexibleCompetitionMode(t *testing.T) {
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "rp",
 		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         setupToken32,
 		"COMPETITION_MODE":    "flexible",
 	})
 
@@ -158,6 +163,7 @@ func TestNew_ShutdownTimeout_Default(t *testing.T) {
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
 		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         setupToken32,
 		"RESEND_ENABLED":      "false",
 	})
 	// HTTP_SHUTDOWN_TIMEOUT not set -> default 15s
@@ -177,6 +183,7 @@ func TestNew_ShutdownTimeout_Custom(t *testing.T) {
 		"JWT_REFRESH_SECRET":    jwtSecret32,
 		"REDIS_PASSWORD":        "redis_pwd",
 		"FLAG_ENCRYPTION_KEY":   flagKey64Hex,
+		"SETUP_TOKEN":           setupToken32,
 		"RESEND_ENABLED":        "false",
 		"HTTP_SHUTDOWN_TIMEOUT": "30",
 	})
@@ -197,6 +204,7 @@ func TestNew_ResendEnabledNoAPIKey_DisablesEmail(t *testing.T) {
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
 		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         setupToken32,
 		"RESEND_ENABLED":      "true",
 		"RESEND_API_KEY":      "",
 		"VERIFY_EMAILS":       "true",
@@ -220,6 +228,7 @@ func TestNew_ResendPlaceholder_DisablesEmail(t *testing.T) {
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
 		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         setupToken32,
 		"RESEND_ENABLED":      "true",
 		"RESEND_API_KEY":      "placeholder",
 	})
@@ -241,6 +250,7 @@ func TestNew_Error_S3ProviderMissingConfig(t *testing.T) {
 		"JWT_REFRESH_SECRET":  jwtSecret32,
 		"REDIS_PASSWORD":      "redis_pwd",
 		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         setupToken32,
 		"RESEND_ENABLED":      "false",
 		"STORAGE_PROVIDER":    "s3",
 		"STORAGE_S3_ENDPOINT": "",
@@ -252,6 +262,25 @@ func TestNew_Error_S3ProviderMissingConfig(t *testing.T) {
 	assert.Contains(t, err.Error(), "S3_ENDPOINT")
 	assert.Contains(t, err.Error(), "S3_BUCKET")
 	assert.Contains(t, err.Error(), "STORAGE_PROVIDER")
+}
+
+func TestNew_Error_SetupTokenMissing(t *testing.T) {
+	disableVaultForTest(t)
+
+	setupEnv(t, map[string]string{
+		"POSTGRES_USER":       "u",
+		"POSTGRES_PASSWORD":   "p",
+		"POSTGRES_DB":         "d",
+		"JWT_ACCESS_SECRET":   jwtSecret32,
+		"JWT_REFRESH_SECRET":  jwtSecret32,
+		"REDIS_PASSWORD":      "redis_pwd",
+		"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+		"SETUP_TOKEN":         "",
+	})
+
+	_, err := New()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SETUP_TOKEN must be set")
 }
 
 func TestNew_Error_SetupTokenTooShort(t *testing.T) {
@@ -284,6 +313,7 @@ func TestNew_Error_OAuthPartialConfig(t *testing.T) {
 		"JWT_REFRESH_SECRET":         jwtSecret32,
 		"REDIS_PASSWORD":             "redis_pwd",
 		"FLAG_ENCRYPTION_KEY":        flagKey64Hex,
+		"SETUP_TOKEN":                setupToken32,
 		"OAUTH_STATE_SECRET":         jwtSecret32,
 		"OAUTH_GITHUB_CLIENT_ID":     "client",
 		"OAUTH_GITHUB_CLIENT_SECRET": "",
@@ -307,12 +337,50 @@ func TestNew_OAuthRedirectOnlyDoesNotEnableProvider(t *testing.T) {
 		"JWT_REFRESH_SECRET":        jwtSecret32,
 		"REDIS_PASSWORD":            "redis_pwd",
 		"FLAG_ENCRYPTION_KEY":       flagKey64Hex,
+		"SETUP_TOKEN":               setupToken32,
 		"OAUTH_GITHUB_REDIRECT_URL": "http://localhost/callback",
 	})
 
 	cfg, err := New()
 	require.NoError(t, err)
 	assert.False(t, cfg.GitHub.IsConfigured())
+}
+
+func TestNew_Error_InvalidOAuthRedirectURL(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		clientIDKey   string
+		secretKey     string
+		redirectKey   string
+		redirectLabel string
+	}{
+		{name: "github", clientIDKey: "OAUTH_GITHUB_CLIENT_ID", secretKey: "OAUTH_GITHUB_CLIENT_SECRET", redirectKey: "OAUTH_GITHUB_REDIRECT_URL", redirectLabel: "OAUTH_GITHUB_REDIRECT_URL"},
+		{name: "google", clientIDKey: "OAUTH_GOOGLE_CLIENT_ID", secretKey: "OAUTH_GOOGLE_CLIENT_SECRET", redirectKey: "OAUTH_GOOGLE_REDIRECT_URL", redirectLabel: "OAUTH_GOOGLE_REDIRECT_URL"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			disableVaultForTest(t)
+
+			env := map[string]string{
+				"POSTGRES_USER":       "u",
+				"POSTGRES_PASSWORD":   "p",
+				"POSTGRES_DB":         "d",
+				"JWT_ACCESS_SECRET":   jwtSecret32,
+				"JWT_REFRESH_SECRET":  jwtSecret32,
+				"REDIS_PASSWORD":      "redis_pwd",
+				"FLAG_ENCRYPTION_KEY": flagKey64Hex,
+				"SETUP_TOKEN":         setupToken32,
+				"OAUTH_STATE_SECRET":  jwtSecret32,
+				tt.clientIDKey:        "client",
+				tt.secretKey:          "secret",
+				tt.redirectKey:        "ftp://localhost/callback",
+			}
+			setupEnv(t, env)
+
+			_, err := New()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.redirectLabel)
+		})
+	}
 }
 
 func TestNew_Error_InvalidRefreshTTL(t *testing.T) {
@@ -326,6 +394,7 @@ func TestNew_Error_InvalidRefreshTTL(t *testing.T) {
 		"JWT_REFRESH_SECRET":    jwtSecret32,
 		"REDIS_PASSWORD":        "redis_pwd",
 		"FLAG_ENCRYPTION_KEY":   flagKey64Hex,
+		"SETUP_TOKEN":           setupToken32,
 		"JWT_REFRESH_TTL_HOURS": "0",
 	})
 

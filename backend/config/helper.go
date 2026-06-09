@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"net"
 	"strings"
 
 	"github.com/samber/lo"
@@ -35,11 +34,7 @@ func vaultFetch(ctx context.Context, client vaultSecretGetter, l logkit.Logger, 
 }
 
 func parseCORSOrigins(s string) []string {
-	if s == "" {
-		return []string{}
-	}
-
-	return lo.Map(strings.Split(s, ","), func(x string, _ int) string { return strings.TrimSpace(x) })
+	return parseCommaSeparated(s)
 }
 
 func parseCommaSeparated(s string) []string {
@@ -50,28 +45,6 @@ func parseCommaSeparated(s string) []string {
 	return lo.Filter(lo.Map(strings.Split(s, ","), func(x string, _ int) string { return strings.TrimSpace(x) }), func(s string, _ int) bool { return s != "" })
 }
 
-// parseTrustedProxyCIDRs parses a comma-separated list of CIDR strings. Invalid
-// entries are silently dropped with a warning log rather than failing startup,
-// because misconfigured trusted-proxy CIDRs should not block the server - but
-// they do affect IP-based access control, so the warning is intentionally noisy.
-func parseTrustedProxyCIDRs(s string, l logkit.Logger) []string {
-	if s == "" {
-		return nil
-	}
-
-	trimmed := lo.Map(strings.Split(s, ","), func(x string, _ int) string { return strings.TrimSpace(x) })
-
-	return lo.FilterMap(trimmed, func(p string, _ int) (string, bool) {
-		if p == "" {
-			return "", false
-		}
-
-		if _, _, err := net.ParseCIDR(p); err != nil {
-			l.WithError(err).Warn("Config: TRUSTED_PROXY_CIDRS invalid CIDR, skipping", logkit.Fields{"cidr": p})
-
-			return "", false
-		}
-
-		return p, true
-	})
+func parseTrustedProxyCIDRs(s string) []string {
+	return parseCommaSeparated(s)
 }

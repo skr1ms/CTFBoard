@@ -6,7 +6,7 @@
 
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.4-alpine3.23
     container_name: e2e-postgres
     environment:
       POSTGRES_USER: admin
@@ -23,7 +23,7 @@ services:
       - /var/lib/postgresql
 
   redis:
-    image: redis:alpine
+    image: redis:8.8.0-alpine3.23
     container_name: e2e-redis
     command: redis-server --requirepass 12345 --save "" --appendonly no --stop-writes-on-bgsave-error no
     ports:
@@ -78,7 +78,7 @@ services:
 
       # No Vault - secrets provided directly
       VAULT_ADDR: ""
-      VAULT_TOKEN: ""
+      VAULT_BACKEND_TOKEN: ""
 
       # this keys just for testing
       FLAG_ENCRYPTION_KEY: "b59bcc4169843f07bb99c6ca0abf5dd904742a5234589b4d563a6b8cefb31695"
@@ -109,7 +109,7 @@ services:
       STORAGE_S3_SECRET_KEY: ""
       OAUTH_STATE_SECRET: "5aa4f5d8c210418e088b913b9f4587194c41dc191bdedd0078935bf740330532"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/healthcheck"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
       interval: 5s
       timeout: 3s
       retries: 20

@@ -10,6 +10,53 @@ set -e
 
 mkdir -p /var/run/haproxy /var/lib/haproxy /etc/haproxy/maps /etc/haproxy/certs
 
+if [ "${HAPROXY_BEHIND_CDN:-false}" = "true" ] && [ -z "${TRUSTED_CDN_CIDRS:-}" ]; then
+    echo "HAPROXY_BEHIND_CDN=true requires TRUSTED_CDN_CIDRS to trust client IP forwarding safely." >&2
+    exit 1
+fi
+
+reject_control_or_space() {
+    name="$1"
+    value="$2"
+    if printf '%s' "$value" | grep -q '[[:cntrl:][:space:]]'; then
+        echo "${name} must not contain whitespace or control characters." >&2
+        exit 1
+    fi
+}
+
+validate_domain() {
+    name="$1"
+    value="$2"
+    reject_control_or_space "$name" "$value"
+    if ! printf '%s' "$value" | grep -Eq '^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(\.([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?))*$'; then
+        echo "${name} must be a hostname without protocol, slash, whitespace, or shell metacharacters." >&2
+        exit 1
+    fi
+}
+
+validate_http_token() {
+    name="$1"
+    value="$2"
+    reject_control_or_space "$name" "$value"
+    if ! printf '%s' "$value" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+        echo "${name} must be a safe HTTP header token." >&2
+        exit 1
+    fi
+}
+
+validate_ip_list_chars() {
+    name="$1"
+    value="$2"
+    if [ -z "$value" ]; then
+        return 0
+    fi
+
+    if ! printf '%s' "$value" | grep -Eq '^[0-9A-Fa-f:./, ]*$'; then
+        echo "${name} must contain only IP/CIDR characters, spaces, or commas." >&2
+        exit 1
+    fi
+}
+
 write_map_file() {
     value="$1"
     target="$2"
@@ -38,6 +85,19 @@ HAPROXY_EDGE_REQ_RATE_PER_MINUTE="${HAPROXY_EDGE_REQ_RATE_PER_MINUTE:-3000}"
 HAPROXY_EDGE_CONN_RATE_PER_10S="${HAPROXY_EDGE_CONN_RATE_PER_10S:-100}"
 HAPROXY_EDGE_ERR_RATE_PER_30S="${HAPROXY_EDGE_ERR_RATE_PER_30S:-120}"
 HAPROXY_EDGE_SUBMIT_RATE_PER_MINUTE="${HAPROXY_EDGE_SUBMIT_RATE_PER_MINUTE:-120}"
+HAPROXY_REAL_IP_HEADER="${HAPROXY_REAL_IP_HEADER:-CF-Connecting-IP}"
+
+validate_domain DOMAIN "$DOMAIN"
+validate_domain API_DOMAIN "$API_DOMAIN"
+validate_domain GRAFANA_DOMAIN "$GRAFANA_DOMAIN"
+validate_domain VAULT_DOMAIN "$VAULT_DOMAIN"
+validate_domain S3_DOMAIN "$S3_DOMAIN"
+reject_control_or_space HAPROXY_STATS_USER "$HAPROXY_STATS_USER"
+reject_control_or_space HAPROXY_STATS_PASSWORD "$HAPROXY_STATS_PASSWORD"
+validate_http_token HAPROXY_REAL_IP_HEADER "$HAPROXY_REAL_IP_HEADER"
+validate_ip_list_chars ADMIN_ALLOWED_IPS "${ADMIN_ALLOWED_IPS:-}"
+validate_ip_list_chars VAULT_ADMIN_IP "${VAULT_ADMIN_IP:-}"
+validate_ip_list_chars TRUSTED_CDN_CIDRS "${TRUSTED_CDN_CIDRS:-}"
 
 CERT_FILE="/etc/haproxy/certs/${DOMAIN}.pem"
 
@@ -93,21 +153,22 @@ frontend fe_main
     # sc2 = HTTP error rate    (scanner / brute-force detection)
     # sc3 = submit path rate   (flag brute-force)
     #
-    # In CDN mode: track real client IP from the first XFF entry.
+    # In CDN mode: track real client IP from a trusted provider header.
     # In direct mode: track src (direct connection IP).
     acl from_cdn src -f /etc/haproxy/maps/cdn_cidrs.txt
 
-    http-request track-sc0 hdr(X-Forwarded-For,1) table st_per_ip_rate if from_cdn
-    http-request track-sc0 src                     table st_per_ip_rate if !from_cdn
+    http-request deny deny_status 400 if from_cdn !{ hdr_ip(${HAPROXY_REAL_IP_HEADER}) -m found }
+    http-request set-var(txn.client_ip) hdr_ip(${HAPROXY_REAL_IP_HEADER}) if from_cdn
+    http-request set-var(txn.client_ip) src                               if !from_cdn
+
+    http-request track-sc0 var(txn.client_ip) table st_per_ip_rate
 
     http-request track-sc1 src table st_per_ip_conn
 
-    http-request track-sc2 hdr(X-Forwarded-For,1) table st_per_ip_err if from_cdn
-    http-request track-sc2 src                     table st_per_ip_err if !from_cdn
+    http-request track-sc2 var(txn.client_ip) table st_per_ip_err
 
     acl is_submit_path path_reg -i ^/api/v1/challenges/[^/]+/submit$
-    http-request track-sc3 hdr(X-Forwarded-For,1) table st_submit_abuse if is_submit_path from_cdn
-    http-request track-sc3 src                     table st_submit_abuse if is_submit_path !from_cdn
+    http-request track-sc3 var(txn.client_ip) table st_submit_abuse if is_submit_path
 
     http-request deny deny_status 429 if { sc_conn_rate(1,st_per_ip_conn) gt ${HAPROXY_EDGE_CONN_RATE_PER_10S} }
     http-request deny deny_status 429 if { sc_http_req_rate(0,st_per_ip_rate) gt ${HAPROXY_EDGE_REQ_RATE_PER_MINUTE} }
@@ -115,12 +176,12 @@ frontend fe_main
     http-request deny deny_status 429 if is_submit_path { sc_http_req_rate(3,st_submit_abuse) gt ${HAPROXY_EDGE_SUBMIT_RATE_PER_MINUTE} }
 
     http-request del-header X-Real-IP
-    http-request del-header X-Forwarded-For if !from_cdn
+    http-request del-header X-Forwarded-For
 
-    http-request set-header X-Real-IP %[hdr(X-Forwarded-For,1)] if from_cdn
-    http-request set-header X-Real-IP %[src]                     if !from_cdn
+    http-request set-header X-Real-IP %[var(txn.client_ip)]
+    http-request set-header X-Forwarded-For %[var(txn.client_ip)]
 
-    # X-Forwarded-For is appended by "option forwardfor" in defaults
+    # "option forwardfor" appends the direct peer after this sanitized value.
     http-request set-header X-Forwarded-Proto https if from_cdn
     http-request set-header X-Forwarded-Proto https if !from_cdn { ssl_fc }
     http-request set-header X-Forwarded-Proto http  if !from_cdn !{ ssl_fc }
@@ -142,8 +203,8 @@ frontend fe_main
     acl is_s3        hdr(host) -i ${S3_DOMAIN}
     acl is_s3_presigned urlp(X-Amz-Signature) -m found
     acl is_s3_sigv4 hdr_beg(Authorization) -i AWS4-HMAC-SHA256
-    acl admin_ok     src -f /etc/haproxy/maps/admin_ips.txt
-    acl vault_ok     src -f /etc/haproxy/maps/vault_ips.txt
+    acl admin_ok     var(txn.client_ip) -m ip -f /etc/haproxy/maps/admin_ips.txt
+    acl vault_ok     var(txn.client_ip) -m ip -f /etc/haproxy/maps/vault_ips.txt
 
     acl is_api_host hdr(host) -i ${API_DOMAIN}
 
@@ -152,6 +213,9 @@ frontend fe_main
 
     acl is_sse path /api/v1/sse
     acl is_api path_beg /api/
+    acl is_long_api path /api/v1/admin/import /api/v1/admin/import/csv /api/v1/admin/export/zip
+    acl is_long_api path_beg /api/v1/files/download/
+    acl is_long_api path_reg -i ^/api/v1/admin/challenges/[^/]+/files$
 
     http-request deny deny_status 403 if is_grafana !admin_ok !is_acme
     http-request deny deny_status 403 if is_vault   !vault_ok !is_acme
@@ -187,11 +251,13 @@ frontend fe_main
     # api.DOMAIN host-based routing (before path-based catch-all)
     use_backend bk_websocket if is_api_host is_ws is_ws_upgrade
     use_backend bk_sse       if is_api_host is_sse
+    use_backend bk_api_long  if is_api_host is_long_api
     use_backend bk_api       if is_api_host
 
     # WS/SSE must come before the generic /api/ catch-all
     use_backend bk_websocket if is_ws is_ws_upgrade
     use_backend bk_sse       if is_sse
+    use_backend bk_api_long  if is_long_api
 
     use_backend bk_api if is_api
 
@@ -215,6 +281,10 @@ EOF
 haproxy -c \
     -f /usr/local/etc/haproxy/haproxy.cfg \
     -f /tmp/fe_main.cfg
+
+if [ "${HAPROXY_CHECK_ONLY:-false}" = "true" ]; then
+    exit 0
+fi
 
 exec haproxy \
     -f /usr/local/etc/haproxy/haproxy.cfg \

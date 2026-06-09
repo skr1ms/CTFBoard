@@ -17,12 +17,12 @@ import (
 // Each goroutine uses vaultFetch, which silently logs a warning and returns nil on
 // missing secrets so that a partial Vault setup does not block startup. A mutex
 // protects concurrent writes into raw. The entire fetch is bounded by the caller's
-// context (typically 30 s). If VAULT_ADDR or VAULT_TOKEN are absent the function
-// returns immediately, leaving raw unchanged.
+// context (typically 30 s). If VAULT_ADDR or VAULT_BACKEND_TOKEN are absent
+// the function returns immediately, leaving raw unchanged.
 func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 	vaultAddr := os.Getenv("VAULT_ADDR")
 
-	vaultToken := os.Getenv("VAULT_TOKEN")
+	vaultToken := vaultTokenFromEnv()
 	if vaultAddr == "" || vaultToken == "" {
 		return
 	}
@@ -135,4 +135,8 @@ func loadFromVault(ctx context.Context, raw *rawConfig, l logkit.Logger) {
 	if err := g.Wait(); err != nil {
 		l.WithError(err).Warn("Config: vault goroutine error")
 	}
+}
+
+func vaultTokenFromEnv() string {
+	return os.Getenv("VAULT_BACKEND_TOKEN")
 }

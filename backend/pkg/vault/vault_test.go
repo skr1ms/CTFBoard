@@ -5,52 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestNewFromEnv_Error(t *testing.T) {
-	os.Unsetenv("VAULT_ADDR")
-	os.Unsetenv("VAULT_TOKEN")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
-
-	_, err := NewFromEnv()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "VAULT_ADDR")
-}
-
-func TestNewFromEnv_ErrorNoToken(t *testing.T) {
-	os.Setenv("VAULT_ADDR", "http://localhost:8200")
-	os.Unsetenv("VAULT_TOKEN")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
-
-	_, err := NewFromEnv()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "VAULT_TOKEN")
-}
-
-func TestNewFromEnv_OK(t *testing.T) {
-	t.Parallel()
-	os.Setenv("VAULT_ADDR", "http://localhost:8200")
-	os.Setenv("VAULT_TOKEN", "token")
-	t.Cleanup(func() {
-		os.Unsetenv("VAULT_ADDR")
-		os.Unsetenv("VAULT_TOKEN")
-	})
-
-	c, err := NewFromEnv()
-	require.NoError(t, err)
-	assert.NotNil(t, c)
-}
 
 func TestNew_NewWithMount(t *testing.T) {
 	t.Parallel()

@@ -31,7 +31,7 @@ func loadFromEnv(l logkit.Logger) *rawConfig {
 	}
 
 	raw.CORSOrigins = parseCORSOrigins(raw.CORSOriginsStr)
-	raw.TrustedProxyCIDRs = parseTrustedProxyCIDRs(raw.TrustedProxyCIDRsStr, l)
+	raw.TrustedProxyCIDRs = parseTrustedProxyCIDRs(raw.TrustedProxyCIDRsStr)
 
 	raw.MetricsAllowedIPs = parseCommaSeparated(raw.MetricsAllowedIPsStr)
 	if raw.ShutdownTimeoutSec < 1 {

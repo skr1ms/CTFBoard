@@ -1,4 +1,4 @@
-FROM golang:1.26-alpine AS builder
+FROM golang:1.26.4-alpine3.23 AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
     go build -o bin/backend cmd/app/main.go && \
     go build -o bin/cleanup cmd/cleanup/main.go
 
-FROM alpine:latest
+FROM alpine:3.23.4
 
 RUN apk --no-cache add ca-certificates libwebp
 

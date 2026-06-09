@@ -1,4 +1,4 @@
-FROM haproxy:3.2-alpine
+FROM haproxy:3.4.0-alpine3.23
 
 USER root
 RUN apk add --no-cache openssl wget
