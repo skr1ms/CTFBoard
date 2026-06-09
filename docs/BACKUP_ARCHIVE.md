@@ -56,9 +56,7 @@ Job statuses are `queued`, `running`, `completed`, and `failed`. Job phases are
 Import options:
 
 - `erase_existing`: truncates backup-managed tables before replaying records.
-- `conflict_mode`: `overwrite` or `skip`; `skip` currently applies to users and
-  teams, while other entities use their table-specific upsert or do-nothing
-  behavior.
+- `conflict_mode`: currently `overwrite` only for ZIP imports.
 - `validate_files`: validates SHA-256 for restored payloads before accepting
   file metadata.
 - `preserve_admin_roles`: keeps imported admin roles; otherwise imported admin

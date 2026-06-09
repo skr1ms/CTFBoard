@@ -88,7 +88,7 @@ Challenge files, avatars, and other uploaded assets use the backend storage abst
 Production uses SeaweedFS S3:
 
 - Backend talks to the internal S3 endpoint.
-- Public downloads use presigned URLs.
+- Challenge downloads use authenticated signed backend URLs that stream from storage.
 - Operators use the official SeaweedFS Admin UI rather than a custom frontend.
 
 Backup ZIP archives use the Astro-native archive contract documented in
