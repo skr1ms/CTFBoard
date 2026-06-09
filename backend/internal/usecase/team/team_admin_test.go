@@ -129,7 +129,7 @@ func TestTeamUseCase_AdminDelete_Success(t *testing.T) {
 	d.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return(members, nil).Twice()
 	d.userRepo.EXPECT().Lock(mock.Anything, memberID).Return(nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{}, nil).Once()
 	d.solveRepo.EXPECT().DeleteByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().DeleteByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.awardRepo.EXPECT().DeleteByTeamID(mock.Anything, teamID).Return(nil).Once()

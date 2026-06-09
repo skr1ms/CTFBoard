@@ -56,6 +56,12 @@ func ProvideUserUseCase(
 	compParamUC *competition.CompetitionParamUseCase,
 	l logkit.Logger,
 ) *user.UserUseCase {
+	var statsInvalidator cacheutil.StatisticsCacheInvalidator
+
+	if sharedCache != nil {
+		statsInvalidator = &competition.StatsCacheInvalidatorImpl{Cache: sharedCache}
+	}
+
 	return user.NewUserUseCase(user.UserDeps{
 		UserRepo: userRepo, TeamRepo: teamRepo, SolveRepo: solveRepo,
 		ChallengeRepo:  challengeRepo,
@@ -67,6 +73,7 @@ func ProvideUserUseCase(
 		PersonalNotificationSender: notificationUC,
 		UserCache:                  userCacheSvc,
 		ScoreboardCache:            scoreboardCache,
+		StatsCache:                 statsInvalidator,
 		ChallengeListCache:         challengeListCache,
 		TeamCache:                  sharedCache,
 		CompParamUC:                compParamUC,

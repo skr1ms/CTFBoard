@@ -12,7 +12,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 )
 
 const maxBulkTeamActionIDs = 100
@@ -101,11 +100,8 @@ func (uc *TeamUseCase) UnbanTeams(ctx context.Context, teamIDs []uuid.UUID, acto
 	}
 
 	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
-		comp := computil.Cached(ctx, nil, uc.deps.CompRepo)
-		frozen := comp != nil && comp.IsFreezeActive()
-
 		for _, id := range ids {
-			uc.invalidateTeamAndMembers(ctx, id, memberIDsByTeam[id], frozen)
+			uc.invalidateTeamAndMembers(ctx, id, memberIDsByTeam[id])
 		}
 	})
 
@@ -134,6 +130,8 @@ func (uc *TeamUseCase) SetHiddenBulk(ctx context.Context, teamIDs []uuid.UUID, h
 		for _, id := range ids {
 			cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, id)
 		}
+
+		cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - SetHiddenBulk")
 	})
 
 	return &usecase.BulkActionResult{AffectedCount: len(ids)}, nil

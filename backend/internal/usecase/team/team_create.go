@@ -40,6 +40,7 @@ func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.U
 
 	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, captainID)
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - Create")
 
 	return team, nil
 }

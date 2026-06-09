@@ -71,7 +71,7 @@ func InitializeApp(ctx context.Context, cfg *config.Config, l logkit.Logger, poo
 	solveUseCase := ProvideSolveUseCase(solveRepo, challengeRepo, competitionRepo, competitionUseCase, competitionParamUseCase, userRepo, teamRepo, transactionManager, cache, scoreboardCacheService, challengeUseCase, broadcaster)
 	pageRepo := ProvidePageRepo(pool)
 	fileUseCase := ProvideFileUseCase(fileRepo, challengeRepo, pageRepo, solveRepo, competitionRepo, settingsRepo, storageProvider, cfg)
-	awardUseCase := ProvideAwardUseCase(awardRepo, teamRepo, transactionManager, scoreboardCacheService, competitionRepo)
+	awardUseCase := ProvideAwardUseCase(awardRepo, teamRepo, transactionManager, scoreboardCacheService, cache, competitionRepo)
 	statisticsRepo := ProvideStatisticsRepo(pool)
 	statisticsUseCase := ProvideStatisticsUseCase(statisticsRepo, cache, competitionUseCase, transactionManager)
 	submissionUseCase := ProvideSubmissionUseCase(submissionRepo, competitionUseCase, transactionManager, challengeUseCase, userRepo, teamRepo, cache, l)

@@ -269,6 +269,61 @@ func (r *SolveRepo) GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID
 	return out, nil
 }
 
+func (r *SolveRepo) GetModerationAffectedChallengeIDsByTeamID(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error) {
+	ids, err := r.Q(ctx).GetModerationAffectedChallengeIDsByTeamID(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetModerationAffectedChallengeIDsByTeamID: %w", err)
+	}
+
+	return ids, nil
+}
+
+func (r *SolveRepo) GetModerationAffectedChallengeIDsByTeamAndUserID(ctx context.Context, teamID, userID uuid.UUID) ([]uuid.UUID, error) {
+	ids, err := r.Q(ctx).GetModerationAffectedChallengeIDsByTeamAndUserID(ctx, sqlc.GetModerationAffectedChallengeIDsByTeamAndUserIDParams{
+		TeamID: teamID,
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetModerationAffectedChallengeIDsByTeamAndUserID: %w", err)
+	}
+
+	return ids, nil
+}
+
+func (r *SolveRepo) GetModerationAffectedSolvesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.ModerationAffectedSolve, error) {
+	rows, err := r.Q(ctx).GetModerationAffectedSolvesByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetModerationAffectedSolvesByUserID: %w", err)
+	}
+
+	out := make([]*domain.ModerationAffectedSolve, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &domain.ModerationAffectedSolve{
+			TeamID:      row.TeamID,
+			ChallengeID: row.ChallengeID,
+		})
+	}
+
+	return out, nil
+}
+
+func (r *SolveRepo) GetModerationAffectedSolvesByBannedUserID(ctx context.Context, userID uuid.UUID) ([]*domain.ModerationAffectedSolve, error) {
+	rows, err := r.Q(ctx).GetModerationAffectedSolvesByBannedUserID(ctx, &userID)
+	if err != nil {
+		return nil, fmt.Errorf("SolveRepo - GetModerationAffectedSolvesByBannedUserID: %w", err)
+	}
+
+	out := make([]*domain.ModerationAffectedSolve, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &domain.ModerationAffectedSolve{
+			TeamID:      row.TeamID,
+			ChallengeID: row.ChallengeID,
+		})
+	}
+
+	return out, nil
+}
+
 // Create inserts a new solve record. A unique violation on (team_id, challenge_id) is mapped
 // to ErrAlreadySolved so callers can handle duplicate solves without inspecting pgx internals.
 func (r *SolveRepo) Create(ctx context.Context, s *domain.Solve) error {

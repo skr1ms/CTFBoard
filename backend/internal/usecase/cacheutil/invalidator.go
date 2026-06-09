@@ -67,3 +67,19 @@ func InvalidateChallengeList(ctx context.Context, clCache ChallengeListCacheInva
 		clCache.InvalidateAll(ctx)
 	})
 }
+
+func InvalidateStatistics(ctx context.Context, statsCache StatisticsCacheInvalidator, logger logkit.Logger, op string) {
+	if statsCache == nil {
+		return
+	}
+
+	if logger == nil {
+		logger = logkit.Noop()
+	}
+
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		if err := statsCache.InvalidateStatistics(ctx); err != nil {
+			logger.WithError(err).Warn(op + " - InvalidateStatistics")
+		}
+	})
+}

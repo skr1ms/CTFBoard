@@ -40,6 +40,12 @@ func ProvideTeamUseCase(
 	jwtService *jwtkit.JWTService,
 	l logkit.Logger,
 ) *team.TeamUseCase {
+	var statsInvalidator cacheutil.StatisticsCacheInvalidator
+
+	if sharedCache != nil {
+		statsInvalidator = &competition.StatsCacheInvalidatorImpl{Cache: sharedCache}
+	}
+
 	return team.NewTeamUseCase(team.TeamDeps{
 		TeamRepo:           teamRepo,
 		UserRepo:           userRepo,
@@ -53,6 +59,7 @@ func ProvideTeamUseCase(
 		TM:                 TM,
 		Guard:              guard,
 		ScoreboardCache:    scoreboardCache,
+		StatsCache:         statsInvalidator,
 		ChallengeListCache: challengeListCache,
 		UserCache:          userCacheSvc,
 		TeamCache:          sharedCache,
@@ -72,13 +79,21 @@ func ProvideAwardUseCase(
 	teamRepo repo.TeamRepository,
 	TM repo.TransactionManager,
 	scoreboardCache *cache.ScoreboardCacheService,
+	statsCache *cachekit.Cache,
 	compRepo repo.CompetitionRepository,
 ) *team.AwardUseCase {
+	var statsInvalidator cacheutil.StatisticsCacheInvalidator
+
+	if statsCache != nil {
+		statsInvalidator = &competition.StatsCacheInvalidatorImpl{Cache: statsCache}
+	}
+
 	return team.NewAwardUseCase(team.AwardDeps{
 		AwardRepo:       awardRepo,
 		TeamRepo:        teamRepo,
 		TM:              TM,
 		ScoreboardCache: scoreboardCache,
+		StatsCache:      statsInvalidator,
 		CompRepo:        compRepo,
 	})
 }

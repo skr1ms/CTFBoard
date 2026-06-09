@@ -127,6 +127,7 @@ func (uc *TeamUseCase) AdminUpdate(ctx context.Context, teamID uuid.UUID, name *
 	}
 
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - AdminUpdate")
 
 	return team, nil
 }
@@ -198,6 +199,7 @@ func (uc *TeamUseCase) AdminDelete(ctx context.Context, teamID uuid.UUID) error 
 
 	cacheutil.InvalidateScoreboard(ctx, uc.deps.ScoreboardCache)
 	cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - AdminDelete")
 
 	return nil
 }

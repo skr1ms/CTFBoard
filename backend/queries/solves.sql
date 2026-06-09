@@ -23,6 +23,30 @@ SELECT challenge_id
 FROM solves
 WHERE team_id = $1 AND challenge_id = ANY($2::uuid[]) AND banned_team_id IS NULL AND banned_user_id IS NULL;
 
+-- name: GetModerationAffectedChallengeIDsByTeamID :many
+SELECT DISTINCT challenge_id
+FROM solves
+WHERE team_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+ORDER BY challenge_id;
+
+-- name: GetModerationAffectedChallengeIDsByTeamAndUserID :many
+SELECT DISTINCT challenge_id
+FROM solves
+WHERE team_id = $1 AND user_id = $2 AND banned_team_id IS NULL AND banned_user_id IS NULL
+ORDER BY challenge_id;
+
+-- name: GetModerationAffectedSolvesByUserID :many
+SELECT DISTINCT team_id, challenge_id
+FROM solves
+WHERE user_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+ORDER BY team_id, challenge_id;
+
+-- name: GetModerationAffectedSolvesByBannedUserID :many
+SELECT DISTINCT team_id, challenge_id
+FROM solves
+WHERE banned_user_id = $1 AND banned_team_id IS NULL
+ORDER BY team_id, challenge_id;
+
 -- name: DeleteSolvesByTeamID :exec
 DELETE FROM solves WHERE team_id = $1;
 

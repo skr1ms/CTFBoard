@@ -30,6 +30,14 @@ type SolveWithDetails struct {
 	ChallengePoints   int    `json:"challenge_points,omitempty"`
 }
 
+// ModerationAffectedSolve is a state-agnostic solve reference used by ban/delete
+// flows. It intentionally omits challenge display fields because moderation score
+// repair must include hidden challenges without exposing them through UI detail APIs.
+type ModerationAffectedSolve struct {
+	TeamID      uuid.UUID
+	ChallengeID uuid.UUID
+}
+
 // ScoreboardEntry is a single row in the scoreboard ranking.
 type ScoreboardEntry struct {
 	TeamID   uuid.UUID

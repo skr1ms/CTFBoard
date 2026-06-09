@@ -21,6 +21,7 @@ func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden b
 	}
 
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - SetHidden")
 
 	return nil
 }
@@ -67,6 +68,7 @@ func (uc *TeamUseCase) SetBracket(ctx context.Context, teamID uuid.UUID, bracket
 	}
 
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - SetBracket")
 
 	return nil
 }

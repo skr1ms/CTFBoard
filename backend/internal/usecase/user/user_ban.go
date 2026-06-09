@@ -13,7 +13,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 )
 
 // BanUser bans the specified user. The operation refuses to ban the actor
@@ -92,24 +91,17 @@ func (uc *UserUseCase) banUserTx(ctx context.Context, userID uuid.UUID, reason s
 	}
 
 	if uc.deps.SolveRepo != nil {
-		solves, err := uc.deps.SolveRepo.GetByUserIDWithDetails(ctx, userID)
+		affectedSolves, err := uc.deps.SolveRepo.GetModerationAffectedSolvesByUserID(ctx, userID)
 		if err != nil {
-			return result, fmt.Errorf("UserUseCase - banUserTx - SolveRepo.GetByUserIDWithDetails: %w", err)
+			return result, fmt.Errorf("UserUseCase - banUserTx - SolveRepo.GetModerationAffectedSolvesByUserID: %w", err)
 		}
 
-		seenTeam := make(map[uuid.UUID]struct{})
-
-		for _, s := range solves {
-			if _, ok := seenTeam[s.TeamID]; ok {
-				continue
-			}
-
-			seenTeam[s.TeamID] = struct{}{}
-			if err := uc.banUserRemoveSolvesAndAdjustScores(ctx, s.TeamID, userID); err != nil {
+		for _, group := range groupModerationAffectedSolvesByTeam(affectedSolves) {
+			if err := uc.banUserRemoveSolvesAndAdjustScoresForChallenges(ctx, group.teamID, userID, group.challengeIDs); err != nil {
 				return result, fmt.Errorf("UserUseCase - banUserTx - banUserRemoveSolvesAndAdjustScores: %w", err)
 			}
 
-			result.scoreboardInvalidateTeamIDs = append(result.scoreboardInvalidateTeamIDs, s.TeamID)
+			result.scoreboardInvalidateTeamIDs = append(result.scoreboardInvalidateTeamIDs, group.teamID)
 		}
 	}
 
@@ -217,13 +209,14 @@ func (uc *UserUseCase) afterUserBanCommit(ctx context.Context, userIDs []uuid.UU
 		cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
 	}
 
-	comp := computil.Cached(ctx, nil, uc.deps.CompRepo)
-	frozen := comp != nil && comp.IsFreezeActive()
-
 	for _, teamID := range domain.UniqueUUIDs(result.scoreboardInvalidateTeamIDs) {
-		cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+		cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 		cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, teamID)
 		cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
+	}
+
+	if result.changed {
+		cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "UserUseCase - BanUser")
 	}
 
 	if uc.deps.PersonalNotificationSender == nil {
@@ -327,7 +320,8 @@ func (uc *UserUseCase) restoreUserBanTx(ctx context.Context, userID uuid.UUID, r
 				return result, fmt.Errorf("UserUseCase - restoreUserBanTx - TeamRepo.SetHidden: %w", err)
 			}
 
-			if err := uc.unbanUserRestoreSolvesAndAdjustScores(ctx, userID); err != nil {
+			restoredTeamIDs, err := uc.unbanUserRestoreSolvesAndAdjustScores(ctx, userID)
+			if err != nil {
 				return result, fmt.Errorf("UserUseCase - restoreUserBanTx - unbanUserRestoreSolvesAndAdjustScores: %w", err)
 			}
 
@@ -344,31 +338,19 @@ func (uc *UserUseCase) restoreUserBanTx(ctx context.Context, userID uuid.UUID, r
 			}
 
 			result.scoreboardInvalidateTeamIDs = append(result.scoreboardInvalidateTeamIDs, team.ID)
+			result.scoreboardInvalidateTeamIDs = append(result.scoreboardInvalidateTeamIDs, restoredTeamIDs...)
 
 			return result, nil
 		}
 	}
 
 	if u.TeamID == nil && uc.deps.SolveRepo != nil {
-		if err := uc.unbanUserRestoreSolvesAndAdjustScores(ctx, userID); err != nil {
+		restoredTeamIDs, err := uc.unbanUserRestoreSolvesAndAdjustScores(ctx, userID)
+		if err != nil {
 			return result, fmt.Errorf("UserUseCase - restoreUserBanTx - unbanUserRestoreSolvesAndAdjustScores: %w", err)
 		}
 
-		solves, err := uc.deps.SolveRepo.GetByUserIDWithDetails(ctx, userID)
-		if err != nil {
-			return result, fmt.Errorf("UserUseCase - restoreUserBanTx - SolveRepo.GetByUserIDWithDetails: %w", err)
-		}
-
-		seen := make(map[uuid.UUID]struct{})
-
-		for _, s := range solves {
-			if _, ok := seen[s.TeamID]; ok {
-				continue
-			}
-
-			seen[s.TeamID] = struct{}{}
-			result.scoreboardInvalidateTeamIDs = append(result.scoreboardInvalidateTeamIDs, s.TeamID)
-		}
+		result.scoreboardInvalidateTeamIDs = append(result.scoreboardInvalidateTeamIDs, restoredTeamIDs...)
 	}
 
 	return result, nil
@@ -392,49 +374,25 @@ func (uc *UserUseCase) invalidateUserBanRestore(ctx context.Context, userIDs, te
 		cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
 	}
 
-	comp := computil.Cached(ctx, nil, uc.deps.CompRepo)
-	frozen := comp != nil && comp.IsFreezeActive()
-
 	for _, teamID := range domain.UniqueUUIDs(teamIDs) {
-		cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+		cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 		cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, teamID)
 		cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
 	}
+
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "UserUseCase - UnbanUser")
 }
 
-// banUserRemoveSolvesAndAdjustScores removes all solves belonging to userID
-// within teamID and then heals the scoring state for every affected challenge
-// It first collects the distinct challenge IDs touched by the user, soft-bans
-// those solve rows, recalculates the per-challenge solve counts, recomputes
-// static point values via scoring.RecalculatePoints, and finally recalculates
-// the per-solve point snapshots for dynamic (decay-based) challenges using
-// scoring.RecalculatePointsAtSolveRows. Other team members' solves are left
-// untouched.
-func (uc *UserUseCase) banUserRemoveSolvesAndAdjustScores(ctx context.Context, teamID, userID uuid.UUID) error {
+func (uc *UserUseCase) banUserRemoveSolvesAndAdjustScoresForChallenges(ctx context.Context, teamID, userID uuid.UUID, challengeIDs []uuid.UUID) error {
 	if uc.deps.SolveRepo == nil || uc.deps.ChallengeRepo == nil {
 		return nil
 	}
 
-	solves, err := uc.deps.SolveRepo.GetByTeamIDWithDetails(ctx, teamID)
-	if err != nil {
-		return fmt.Errorf("UserUseCase - banUserRemoveSolvesAndAdjustScores - SolveRepo.GetByTeamIDWithDetails: %w", err)
-	}
-
-	var rawIDs []uuid.UUID
-
-	for _, s := range solves {
-		if s.UserID != userID {
-			continue
-		}
-
-		rawIDs = append(rawIDs, s.ChallengeID)
-	}
-
-	challengeIDs := domain.UniqueUUIDs(rawIDs)
+	challengeIDs = domain.UniqueUUIDs(challengeIDs)
 
 	if len(challengeIDs) > 0 {
 		if err := uc.deps.SolveRepo.SoftBanByTeamIDAndUserID(ctx, teamID, userID); err != nil {
-			return fmt.Errorf("UserUseCase - banUserRemoveSolvesAndAdjustScores - SolveRepo.SoftBanByTeamIDAndUserID: %w", err)
+			return fmt.Errorf("UserUseCase - banUserRemoveSolvesAndAdjustScoresForChallenges - SolveRepo.SoftBanByTeamIDAndUserID: %w", err)
 		}
 	}
 
@@ -444,27 +402,62 @@ func (uc *UserUseCase) banUserRemoveSolvesAndAdjustScores(ctx context.Context, t
 // unbanUserRestoreSolvesAndAdjustScores restores soft-banned solve rows for a user,
 // then recalculates solve counts, static point values, and per-solve decay snapshots
 // for all affected challenges. The mirror inverse of banUserRemoveSolvesAndAdjustScores.
-func (uc *UserUseCase) unbanUserRestoreSolvesAndAdjustScores(ctx context.Context, userID uuid.UUID) error {
+func (uc *UserUseCase) unbanUserRestoreSolvesAndAdjustScores(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
 	if uc.deps.SolveRepo == nil || uc.deps.ChallengeRepo == nil {
-		return nil
+		return nil, nil
+	}
+
+	affectedSolves, err := uc.deps.SolveRepo.GetModerationAffectedSolvesByBannedUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("UserUseCase - unbanUserRestoreSolvesAndAdjustScores - SolveRepo.GetModerationAffectedSolvesByBannedUserID: %w", err)
 	}
 
 	if err := uc.deps.SolveRepo.RestoreByBannedUserID(ctx, userID); err != nil {
-		return fmt.Errorf("UserUseCase - unbanUserRestoreSolvesAndAdjustScores - SolveRepo.RestoreByBannedUserID: %w", err)
+		return nil, fmt.Errorf("UserUseCase - unbanUserRestoreSolvesAndAdjustScores - SolveRepo.RestoreByBannedUserID: %w", err)
 	}
 
-	solves, err := uc.deps.SolveRepo.GetByUserIDWithDetails(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("UserUseCase - unbanUserRestoreSolvesAndAdjustScores - SolveRepo.GetByUserIDWithDetails: %w", err)
+	var (
+		rawChallengeIDs []uuid.UUID
+		rawTeamIDs      []uuid.UUID
+	)
+
+	for _, s := range affectedSolves {
+		rawChallengeIDs = append(rawChallengeIDs, s.ChallengeID)
+		rawTeamIDs = append(rawTeamIDs, s.TeamID)
 	}
 
-	rawIDs := make([]uuid.UUID, 0, len(solves))
+	return domain.UniqueUUIDs(rawTeamIDs), uc.adjustDynamicScores(ctx, domain.UniqueUUIDs(rawChallengeIDs))
+}
 
-	for _, s := range solves {
-		rawIDs = append(rawIDs, s.ChallengeID)
+type moderationAffectedTeamSolves struct {
+	teamID       uuid.UUID
+	challengeIDs []uuid.UUID
+}
+
+func groupModerationAffectedSolvesByTeam(solves []*domain.ModerationAffectedSolve) []moderationAffectedTeamSolves {
+	groups := make([]moderationAffectedTeamSolves, 0)
+	indexByTeam := make(map[uuid.UUID]int)
+
+	for _, solve := range solves {
+		if solve == nil {
+			continue
+		}
+
+		idx, ok := indexByTeam[solve.TeamID]
+		if !ok {
+			indexByTeam[solve.TeamID] = len(groups)
+			groups = append(groups, moderationAffectedTeamSolves{teamID: solve.TeamID})
+			idx = len(groups) - 1
+		}
+
+		groups[idx].challengeIDs = append(groups[idx].challengeIDs, solve.ChallengeID)
 	}
 
-	return uc.adjustDynamicScores(ctx, domain.UniqueUUIDs(rawIDs))
+	for i := range groups {
+		groups[i].challengeIDs = domain.UniqueUUIDs(groups[i].challengeIDs)
+	}
+
+	return groups
 }
 
 func (uc *UserUseCase) adjustDynamicScores(ctx context.Context, challengeIDs []uuid.UUID) error {

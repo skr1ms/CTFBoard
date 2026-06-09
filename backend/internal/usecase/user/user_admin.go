@@ -78,6 +78,8 @@ func (uc *UserUseCase) AdminCreate(ctx context.Context, username, email, passwor
 		return nil, fmt.Errorf("UserUseCase - AdminCreate - TM.Run: %w", err)
 	}
 
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "UserUseCase - AdminCreate")
+
 	return user, nil
 }
 
@@ -182,7 +184,7 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 		return apperr.ErrAccessDenied
 	}
 
-	var scoreboardInvalidateTeamID *uuid.UUID
+	var scoreboardInvalidateTeamIDs []uuid.UUID
 
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
@@ -217,11 +219,27 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 					return apperr.ErrCaptainCannotBeDeleted
 				}
 
-				if err := uc.banUserRemoveSolvesAndAdjustScores(ctx, team.ID, userID); err != nil {
-					return fmt.Errorf("UserUseCase - AdminDelete - banUserRemoveSolvesAndAdjustScores: %w", err)
+				scoreboardInvalidateTeamIDs = append(scoreboardInvalidateTeamIDs, team.ID)
+			}
+		}
+
+		if uc.deps.SolveRepo != nil {
+			activeSolves, err := uc.deps.SolveRepo.GetModerationAffectedSolvesByUserID(ctx, userID)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - AdminDelete - SolveRepo.GetModerationAffectedSolvesByUserID: %w", err)
+			}
+
+			bannedSolves, err := uc.deps.SolveRepo.GetModerationAffectedSolvesByBannedUserID(ctx, userID)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - AdminDelete - SolveRepo.GetModerationAffectedSolvesByBannedUserID: %w", err)
+			}
+
+			for _, group := range groupModerationAffectedSolvesByTeam(append(activeSolves, bannedSolves...)) {
+				if err := uc.banUserRemoveSolvesAndAdjustScoresForChallenges(ctx, group.teamID, userID, group.challengeIDs); err != nil {
+					return fmt.Errorf("UserUseCase - AdminDelete - banUserRemoveSolvesAndAdjustScoresForChallenges: %w", err)
 				}
 
-				scoreboardInvalidateTeamID = &team.ID
+				scoreboardInvalidateTeamIDs = append(scoreboardInvalidateTeamIDs, group.teamID)
 			}
 		}
 
@@ -244,10 +262,11 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 		}
 
 		cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
+		cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "UserUseCase - AdminDelete")
 
-		if scoreboardInvalidateTeamID != nil {
-			cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, *scoreboardInvalidateTeamID)
-			cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, *scoreboardInvalidateTeamID)
+		for _, teamID := range domain.UniqueUUIDs(scoreboardInvalidateTeamIDs) {
+			cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+			cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, teamID)
 			cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
 		}
 	})

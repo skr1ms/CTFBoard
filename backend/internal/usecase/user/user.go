@@ -86,6 +86,7 @@ type UserDeps struct {
 	Logger                     logkit.Logger
 	UserCache                  cacheutil.UserCacheInvalidator
 	ScoreboardCache            cacheutil.ScoreboardCacheInvalidator
+	StatsCache                 cacheutil.StatisticsCacheInvalidator
 	ChallengeListCache         cacheutil.ChallengeListCacheInvalidator
 	TeamCache                  *cachekit.Cache
 	PersonalNotificationSender PersonalNotificationSender

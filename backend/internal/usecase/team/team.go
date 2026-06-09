@@ -41,6 +41,7 @@ type TeamDeps struct {
 	TM                 repo.TransactionManager
 	Guard              usecase.CompetitionGuard
 	ScoreboardCache    cacheutil.ScoreboardCacheInvalidator
+	StatsCache         cacheutil.StatisticsCacheInvalidator
 	ChallengeListCache cacheutil.ChallengeListCacheInvalidator
 	UserCache          cacheutil.UserCacheInvalidator
 	TeamCache          *cachekit.Cache

@@ -13,6 +13,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	validation "github.com/TakuyaYagam1/AstroCTFb/pkg/validator"
 )
 
@@ -129,6 +130,8 @@ func (uc *UserUseCase) Register(ctx context.Context, params usecase.UserRegister
 	if err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - TM.Run: %w", err)
 	}
+
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "UserUseCase - Register")
 
 	return user, nil
 }

@@ -23,6 +23,7 @@ type AwardDeps struct {
 	TeamRepo        repo.TeamRepository
 	TM              repo.TransactionManager
 	ScoreboardCache cacheutil.ScoreboardCacheInvalidator
+	StatsCache      cacheutil.StatisticsCacheInvalidator
 	CompRepo        repo.CompetitionRepository
 }
 
@@ -73,14 +74,8 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 		return nil, fmt.Errorf("AwardUseCase - Create - TM.Run: %w", err)
 	}
 
-	var comp *domain.Competition
-
-	if uc.deps.CompRepo != nil {
-		comp, _ = uc.deps.CompRepo.Get(ctx)
-	}
-
-	frozen := comp != nil && comp.IsFreezeActive()
-	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, nil, "AwardUseCase - Create")
 
 	return award, nil
 }
@@ -140,14 +135,8 @@ func (uc *AwardUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 		return nil
 	}
 
-	var comp *domain.Competition
-
-	if uc.deps.CompRepo != nil {
-		comp, _ = uc.deps.CompRepo.Get(ctx)
-	}
-
-	frozen := comp != nil && comp.IsFreezeActive()
-	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, award.TeamID, frozen)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, award.TeamID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, nil, "AwardUseCase - Delete")
 
 	return nil
 }

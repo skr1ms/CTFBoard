@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
 )
 
 func TestUserUseCase_BanUser_Success_NoSoloTeam(t *testing.T) {
@@ -26,7 +27,7 @@ func TestUserUseCase_BanUser_Success_NoSoloTeam(t *testing.T) {
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
-	d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedSolvesByUserID(mock.Anything, userID).Return([]*domain.ModerationAffectedSolve{}, nil).Once()
 	d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()
 
 	uc := d.createUseCase()
@@ -52,7 +53,7 @@ func TestUserUseCase_BanUsers_DedupesAndReportsAffected(t *testing.T) {
 		d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
 		d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 		d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
-		d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*domain.SolveWithDetails{}, nil).Once()
+		d.solveRepo.EXPECT().GetModerationAffectedSolvesByUserID(mock.Anything, userID).Return([]*domain.ModerationAffectedSolve{}, nil).Once()
 		d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()
 	}
 
@@ -62,6 +63,43 @@ func TestUserUseCase_BanUsers_DedupesAndReportsAffected(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, 2, result.AffectedCount)
+}
+
+func TestUserUseCase_BanUser_RecalculatesHiddenOnlySolve(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	challengeRepo := teamMock.NewMockChallengeRepository(t)
+	userID := uuid.New()
+	actorID := uuid.New()
+	teamID := uuid.New()
+	challengeID := uuid.New()
+	user := &domain.User{ID: userID, Role: domain.RoleUser}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+	d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedSolvesByUserID(mock.Anything, userID).Return([]*domain.ModerationAffectedSolve{
+		{TeamID: teamID, ChallengeID: challengeID},
+	}, nil).Once()
+	d.solveRepo.EXPECT().SoftBanByTeamIDAndUserID(mock.Anything, teamID, userID).Return(nil).Once()
+	challengeRepo.EXPECT().RecalculateSolveCounts(mock.Anything, []uuid.UUID{challengeID}).Return(nil).Once()
+	challengeRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{challengeID}).Return(map[uuid.UUID]*domain.Challenge{
+		challengeID: {ID: challengeID, Points: 100},
+	}, nil).Once()
+	d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()
+
+	uc := NewUserUseCase(UserDeps{
+		UserRepo: d.userRepo, TeamRepo: d.teamRepo, SolveRepo: d.solveRepo, ChallengeRepo: challengeRepo,
+		TM: d.tm, JWTService: d.jwtService, APITokenRevoker: d.apiTokenRevoker,
+	})
+
+	err := uc.BanUser(context.Background(), userID, "reason", actorID)
+
+	assert.NoError(t, err)
 }
 
 func TestUserUseCase_BanUser_Success_HidesSoloTeamInTx(t *testing.T) {
@@ -80,7 +118,7 @@ func TestUserUseCase_BanUser_Success_HidesSoloTeamInTx(t *testing.T) {
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
-	d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedSolvesByUserID(mock.Anything, userID).Return([]*domain.ModerationAffectedSolve{}, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
@@ -167,8 +205,6 @@ func TestUserUseCase_UnbanUser_DirectBanDoesNotClearInheritedTeamBan(t *testing.
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	d.userRepo.EXPECT().Unban(mock.Anything, userID).Return(nil).Once()
-	d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*domain.SolveWithDetails{}, nil).Once()
-
 	uc := d.createUseCase()
 	err := uc.UnbanUser(context.Background(), userID, actorID)
 
@@ -194,7 +230,6 @@ func TestUserUseCase_UnbanUser_Success_ShowsSoloTeamInTx(t *testing.T) {
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, false).Return(nil).Once()
-
 	uc := d.createUseCase()
 	err := uc.UnbanUser(context.Background(), userID, actorID)
 

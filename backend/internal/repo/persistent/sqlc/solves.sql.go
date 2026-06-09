@@ -151,6 +151,129 @@ func (q *Queries) GetFirstBlood(ctx context.Context, arg GetFirstBloodParams) (G
 	return i, err
 }
 
+const getModerationAffectedChallengeIDsByTeamAndUserID = `-- name: GetModerationAffectedChallengeIDsByTeamAndUserID :many
+SELECT DISTINCT challenge_id
+FROM solves
+WHERE team_id = $1 AND user_id = $2 AND banned_team_id IS NULL AND banned_user_id IS NULL
+ORDER BY challenge_id
+`
+
+type GetModerationAffectedChallengeIDsByTeamAndUserIDParams struct {
+	TeamID uuid.UUID `json:"team_id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetModerationAffectedChallengeIDsByTeamAndUserID(ctx context.Context, arg GetModerationAffectedChallengeIDsByTeamAndUserIDParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, getModerationAffectedChallengeIDsByTeamAndUserID, arg.TeamID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var challenge_id uuid.UUID
+		if err := rows.Scan(&challenge_id); err != nil {
+			return nil, err
+		}
+		items = append(items, challenge_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getModerationAffectedChallengeIDsByTeamID = `-- name: GetModerationAffectedChallengeIDsByTeamID :many
+SELECT DISTINCT challenge_id
+FROM solves
+WHERE team_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+ORDER BY challenge_id
+`
+
+func (q *Queries) GetModerationAffectedChallengeIDsByTeamID(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, getModerationAffectedChallengeIDsByTeamID, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var challenge_id uuid.UUID
+		if err := rows.Scan(&challenge_id); err != nil {
+			return nil, err
+		}
+		items = append(items, challenge_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getModerationAffectedSolvesByBannedUserID = `-- name: GetModerationAffectedSolvesByBannedUserID :many
+SELECT DISTINCT team_id, challenge_id
+FROM solves
+WHERE banned_user_id = $1 AND banned_team_id IS NULL
+ORDER BY team_id, challenge_id
+`
+
+type GetModerationAffectedSolvesByBannedUserIDRow struct {
+	TeamID      uuid.UUID `json:"team_id"`
+	ChallengeID uuid.UUID `json:"challenge_id"`
+}
+
+func (q *Queries) GetModerationAffectedSolvesByBannedUserID(ctx context.Context, bannedUserID *uuid.UUID) ([]GetModerationAffectedSolvesByBannedUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getModerationAffectedSolvesByBannedUserID, bannedUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetModerationAffectedSolvesByBannedUserIDRow
+	for rows.Next() {
+		var i GetModerationAffectedSolvesByBannedUserIDRow
+		if err := rows.Scan(&i.TeamID, &i.ChallengeID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getModerationAffectedSolvesByUserID = `-- name: GetModerationAffectedSolvesByUserID :many
+SELECT DISTINCT team_id, challenge_id
+FROM solves
+WHERE user_id = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL
+ORDER BY team_id, challenge_id
+`
+
+type GetModerationAffectedSolvesByUserIDRow struct {
+	TeamID      uuid.UUID `json:"team_id"`
+	ChallengeID uuid.UUID `json:"challenge_id"`
+}
+
+func (q *Queries) GetModerationAffectedSolvesByUserID(ctx context.Context, userID uuid.UUID) ([]GetModerationAffectedSolvesByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getModerationAffectedSolvesByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetModerationAffectedSolvesByUserIDRow
+	for rows.Next() {
+		var i GetModerationAffectedSolvesByUserIDRow
+		if err := rows.Scan(&i.TeamID, &i.ChallengeID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getScoreboardByBracket = `-- name: GetScoreboardByBracket :many
 SELECT
     t.id AS team_id,

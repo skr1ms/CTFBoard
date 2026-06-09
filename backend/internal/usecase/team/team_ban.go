@@ -11,7 +11,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 )
 
 const maxBanRetries = 3
@@ -216,10 +215,7 @@ func (uc *TeamUseCase) afterTeamBanCommit(ctx context.Context, teamIDs []uuid.UU
 		}
 	}
 
-	comp := computil.Cached(ctx, nil, uc.deps.CompRepo)
-	frozen := comp != nil && comp.IsFreezeActive()
-
 	for _, teamID := range domain.UniqueUUIDs(teamIDs) {
-		uc.invalidateTeamAndMembers(ctx, teamID, result.memberIDs, frozen)
+		uc.invalidateTeamAndMembers(ctx, teamID, result.memberIDs)
 	}
 }

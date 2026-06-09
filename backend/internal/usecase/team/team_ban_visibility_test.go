@@ -28,7 +28,7 @@ func TestTeamUseCase_BanTeam_Success(t *testing.T) {
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	d.teamRepo.EXPECT().Ban(mock.Anything, teamID, "reason").Return(nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{}, nil).Once()
 	d.solveRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.awardRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
@@ -38,8 +38,6 @@ func TestTeamUseCase_BanTeam_Success(t *testing.T) {
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		return l.TeamID == teamID && l.UserID != nil && *l.UserID == actorID && l.Action == domain.TeamActionBanned && l.Details["reason"] == "reason"
 	})).Return(nil).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{}, nil).Once()
-
 	uc := d.createUseCase()
 
 	err := uc.BanTeam(context.Background(), teamID, "reason", false, actorID)
@@ -56,7 +54,6 @@ func TestTeamUseCase_AfterTeamBanCommit_RevokesOnlyActuallyBannedUsers(t *testin
 	teamID := uuid.New()
 
 	uc := d.createUseCase()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{}, nil).Once()
 	uc.afterTeamBanCommit(context.Background(), []uuid.UUID{teamID}, teamBanTxResult{
 		memberIDs:     []uuid.UUID{adminID, userID},
 		bannedUserIDs: []uuid.UUID{userID},
@@ -111,7 +108,7 @@ func TestTeamUseCase_BanTeam_BanMembersRecordsOnlyNewNonAdminBans(t *testing.T) 
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	d.teamRepo.EXPECT().Ban(mock.Anything, teamID, "reason").Return(nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{}, nil).Once()
 	d.solveRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.awardRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
@@ -154,7 +151,7 @@ func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 	d.solveRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.awardRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{}, nil).Once()
 	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
 
 	actorID := uuid.New()
@@ -162,8 +159,6 @@ func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		return l.TeamID == teamID && l.UserID != nil && *l.UserID == actorID && l.Action == domain.TeamActionUnbanned
 	})).Return(nil).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{}, nil).Once()
-
 	uc := d.createUseCase()
 
 	err := uc.UnbanTeam(context.Background(), teamID, actorID)
@@ -225,7 +220,7 @@ func TestTeamUseCase_UnbanTeam_DoesNotUnbanIndependentlyBannedMember(t *testing.
 	d.solveRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.awardRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{}, nil).Once()
 	d.userRepo.EXPECT().FilterIDsByTeamIDNullAndNotBanned(mock.Anything, memberIDsMatcher).Return([]uuid.UUID{userA}, nil).Once()
 	d.userRepo.EXPECT().UpdateTeamIDBatch(mock.Anything, []uuid.UUID{userA}, &teamID).Return(nil).Once()
 	d.userRepo.EXPECT().SetWasInBannedTeamByIDs(mock.Anything, memberIDsMatcher, false).Return(nil).Once()
@@ -235,8 +230,6 @@ func TestTeamUseCase_UnbanTeam_DoesNotUnbanIndependentlyBannedMember(t *testing.
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		return l.TeamID == teamID && l.Action == domain.TeamActionUnbanned
 	})).Return(nil).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{}, nil).Once()
-
 	uc := d.createUseCase()
 
 	err := uc.UnbanTeam(context.Background(), teamID, actorID)

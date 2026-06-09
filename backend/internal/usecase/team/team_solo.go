@@ -35,6 +35,7 @@ func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, con
 
 	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - CreateSoloTeam")
 
 	return team, nil
 }
@@ -78,6 +79,7 @@ func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid
 
 	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - CreateSoloTeamForNewUser")
 
 	return team, nil
 }

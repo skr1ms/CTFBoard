@@ -12,24 +12,18 @@ import (
 )
 
 // getChallengeIDsForTeam returns the deduplicated set of challenge IDs the team has
-// solved, preserving first-seen order. Returns nil when SolveRepo is not wired.
+// solved, independent of challenge visibility. Returns nil when SolveRepo is not wired.
 func (uc *TeamUseCase) getChallengeIDsForTeam(ctx context.Context, teamID uuid.UUID) ([]uuid.UUID, error) {
 	if uc.deps.SolveRepo == nil {
 		return nil, nil
 	}
 
-	solves, err := uc.deps.SolveRepo.GetByTeamIDWithDetails(ctx, teamID)
+	challengeIDs, err := uc.deps.SolveRepo.GetModerationAffectedChallengeIDsByTeamID(ctx, teamID)
 	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - getChallengeIDsForTeam - SolveRepo.GetByTeamIDWithDetails: %w", err)
+		return nil, fmt.Errorf("TeamUseCase - getChallengeIDsForTeam - SolveRepo.GetModerationAffectedChallengeIDsByTeamID: %w", err)
 	}
 
-	rawIDs := make([]uuid.UUID, 0, len(solves))
-
-	for _, s := range solves {
-		rawIDs = append(rawIDs, s.ChallengeID)
-	}
-
-	return domain.UniqueUUIDs(rawIDs), nil
+	return domain.UniqueUUIDs(challengeIDs), nil
 }
 
 func (uc *TeamUseCase) adjustSolveCountsForChallenges(ctx context.Context, challengeIDs []uuid.UUID) error {

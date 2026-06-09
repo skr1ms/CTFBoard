@@ -127,7 +127,7 @@ func TestTeamUseCase_Join_WithSoloTeam_Success(t *testing.T) {
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, oldTeamID).Return(&domain.Team{ID: oldTeamID, IsSolo: true}, nil).Once()
 	d.userRepo.EXPECT().GetByTeamID(mock.Anything, oldTeamID).Return([]*domain.User{user}, nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, oldTeamID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, oldTeamID).Return([]uuid.UUID{}, nil).Once()
 	d.solveRepo.EXPECT().DeleteByTeamID(mock.Anything, oldTeamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().DeleteByTeamID(mock.Anything, oldTeamID).Return(nil).Once()
 	d.awardRepo.EXPECT().DeleteByTeamID(mock.Anything, oldTeamID).Return(nil).Once()

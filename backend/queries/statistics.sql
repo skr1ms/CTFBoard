@@ -11,8 +11,12 @@ SELECT COUNT(*)::int FROM teams WHERE deleted_at IS NULL AND is_banned = false A
 SELECT COUNT(*)::int FROM challenges WHERE state IN ('visible', 'locked');
 
 -- name: CountSolves :one
-SELECT COUNT(*)::int FROM solves WHERE banned_team_id IS NULL AND banned_user_id IS NULL
-  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR solved_at <= sqlc.narg('freeze_time'));
+SELECT COUNT(*)::int
+FROM solves s
+JOIN teams t ON t.id = s.team_id AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
+WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'));
 
 -- name: GetGeneralStats :one
 SELECT
@@ -35,30 +39,37 @@ SELECT
     ) AS challenge_count,
     (
         SELECT COUNT(*)::int
-        FROM solves
-        WHERE banned_team_id IS NULL AND banned_user_id IS NULL
-          AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR solved_at <= sqlc.narg('freeze_time'))
+        FROM solves s
+        JOIN teams t ON t.id = s.team_id AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+        JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
+        WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+          AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
     ) AS solve_count;
 
 -- name: GetChallengeStats :many
 SELECT c.id, c.title, c.category, c.points,
-    COUNT(s.id)::int AS solve_count
+    COUNT(st.id)::int AS solve_count
 FROM challenges c
 LEFT JOIN solves s ON s.challenge_id = c.id AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
     AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
+LEFT JOIN teams st ON st.id = s.team_id AND st.deleted_at IS NULL AND st.is_banned = false AND st.is_hidden = false
 WHERE c.state IN ('visible', 'locked')
 GROUP BY c.id, c.title, c.category, c.points
 ORDER BY solve_count DESC;
 
 -- name: GetChallengeDetailChallenge :one
 SELECT c.id, c.title, c.category, c.points,
-    (SELECT COUNT(*)::int FROM solves
-     WHERE challenge_id = c.id AND banned_team_id IS NULL AND banned_user_id IS NULL
-       AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR solved_at <= sqlc.narg('freeze_time'))
+    (SELECT COUNT(*)::int
+     FROM solves s
+     JOIN teams t ON t.id = s.team_id AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+     WHERE s.challenge_id = c.id AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
+       AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
     ) AS solve_count,
-    (SELECT COUNT(*)::int FROM teams WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false) AS total_teams
+    (SELECT COUNT(*)::int FROM teams WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+       AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR created_at <= sqlc.narg('freeze_time'))
+    ) AS total_teams
 FROM challenges c
-WHERE c.id = $1;
+WHERE c.id = $1 AND c.state IN ('visible', 'locked');
 
 -- name: GetChallengeDetailSolves :many
 SELECT s.team_id, t.name AS team_name, s.solved_at
@@ -74,17 +85,19 @@ WITH total AS (
     SELECT COUNT(*)::int AS n
     FROM teams
     WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
+      AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR created_at <= sqlc.narg('freeze_time'))
 )
 SELECT c.id, c.title, c.category,
-    COUNT(s.id)::int AS solve_count,
+    COUNT(st.id)::int AS solve_count,
     total.n AS total_teams,
     CASE WHEN total.n = 0 THEN 0
-        ELSE ROUND((COUNT(s.id)::numeric / total.n::numeric) * 100, 2)
+        ELSE ROUND((COUNT(st.id)::numeric / total.n::numeric) * 100, 2)
     END AS percentage
 FROM challenges c
 CROSS JOIN total
 LEFT JOIN solves s ON s.challenge_id = c.id AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL
     AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.solved_at <= sqlc.narg('freeze_time'))
+LEFT JOIN teams st ON st.id = s.team_id AND st.deleted_at IS NULL AND st.is_banned = false AND st.is_hidden = false
 WHERE c.state IN ('visible', 'locked')
 GROUP BY c.id, c.title, c.category, total.n
 ORDER BY percentage DESC;
@@ -128,6 +141,7 @@ WITH buckets AS (
             GROUP BY team_id
         ) ap ON ap.team_id = t.id
         WHERE t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+          AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR t.created_at <= sqlc.narg('freeze_time'))
     ) scores
 )
 SELECT bucket, COUNT(*)::int AS count
@@ -136,33 +150,38 @@ GROUP BY bucket, bucket_order
 ORDER BY bucket_order;
 
 -- name: GetSubmissionTimeSeries :many
-SELECT DATE(created_at) AS date,
-    COUNT(*) FILTER (WHERE is_correct = true)::int AS correct,
-    COUNT(*) FILTER (WHERE is_correct = false)::int AS incorrect
-FROM submissions
-WHERE banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
-  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR created_at <= sqlc.narg('freeze_time'))
-GROUP BY DATE(created_at)
+SELECT DATE(s.created_at) AS date,
+    COUNT(*) FILTER (WHERE s.is_correct = true)::int AS correct,
+    COUNT(*) FILTER (WHERE s.is_correct = false)::int AS incorrect
+FROM submissions s
+JOIN teams t ON t.id = s.team_id AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
+WHERE s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND s.submission_type IN ('correct', 'incorrect')
+  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.created_at <= sqlc.narg('freeze_time'))
+GROUP BY DATE(s.created_at)
 ORDER BY date;
 
 -- name: GetSubmissionTimeSeriesByType :many
-SELECT DATE(created_at) AS date, COUNT(*)::int AS count
-FROM submissions
-WHERE is_correct = $1 AND banned_team_id IS NULL AND banned_user_id IS NULL AND submission_type IN ('correct', 'incorrect')
-  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR created_at <= sqlc.narg('freeze_time'))
-GROUP BY DATE(created_at)
+SELECT DATE(s.created_at) AS date, COUNT(*)::int AS count
+FROM submissions s
+JOIN teams t ON t.id = s.team_id AND t.deleted_at IS NULL AND t.is_banned = false AND t.is_hidden = false
+JOIN challenges c ON c.id = s.challenge_id AND c.state IN ('visible', 'locked')
+WHERE s.is_correct = $1 AND s.banned_team_id IS NULL AND s.banned_user_id IS NULL AND s.submission_type IN ('correct', 'incorrect')
+  AND (sqlc.narg('freeze_time')::timestamptz IS NULL OR s.created_at <= sqlc.narg('freeze_time'))
+GROUP BY DATE(s.created_at)
 ORDER BY date;
 
 -- name: GetTeamRegistrationTimeSeries :many
 SELECT DATE(created_at) AS date, COUNT(*)::int AS count
 FROM teams
-WHERE deleted_at IS NULL
+WHERE deleted_at IS NULL AND is_banned = false AND is_hidden = false
 GROUP BY DATE(created_at)
 ORDER BY date;
 
 -- name: GetUserRegistrationTimeSeries :many
 SELECT DATE(created_at) AS date, COUNT(*)::int AS count
 FROM users
+WHERE is_banned = false
 GROUP BY DATE(created_at)
 ORDER BY date;
 

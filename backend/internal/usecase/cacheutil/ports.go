@@ -26,6 +26,10 @@ type ChallengeListCacheInvalidator interface {
 	InvalidateForTeam(ctx context.Context, teamID uuid.UUID)
 }
 
+type StatisticsCacheInvalidator interface {
+	InvalidateStatistics(ctx context.Context) error
+}
+
 // InvalidateWithFreezeAwareness invalidates scoreboard cache entries respecting freeze state.
 func InvalidateWithFreezeAwareness(ctx context.Context, cache ScoreboardCacheInvalidator, teamID uuid.UUID, frozen bool) {
 	if cache == nil {

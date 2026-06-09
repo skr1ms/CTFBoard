@@ -153,14 +153,15 @@ func resolveMaxTeamSize(comp *domain.Competition, fallback int) int {
 }
 
 // invalidateTeamAndMembers evicts the user cache for each member, the team cache, the
-// scoreboard entry (freeze-aware), and the challenge-list cache. Used after ban/unban
-// operations that affect scoring visibility.
-func (uc *TeamUseCase) invalidateTeamAndMembers(ctx context.Context, teamID uuid.UUID, memberIDs []uuid.UUID, frozen bool) {
+// scoreboard entry, and the challenge-list cache. Used after ban/unban operations that
+// affect scoring visibility, including frozen scoreboards.
+func (uc *TeamUseCase) invalidateTeamAndMembers(ctx context.Context, teamID uuid.UUID, memberIDs []uuid.UUID) {
 	for _, id := range memberIDs {
 		cacheutil.InvalidateUser(ctx, uc.deps.UserCache, id)
 	}
 
 	cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, teamID)
-	cacheutil.InvalidateWithFreezeAwareness(ctx, uc.deps.ScoreboardCache, teamID, frozen)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
 	cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - invalidateTeamAndMembers")
 }

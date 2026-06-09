@@ -61,6 +61,7 @@ func (uc *TeamUseCase) DisbandTeam(ctx context.Context, captainID uuid.UUID) err
 
 	cacheutil.InvalidateScoreboard(ctx, uc.deps.ScoreboardCache)
 	cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
+	cacheutil.InvalidateStatistics(ctx, uc.deps.StatsCache, uc.deps.Logger, "TeamUseCase - DisbandTeam")
 
 	return nil
 }

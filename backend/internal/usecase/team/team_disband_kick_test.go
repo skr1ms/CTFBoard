@@ -30,7 +30,7 @@ func TestTeamUseCase_DisbandTeam_Success(t *testing.T) {
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID, CaptainID: captainID, Name: "test_team"}, nil).Once()
 	d.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return([]*domain.User{captain}, nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return(nil, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID(nil), nil).Once()
 	d.solveRepo.EXPECT().DeleteByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.submissionRepo.EXPECT().DeleteByTeamID(mock.Anything, teamID).Return(nil).Once()
 	d.awardRepo.EXPECT().DeleteByTeamID(mock.Anything, teamID).Return(nil).Once()
@@ -58,12 +58,6 @@ func TestTeamUseCase_DisbandTeam_WithSolves_UsesGetByIDs(t *testing.T) {
 	ch2ID := uuid.New()
 	captain := &domain.User{ID: captainID, TeamID: &teamID}
 
-	solvesWithDetails := []*domain.SolveWithDetails{
-		{Solve: domain.Solve{ChallengeID: ch1ID}, ChallengePoints: 100, ChallengeTitle: "Ch1"},
-		{Solve: domain.Solve{ChallengeID: ch1ID}, ChallengePoints: 100, ChallengeTitle: "Ch1"},
-		{Solve: domain.Solve{ChallengeID: ch2ID}, ChallengePoints: 200, ChallengeTitle: "Ch2"},
-	}
-
 	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
 	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
@@ -74,7 +68,7 @@ func TestTeamUseCase_DisbandTeam_WithSolves_UsesGetByIDs(t *testing.T) {
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID, CaptainID: captainID, Name: "test_team"}, nil).Once()
 	d.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return([]*domain.User{captain}, nil).Once()
-	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return(solvesWithDetails, nil).Once()
+	d.solveRepo.EXPECT().GetModerationAffectedChallengeIDsByTeamID(mock.Anything, teamID).Return([]uuid.UUID{ch1ID, ch2ID}, nil).Once()
 	d.challengeRepo.EXPECT().RecalculateSolveCounts(mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
 		return len(ids) == 2 && (ids[0] == ch1ID && ids[1] == ch2ID || ids[0] == ch2ID && ids[1] == ch1ID)
 	})).Return(nil).Once()
