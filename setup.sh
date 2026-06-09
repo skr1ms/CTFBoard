@@ -1119,6 +1119,36 @@ VAULT_POLICY
     return 1
   fi
 
+  local current_backend_token current_backend_token_is_ours=0
+  current_backend_token="$(env_get_default VAULT_BACKEND_TOKEN "")"
+
+  if [ -n "$current_backend_token" ]; then
+    secret_env_set "$env_file" CURRENT_BACKEND_TOKEN "$current_backend_token"
+
+    local lookup_json
+    if lookup_json="$(vault_exec_env_script "$env_file" <<'VAULT_LOOKUP'
+vault token lookup -format=json "$CURRENT_BACKEND_TOKEN"
+VAULT_LOOKUP
+    )"; then
+      if printf '%s\n' "$lookup_json" | jq -e '.data.policies | index("astroctfb-backend")' >/dev/null; then
+        current_backend_token_is_ours=1
+
+        if printf '%s\n' "$lookup_json" | jq -e '.data.renewable == true' >/dev/null; then
+          if vault_exec_env_script "$env_file" <<'VAULT_RENEW' >/dev/null; then
+vault token renew -increment=8760h "$CURRENT_BACKEND_TOKEN"
+VAULT_RENEW
+            rm -f "$env_file"
+            env_unset VAULT_TOKEN
+            chmod 600 "$ENV_FILE"
+            green "  Existing backend Vault token renewed and kept in .env"
+            echo ""
+            return 0
+          fi
+        fi
+      fi
+    fi
+  fi
+
   local token_json backend_token
   if ! token_json="$(vault_exec_env_script "$env_file" <<'VAULT_TOKEN_SCRIPT'
 vault token create \
@@ -1143,6 +1173,16 @@ VAULT_TOKEN_SCRIPT
   env_set VAULT_BACKEND_TOKEN "$backend_token"
   env_unset VAULT_TOKEN
   chmod 600 "$ENV_FILE"
+
+  if [ "$current_backend_token_is_ours" -eq 1 ] && [ -n "$current_backend_token" ] && [ "$current_backend_token" != "$backend_token" ]; then
+    local revoke_env_file
+    revoke_env_file="$(vault_root_env_file)"
+    secret_env_set "$revoke_env_file" CURRENT_BACKEND_TOKEN "$current_backend_token"
+    vault_exec_env_script "$revoke_env_file" <<'VAULT_REVOKE' >/dev/null 2>&1 || true
+vault token revoke "$CURRENT_BACKEND_TOKEN"
+VAULT_REVOKE
+    rm -f "$revoke_env_file"
+  fi
 
   green "  Backend Vault token saved to .env as VAULT_BACKEND_TOKEN"
   echo ""
