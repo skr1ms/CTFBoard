@@ -28,13 +28,12 @@ func (g *teamBracketGetter) GetTeamBracketID(ctx context.Context, teamID uuid.UU
 }
 
 var (
-	TestPool                      *pgxpool.Pool
-	TestRedis                     *redis.Client
-	testPort                      string
-	e2eConnStr                    string
-	testRateLimitCache            *restapimiddleware.RateLimitConfigCache
-	testScoreboardVisibilityCache *restapimiddleware.ScoreboardVisibilityCache
-	testCompetitionUC             *competition.CompetitionUseCase
+	TestPool           *pgxpool.Pool
+	TestRedis          *redis.Client
+	testPort           string
+	e2eConnStr         string
+	testRateLimitCache *restapimiddleware.RateLimitConfigCache
+	testCompetitionUC  *competition.CompetitionUseCase
 )
 
 // Mocks.

@@ -47,7 +47,7 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 				id, app_name, verify_emails, frontend_url, cors_origins,
 				resend_enabled, resend_from_email, resend_from_name,
 				verify_ttl_hours, reset_ttl_hours, submit_limit_per_user, submit_limit_duration_min,
-				scoreboard_visible, registration_open,
+				registration_open,
 				rate_limit_login_per_minute, rate_limit_register_per_minute,
 				rate_limit_forgot_password_per_minute, rate_limit_reset_password_per_minute,
 				rate_limit_logout_per_minute, rate_limit_refresh_per_minute,
@@ -58,7 +58,7 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 				1, 'CTF Platform', TRUE, 'http://localhost:3000', 'http://localhost:3000,http://localhost:5173',
 				FALSE, 'noreply@ctf-platform.local', 'CTF Platform',
 				24, 1, 500000, 1,
-				'public', TRUE,
+				TRUE,
 				10000, 10000,
 				100000, 10000,
 				10000, 10000,
@@ -137,14 +137,13 @@ func truncateE2EDB(ctx context.Context, t *testing.T) error {
 	return nil
 }
 
-// resetAppSettingsFull resets all app_settings fields that tests may mutate, including
-// registration_open, scoreboard_visible, and max_teams. Use in t.Cleanup after tests that
-// change these global settings.
+// resetAppSettingsFull resets all app_settings fields that tests may mutate.
+// Use in t.Cleanup after tests that change these global settings.
 func resetAppSettingsFull() {
 	ctx := context.Background()
 
 	_, err := TestPool.Exec(ctx, `UPDATE app_settings SET
-		registration_open = TRUE, scoreboard_visible = 'public', max_teams = 0,
+		registration_open = TRUE, max_teams = 0,
 		submit_limit_per_user = 500000, submit_limit_duration_min = 1,
 		rate_limit_login_per_minute = 10000, rate_limit_register_per_minute = 10000,
 		rate_limit_forgot_password_per_minute = 100000, rate_limit_reset_password_per_minute = 10000,
@@ -158,10 +157,6 @@ func resetAppSettingsFull() {
 
 	if TestRedis != nil {
 		_ = TestRedis.Del(ctx, "app_settings")
-	}
-
-	if testScoreboardVisibilityCache != nil {
-		testScoreboardVisibilityCache.Invalidate()
 	}
 
 	if testRateLimitCache != nil {

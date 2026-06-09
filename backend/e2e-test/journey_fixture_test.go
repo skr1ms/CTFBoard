@@ -74,6 +74,30 @@ func e2eBearer(token string) openapi.RequestEditorFn {
 	}
 }
 
+func e2eLowercaseBearer(token string) openapi.RequestEditorFn {
+	return func(_ context.Context, req *http.Request) error {
+		if token != "" && !strings.HasPrefix(token, "bearer ") {
+			token = "bearer " + token
+		}
+
+		req.Header.Set("Authorization", token)
+
+		return nil
+	}
+}
+
+func e2eAPIToken(token string) openapi.RequestEditorFn {
+	return func(_ context.Context, req *http.Request) error {
+		if token != "" && !strings.HasPrefix(token, "Token ") {
+			token = "Token " + token
+		}
+
+		req.Header.Set("Authorization", token)
+
+		return nil
+	}
+}
+
 func requireStatus(t *testing.T, label string, want, got int, body []byte) {
 	t.Helper()
 	require.Equal(t, want, got, "%s: %s", label, body)
@@ -396,15 +420,4 @@ func (s *e2eSuite) setScoreVisibility(admin e2eActor, visibility string) {
 	}, e2eBearer(admin.Token))
 	require.NoError(s.t, err)
 	requireStatus(s.t, "set score_visibility", http.StatusOK, resp.StatusCode(), resp.Body)
-}
-
-func (s *e2eSuite) banUserDirectly(userID string) {
-	s.t.Helper()
-
-	_, err := TestPool.Exec(context.Background(), "UPDATE users SET is_banned = true, banned_reason = 'e2e ban', banned_at = now() WHERE id = $1", userID)
-	require.NoError(s.t, err)
-
-	if TestRedis != nil {
-		_ = TestRedis.Del(context.Background(), "user:"+userID).Err()
-	}
 }

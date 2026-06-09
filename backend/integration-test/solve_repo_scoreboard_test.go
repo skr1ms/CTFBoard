@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
 func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
@@ -62,11 +62,11 @@ func TestSolveRepo_GetScoreboard_Success(t *testing.T) {
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
-	idx1 := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID })
+	idx1 := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t1.ID })
 	require.GreaterOrEqual(t, idx1, 0, "t1 should be in scoreboard with 300 points")
 	assert.Equal(t, t1.Name, scoreboard[idx1].TeamName)
 	assert.Equal(t, 300, scoreboard[idx1].Points)
-	idx2 := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID })
+	idx2 := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t2.ID })
 	require.GreaterOrEqual(t, idx2, 0, "t2 should be in scoreboard with 100 points")
 	assert.Equal(t, t2.Name, scoreboard[idx2].TeamName)
 	assert.Equal(t, 100, scoreboard[idx2].Points)
@@ -83,7 +83,7 @@ func TestSolveRepo_GetScoreboard_Empty(t *testing.T) {
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
-	idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
+	idx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == team.ID })
 	require.GreaterOrEqual(t, idx, 0, "our team should appear in scoreboard with 0 points")
 	assert.Equal(t, team.Name, scoreboard[idx].TeamName)
 	assert.Equal(t, 0, scoreboard[idx].Points)
@@ -107,8 +107,8 @@ func TestSolveRepo_GetScoreboard_HiddenTeamNotIncluded(t *testing.T) {
 
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "visible team t1 should be in scoreboard")
-	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "hidden team t2 should not be in scoreboard")
+	assert.True(t, slices.ContainsFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "visible team t1 should be in scoreboard")
+	assert.False(t, slices.ContainsFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "hidden team t2 should not be in scoreboard")
 }
 
 func TestSolveRepo_GetScoreboard_BannedTeamNotIncluded(t *testing.T) {
@@ -129,8 +129,8 @@ func TestSolveRepo_GetScoreboard_BannedTeamNotIncluded(t *testing.T) {
 
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "active team t1 should be in scoreboard")
-	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "banned team t2 should not be in scoreboard")
+	assert.True(t, slices.ContainsFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t1.ID }), "active team t1 should be in scoreboard")
+	assert.False(t, slices.ContainsFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t2.ID }), "banned team t2 should not be in scoreboard")
 }
 
 func TestSolveRepo_GetScoreboard_BracketScope(t *testing.T) {
@@ -158,11 +158,11 @@ func TestSolveRepo_GetScoreboard_BracketScope(t *testing.T) {
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, &bracketA.ID, nil)
 	require.NoError(t, err)
 
-	assert.True(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool {
+	assert.True(t, slices.ContainsFunc(scoreboard, func(e *domain.ScoreboardEntry) bool {
 		return e.TeamID == teamA.ID && e.Points == 125
 	}), "bracket A team should be included with solve and award points")
-	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == teamB.ID }), "bracket B team should not be included")
-	assert.False(t, slices.ContainsFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == teamGlobal.ID }), "unbracketed team should not be included")
+	assert.False(t, slices.ContainsFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == teamB.ID }), "bracket B team should not be included")
+	assert.False(t, slices.ContainsFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == teamGlobal.ID }), "unbracketed team should not be included")
 }
 
 func TestSolveRepo_GetScoreboard_ExcludesSoftBannedSources(t *testing.T) {
@@ -185,8 +185,8 @@ func TestSolveRepo_GetScoreboard_ExcludesSoftBannedSources(t *testing.T) {
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
-	solveBannedIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == teamSolveBanned.ID })
-	awardBannedIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == teamAwardBanned.ID })
+	solveBannedIdx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == teamSolveBanned.ID })
+	awardBannedIdx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == teamAwardBanned.ID })
 
 	require.GreaterOrEqual(t, solveBannedIdx, 0)
 	require.GreaterOrEqual(t, awardBannedIdx, 0)
@@ -292,8 +292,8 @@ func TestSolveRepo_GetScoreboard_TieBreaksByLastSolveTime(t *testing.T) {
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
-	earlyIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tEarly.ID })
-	lateIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tLate.ID })
+	earlyIdx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == tEarly.ID })
+	lateIdx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == tLate.ID })
 
 	require.GreaterOrEqual(t, earlyIdx, 0)
 	require.GreaterOrEqual(t, lateIdx, 0)
@@ -317,8 +317,8 @@ func TestSolveRepo_GetScoreboard_ZeroPointSolveRanksBeforeNeverSolved(t *testing
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
-	solvedIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tSolved.ID })
-	neverIdx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == tNeverSolved.ID })
+	solvedIdx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == tSolved.ID })
+	neverIdx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == tNeverSolved.ID })
 
 	require.GreaterOrEqual(t, solvedIdx, 0)
 	require.GreaterOrEqual(t, neverIdx, 0)
@@ -354,8 +354,8 @@ func TestSolveRepo_GetScoreboard_AwardsRespectFreezeCutoff(t *testing.T) {
 	live, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
-	frozenIdx := slices.IndexFunc(frozen, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
-	liveIdx := slices.IndexFunc(live, func(e *repo.ScoreboardEntry) bool { return e.TeamID == team.ID })
+	frozenIdx := slices.IndexFunc(frozen, func(e *domain.ScoreboardEntry) bool { return e.TeamID == team.ID })
+	liveIdx := slices.IndexFunc(live, func(e *domain.ScoreboardEntry) bool { return e.TeamID == team.ID })
 
 	require.GreaterOrEqual(t, frozenIdx, 0)
 	require.GreaterOrEqual(t, liveIdx, 0)
@@ -383,8 +383,8 @@ func TestSolveRepo_GetScoreboard_AwardOnlyTieFallsBackToTeamID(t *testing.T) {
 	scoreboard, err := f.SolveRepo.GetScoreboardByBracket(ctx, nil, nil)
 	require.NoError(t, err)
 
-	t1Idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t1.ID })
-	t2Idx := slices.IndexFunc(scoreboard, func(e *repo.ScoreboardEntry) bool { return e.TeamID == t2.ID })
+	t1Idx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t1.ID })
+	t2Idx := slices.IndexFunc(scoreboard, func(e *domain.ScoreboardEntry) bool { return e.TeamID == t2.ID })
 
 	require.GreaterOrEqual(t, t1Idx, 0)
 	require.GreaterOrEqual(t, t2Idx, 0)

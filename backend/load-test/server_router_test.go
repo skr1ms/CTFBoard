@@ -65,12 +65,12 @@ func buildLoadTestRouter(ctx context.Context, l logkit.Logger, uc *loadTestUseCa
 	deps := &v1helper.ServerDeps{
 		Challenge: v1helper.ChallengeDeps{
 			ReadUC: uc.challenge, SubmitUC: uc.challenge, AdminUC: uc.challenge,
-			HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC,
+			HintUC: uc.hint, FileUC: uc.file, TagUC: uc.tagUC, CommentUC: uc.commentUC, RatingUC: uc.ratingUC,
 		},
 		Team:  v1helper.TeamDeps{ReadUC: uc.team, SelfUC: uc.team, AdminUC: uc.team, AwardUC: uc.award},
 		User:  v1helper.UserDeps{UserUC: uc.user, EmailUC: uc.email, APITokenUC: uc.apiTokenUC, TrackingUC: uc.trackingUC},
 		Comp:  v1helper.CompetitionDeps{CompetitionUC: uc.competition, SolveUC: uc.solve, StatsUC: uc.stats, SubmissionUC: uc.submissionUC, BracketUC: uc.bracketUC},
-		Admin: v1helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
+		Admin: v1helper.AdminDeps{BackupUC: uc.backup, SettingsUC: uc.settings, CompetitionParamUC: uc.competitionParamUC, StorageAdminUC: uc.storageAdminUC, FieldUC: uc.fieldUC, PageUC: uc.pageUC, NotifUC: uc.notifUC},
 		Infra: v1helper.InfraDeps{
 			JWTService:                    jwtSvc,
 			RedisClient:                   redisClient,

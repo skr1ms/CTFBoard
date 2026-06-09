@@ -28,6 +28,10 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	os.Exit(runLoadTestMain(m))
+}
+
+func runLoadTestMain(m *testing.M) int {
 	fmt.Println("[load-test] starting environment setup...")
 
 	ctx := context.Background()
@@ -35,29 +39,34 @@ func TestMain(m *testing.M) {
 	cleanup, err := setupInfra(ctx)
 	if err != nil {
 		fmt.Printf("[load-test] infra setup failed: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 	defer cleanup()
 
 	if err := goose.Run(context.Background(), testDBConnStr, filepath.Join("..", "migrations")); err != nil {
 		fmt.Printf("[load-test] migrations failed: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 
 	if _, err := testDBPool.Exec(ctx, "UPDATE competition SET start_time = $1 WHERE id = 1", time.Now().Add(-24*time.Hour)); err != nil {
 		fmt.Printf("[load-test] set competition start_time: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 
 	if err := seedAppSettings(ctx, testDBPool); err != nil {
 		fmt.Printf("[load-test] app_settings seed failed: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 
 	baseURL, shutdownServer, err := startLoadTestServer(testDBPool, testRedisClient)
 	if err != nil {
 		fmt.Printf("[load-test] server start failed: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 	defer shutdownServer()
 
@@ -69,7 +78,8 @@ func TestMain(m *testing.M) {
 	Fixture, err = seedLoadTestData(ctx, testBaseURL, testDBPool)
 	if err != nil {
 		fmt.Printf("[load-test] seed failed: %v\n", err)
-		os.Exit(1)
+
+		return 1
 	}
 
 	fmt.Printf("[load-test] fixture ready: %d users, %d challenges\n", len(Fixture.Users), len(Fixture.ChallengeIDs))
@@ -87,7 +97,8 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	FlushReports()
-	os.Exit(code)
+
+	return code
 }
 
 func setupInfra(ctx context.Context) (func(), error) {
@@ -259,7 +270,7 @@ func seedAppSettings(ctx context.Context, pool *pgxpool.Pool) error {
 				resend_enabled, resend_from_email, resend_from_name,
 				verify_ttl_hours, reset_ttl_hours,
 				submit_limit_per_user, submit_limit_duration_min,
-				scoreboard_visible, registration_open,
+				registration_open,
 				rate_limit_login_per_minute, rate_limit_register_per_minute,
 				rate_limit_forgot_password_per_minute, rate_limit_reset_password_per_minute,
 				rate_limit_logout_per_minute, rate_limit_refresh_per_minute,
@@ -271,7 +282,7 @@ func seedAppSettings(ctx context.Context, pool *pgxpool.Pool) error {
 				false, 'noreply@lt.local', 'LoadTestCTF',
 				24, 1,
 				100000, 1,
-				'public', true,
+				true,
 				100000, 100000,
 				100000, 100000,
 				100000, 100000,

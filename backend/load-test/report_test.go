@@ -46,6 +46,14 @@ func RunAttack(attacker *vegeta.Attacker, name string, rps int, duration time.Du
 	return r
 }
 
+func WarmUpAttack(attacker *vegeta.Attacker, rps int, duration time.Duration, targeter vegeta.Targeter) {
+	rate := vegeta.Rate{Freq: rps, Per: time.Second}
+	results := attacker.Attack(targeter, rate, duration, "warmup")
+
+	for range results {
+	}
+}
+
 func FlushReports() {
 	dir := os.Getenv("LOAD_TEST_REPORT_DIR")
 	if dir == "" {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent"
 )
 
@@ -68,6 +69,21 @@ func TestUserRepo_Create_DuplicateEmail(t *testing.T) {
 
 	err := f.UserRepo.Create(ctx, user2)
 	assert.Error(t, err)
+}
+
+func TestUserRepo_UpdateAdmin_DuplicateEmail(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user1 := f.CreateUser(t, "admin_dup_email_1")
+	user2 := f.CreateUser(t, "admin_dup_email_2")
+
+	err := f.UserRepo.UpdateAdmin(ctx, user2.ID, nil, &user1.Email, nil, nil, nil)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrUserAlreadyExists)
 }
 
 func TestUserRepo_GetByID(t *testing.T) {
@@ -182,6 +198,30 @@ func TestUserRepo_GetAll_Error_CancelledContext(t *testing.T) {
 	users, err := f.UserRepo.GetAll(ctx)
 	assert.Error(t, err)
 	assert.Nil(t, users)
+}
+
+func TestUserRepo_SearchAdminByEmail(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "admin_search_email")
+	search := user.Email
+	filter := repo.UserAdminSearchFilter{
+		Search:    &search,
+		BanStatus: repo.UserAdminBanStatusAll,
+	}
+
+	users, err := f.UserRepo.SearchAdmin(ctx, filter, 10, 0)
+	require.NoError(t, err)
+
+	total, err := f.UserRepo.CountSearchAdmin(ctx, filter)
+	require.NoError(t, err)
+
+	require.NotZero(t, total)
+	require.NotEmpty(t, users)
+	assert.Equal(t, user.ID, users[0].ID)
 }
 
 func TestUserRepo_GetByTeamID(t *testing.T) {

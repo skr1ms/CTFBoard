@@ -65,6 +65,10 @@ func TestSoak_MixedTraffic_Extended(t *testing.T) {
 	require.LessOrEqual(t, m.Latencies.P99, soakP99Threshold,
 		"soak P99 must be ≤ %s (got %s)", soakP99Threshold, m.Latencies.P99)
 
+	runtime.GC() //nolint:revive // Leak checks need a stable post-GC runtime snapshot.
+	time.Sleep(loadTestServerIdleTimeout + time.Second)
+	runtime.GC() //nolint:revive // Let idle HTTP connections drain before measuring heap/goroutines.
+
 	goroutinesAfter := runtime.NumGoroutine()
 
 	var memAfter runtime.MemStats

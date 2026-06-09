@@ -30,6 +30,8 @@ func TestMixed_RealisticCTFTraffic(t *testing.T) {
 		p = MixedProfile{RPS: raceScale(100), Duration: 10 * time.Second}
 	}
 
+	WarmUpAttack(NewAttacker(50), raceScale(50), 3*time.Second, targeter)
+
 	fmt.Printf("\n[mixed] Realistic CTF traffic @ %d RPS for %s:\n", p.RPS, p.Duration)
 
 	r := RunAttack(attacker, "mixed_ctf", p.RPS, p.Duration, targeter)
@@ -72,6 +74,8 @@ func TestMixed_PeakHour(t *testing.T) {
 
 	rps := raceScale(800)
 	duration := 30 * time.Second
+	WarmUpAttack(NewAttacker(50), raceScale(50), 3*time.Second, targeter)
+
 	fmt.Printf("\n[mixed] Peak hour @ %d RPS for %s:\n", rps, duration)
 
 	r := RunAttack(attacker, "peak_hour", rps, duration, targeter)

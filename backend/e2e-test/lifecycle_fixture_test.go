@@ -14,11 +14,18 @@ import (
 func (s *e2eSuite) configureCompetition(admin e2eActor, name string) {
 	s.t.Helper()
 
+	s.configureCompetitionMode(admin, name, nil)
+}
+
+func (s *e2eSuite) configureCompetitionMode(admin e2eActor, name string, mode *openapi.UpdateCompetitionRequestMode) {
+	s.t.Helper()
+
 	resp, err := s.client.PutAdminCompetitionWithResponse(context.Background(), openapi.PutAdminCompetitionJSONRequestBody{
 		Name:            name,
 		IsPaused:        new(false),
 		IsPublic:        new(true),
 		AllowTeamSwitch: new(true),
+		Mode:            mode,
 	}, e2eBearer(admin.Token))
 	require.NoError(s.t, err)
 	requireStatus(s.t, "update competition", http.StatusOK, resp.StatusCode(), resp.Body)

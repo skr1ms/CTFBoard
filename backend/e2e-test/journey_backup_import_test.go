@@ -60,7 +60,7 @@ func (s *e2eSuite) startBackupImportJob(admin e2eActor, archive []byte) *openapi
 	_, err = part.Write(archive)
 	require.NoError(s.t, err)
 
-	require.NoError(s.t, writer.WriteField("conflict_mode", "skip"))
+	require.NoError(s.t, writer.WriteField("conflict_mode", "overwrite"))
 	require.NoError(s.t, writer.WriteField("validate_files", "true"))
 	require.NoError(s.t, writer.WriteField("preserve_admin_roles", "true"))
 	require.NoError(s.t, writer.WriteField("erase_existing", "false"))

@@ -20,6 +20,8 @@ func TestBackupRepo_EraseAllTablesTx_Success(t *testing.T) {
 
 	user, team := f.CreateUserWithTeam(t, "erase_user")
 	challenge := f.CreateChallenge(t, "erase_chall", 100)
+	page := f.CreatePage(t, "erase_page", false)
+	notification := f.CreateNotification(t, "erase_notif")
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		return f.BackupRepo.EraseAllTables(txCtx)
@@ -32,6 +34,14 @@ func TestBackupRepo_EraseAllTablesTx_Success(t *testing.T) {
 	assert.Error(t, err)
 	_, err = f.ChallengeRepo.GetByID(ctx, challenge.ID)
 	assert.Error(t, err)
+
+	gotPage, err := f.PageRepo.GetByID(ctx, page.ID)
+	require.NoError(t, err)
+	assert.Equal(t, page.ID, gotPage.ID)
+
+	gotNotification, err := f.NotificationRepo.GetByID(ctx, notification.ID)
+	require.NoError(t, err)
+	assert.Equal(t, notification.ID, gotNotification.ID)
 }
 
 func TestBackupRepo_EraseAllTablesTx_Error_ClosedTx(t *testing.T) {

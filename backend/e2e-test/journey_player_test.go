@@ -46,3 +46,39 @@ func TestE2E_PlayerJourney_SubmitScoreboardAndWebSocket(t *testing.T) {
 		require.Contains(t, []string{"solve", "first_blood"}, got)
 	}
 }
+
+func TestE2E_WebSocketBrowserSubprotocolAuth(t *testing.T) {
+	s := newE2ESuite(t)
+
+	player := s.registerUser("ws_subprotocol_player")
+	s.createSoloTeam(&player)
+
+	wsURL := "ws://localhost:" + testPort + "/api/v1/ws"
+
+	queryConn, queryResp, queryErr := websocket.Dial(context.Background(), wsURL+"?token="+player.Token, nil)
+	if queryResp != nil && queryResp.Body != nil {
+		defer queryResp.Body.Close()
+	}
+
+	if queryConn != nil {
+		defer queryConn.Close(websocket.StatusPolicyViolation, "")
+	}
+
+	require.Error(t, queryErr)
+	require.NotNil(t, queryResp)
+	require.Equal(t, http.StatusUnauthorized, queryResp.StatusCode)
+
+	conn, resp, err := websocket.Dial(context.Background(), wsURL, &websocket.DialOptions{
+		Subprotocols: []string{"bearer", player.Token},
+	})
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
+
+	require.NoError(t, err)
+	require.Equal(t, "bearer", conn.Subprotocol())
+
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	waitWSMessage(t, conn, "connected", 5*time.Second)
+}

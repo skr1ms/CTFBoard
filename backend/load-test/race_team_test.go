@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -17,24 +18,17 @@ import (
 
 func TestRace_ConcurrentTeamJoin(t *testing.T) {
 	require.NotNil(t, Fixture)
-	require.GreaterOrEqual(t, len(Fixture.Users), raceConcurrency,
-		"need at least %d seeded users for team join race test", raceConcurrency)
 
 	ctx := context.Background()
 	client, err := openapi.NewClientWithResponses(Fixture.BaseURL + "/api/v1")
 	require.NoError(t, err)
 
-	// Create a host user whose team will be the join target.
-	hostIdx := len(Fixture.Users) - 1
-	hostToken := Fixture.Users[hostIdx].Token
+	host := createStandaloneLoadUser(t, ctx, client, "race_join_host")
+	hostToken := host.Token
 	hostAuth := bearerEditor(hostToken)
 
-	// Create a named team for the host (replacing their seeded solo team).
-	// Solo teams reject join requests, so a named team is required as the join target.
-	confirmReset := true
 	createResp, err := client.PostTeamsWithResponse(ctx, openapi.CreateTeamRequest{
-		Name:         "race-join-target",
-		ConfirmReset: &confirmReset,
+		Name: "rjt_" + uuid.NewString()[:8],
 	}, hostAuth)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusCreated, createResp.StatusCode(),
@@ -48,12 +42,10 @@ func TestRace_ConcurrentTeamJoin(t *testing.T) {
 
 	inviteToken := *inviteResp.JSON200.InviteToken
 
-	// Use users from the middle of the fixture slice as joiners.
-	// Users[0:raceConcurrency] are avoided because HintUnlockTargeter starts its round-robin
-	// from index 0; after joining a new team those users would have no awards and cause
-	// ErrInsufficientPoints (402) in the subsequent stress hint test.
-	joinerStart := len(Fixture.Users) / 2
-	joiners := Fixture.Users[joinerStart : joinerStart+raceConcurrency]
+	joiners := make([]UserToken, raceConcurrency)
+	for i := range raceConcurrency {
+		joiners[i] = createStandaloneLoadUser(t, ctx, client, fmt.Sprintf("race_join_%02d", i))
+	}
 
 	var (
 		successes atomic.Int32
@@ -135,6 +127,42 @@ func TestRace_ConcurrentTeamJoin(t *testing.T) {
 		raceConcurrency, distinctTeams)
 }
 
+func createStandaloneLoadUser(t *testing.T, ctx context.Context, client *openapi.ClientWithResponses, prefix string) UserToken {
+	t.Helper()
+
+	suffix := uuid.NewString()
+	username := fmt.Sprintf("%s_%s", prefix, suffix[:8])
+	email := fmt.Sprintf("%s_%s@loadtest.local", prefix, suffix)
+	password := "ValidPass1"
+
+	regResp, err := client.PostAuthRegisterWithResponse(ctx, openapi.PostAuthRegisterJSONRequestBody{
+		Username: username,
+		Email:    email,
+		Password: password,
+	})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, regResp.StatusCode(), "register %s: %s", username, string(regResp.Body))
+
+	loginResp, err := client.PostAuthLoginWithResponse(ctx, openapi.PostAuthLoginJSONRequestBody{
+		Email:    email,
+		Password: password,
+	})
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, loginResp.StatusCode(), "login %s: %s", username, string(loginResp.Body))
+	require.NotNil(t, loginResp.JSON200)
+	require.NotNil(t, loginResp.JSON200.AccessToken)
+
+	token := "Bearer " + *loginResp.JSON200.AccessToken
+
+	meResp, err := client.GetAuthMeWithResponse(ctx, bearerEditor(token))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, meResp.StatusCode(), "me %s: %s", username, string(meResp.Body))
+	require.NotNil(t, meResp.JSON200)
+	require.NotNil(t, meResp.JSON200.ID)
+
+	return UserToken{UserID: *meResp.JSON200.ID, Token: token}
+}
+
 func TestRace_ConcurrentTeamCreation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping concurrent team creation race load test in short mode")
@@ -189,7 +217,7 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 	require.NotNil(t, loginData.AccessToken)
 	token := "Bearer " + *loginData.AccessToken
 
-	_, err = testDBPool.Exec(ctx, "UPDATE competition SET mode = 'teams_only', updated_at = NOW() WHERE id = 1")
+	_, err = testDBPool.Exec(ctx, "UPDATE competition SET mode = 'solo_only', updated_at = NOW() WHERE id = 1")
 	require.NoError(t, err)
 
 	defer func() {
@@ -257,4 +285,25 @@ func TestRace_ConcurrentTeamCreation(t *testing.T) {
 
 	require.Equal(t, 1, statusCounts[http.StatusCreated],
 		"exactly 1 solo team creation must succeed (got %v)", statusCounts)
+	require.Zero(t, statusCounts[http.StatusInternalServerError],
+		"concurrent solo team creation must produce no 500 errors (got %v)", statusCounts)
+
+	for status := range statusCounts {
+		switch status {
+		case http.StatusCreated, http.StatusBadRequest, http.StatusConflict, http.StatusTooManyRequests:
+		default:
+			t.Fatalf("unexpected status for concurrent solo team creation: %d (got %v)", status, statusCounts)
+		}
+	}
+
+	var teamCount int
+
+	err = testDBPool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM teams
+		WHERE captain_id = (SELECT id FROM users WHERE email = $1)
+		  AND deleted_at IS NULL
+	`, email).Scan(&teamCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, teamCount, "concurrent solo creation must leave exactly one active team")
 }

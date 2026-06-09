@@ -10,7 +10,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 )
 
 func TestSolutionRepo_Upsert_Create(t *testing.T) {
@@ -251,7 +250,7 @@ func TestSolutionRepo_UpsertSolution_CancelledContext(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func requireSolutionEntry(t *testing.T, entries []*repo.ChallengeSolutionEntry, challengeID uuid.UUID) *repo.ChallengeSolutionEntry {
+func requireSolutionEntry(t *testing.T, entries []*domain.ChallengeSolutionEntry, challengeID uuid.UUID) *domain.ChallengeSolutionEntry {
 	t.Helper()
 
 	entry := findSolutionEntry(entries, challengeID)
@@ -260,7 +259,7 @@ func requireSolutionEntry(t *testing.T, entries []*repo.ChallengeSolutionEntry, 
 	return entry
 }
 
-func findSolutionEntry(entries []*repo.ChallengeSolutionEntry, challengeID uuid.UUID) *repo.ChallengeSolutionEntry {
+func findSolutionEntry(entries []*domain.ChallengeSolutionEntry, challengeID uuid.UUID) *domain.ChallengeSolutionEntry {
 	for _, entry := range entries {
 		if entry.ChallengeID == challengeID {
 			return entry

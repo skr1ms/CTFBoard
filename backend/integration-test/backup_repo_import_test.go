@@ -20,6 +20,7 @@ func TestBackupRepo_ImportCompetitionTx_Success(t *testing.T) {
 	t.Cleanup(func() { f.ResetCompetition(t) })
 
 	comp := f.ActiveCompetition(t, "Updated CTF")
+	comp.KeepScoreboardFrozenAfterEnd = true
 
 	err := f.TM.Run(ctx, func(txCtx context.Context) error {
 		return f.BackupRepo.ImportCompetition(txCtx, comp)
@@ -29,6 +30,7 @@ func TestBackupRepo_ImportCompetitionTx_Success(t *testing.T) {
 	got, err := f.CompetitionRepo.Get(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, "Updated CTF", got.Name)
+	assert.True(t, got.KeepScoreboardFrozenAfterEnd)
 }
 
 func TestBackupRepo_ImportCompetitionTx_NilCompetition(t *testing.T) {

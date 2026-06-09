@@ -185,6 +185,7 @@ func seedCompetition(ctx context.Context, pool *pgxpool.Pool) error {
 
 const (
 	seaweedS3Port    = "8333"
+	seaweedImage     = "chrislusf/seaweedfs:4.32"
 	seaweedAccessKey = "admin"
 	seaweedSecretKey = "admin"
 	seaweedBucket    = "ctf-platform"
@@ -205,7 +206,7 @@ func SetupSeaweedFS(t *testing.T) (endpoint, accessKey, secretKey, bucket string
 	seaweedOnce.Do(func() {
 		s3ConfigPath := findS3ConfigPath(t)
 		req := testcontainers.ContainerRequest{
-			Image:        "chrislusf/seaweedfs:latest",
+			Image:        seaweedImage,
 			Cmd:          []string{"server", "-s3", "-s3.config=/etc/seaweedfs/s3.json"},
 			ExposedPorts: []string{seaweedS3Port + "/tcp"},
 			WaitingFor:   wait.ForListeningPort(seaweedS3Port + "/tcp").WithStartupTimeout(30 * time.Second),

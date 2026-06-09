@@ -4,13 +4,16 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-wskit"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	wsV1 "github.com/TakuyaYagam1/AstroCTFb/internal/controller/websocket/v1"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/storage"
 	backupUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup"
 	challengeUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge"
@@ -19,6 +22,7 @@ import (
 	notificationUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
 	pageUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page"
 	settingsUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
+	storageadminUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/storageadmin"
 	teamUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	userUC "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
@@ -74,6 +78,18 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		SoloTeamCreator: t,
 		UserCache:       userCacheSvc,
 		BcryptCost:      bcrypt.MinCost,
+	})
+	deps.jwt.SetUserRoleLookup(func(ctx context.Context, userID uuid.UUID) (string, error) {
+		currentUser, err := repos.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			return "", err
+		}
+
+		if currentUser.WasInBannedTeam && currentUser.Role != domain.RoleAdmin {
+			return "", apperr.ErrUserBanned
+		}
+
+		return string(currentUser.Role), nil
 	})
 	comp := competitionUC.NewCompetitionUseCase(competitionUC.CompetitionDeps{
 		CompetitionRepo: repos.compRepo,
@@ -133,10 +149,24 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 	stats := competitionUC.NewStatisticsUseCase(competitionUC.StatisticsDeps{StatsRepo: repos.statsRepo, Cache: c})
 	sub := competitionUC.NewSubmissionUseCase(competitionUC.SubmissionDeps{SubmissionRepo: repos.submissionRepo})
 	tag := challengeUC.NewTagUseCase(challengeUC.TagDeps{TagRepo: repos.tagRepo, ChallengeRepo: repos.challengeRepo})
+	rating := challengeUC.NewRatingUseCase(challengeUC.RatingDeps{
+		ChallengeRepo: repos.challengeRepo,
+		SolveRepo:     repos.solveRepo,
+		RatingRepo:    repos.ratingRepo,
+		UserRepo:      repos.userRepo,
+		TeamRepo:      repos.teamRepo,
+		TM:            repos.tm,
+	})
 	field := settingsUC.NewFieldUseCase(settingsUC.FieldDeps{FieldRepo: repos.fieldRepo})
 	pg := pageUC.NewPageUseCase(pageUC.PageDeps{PageRepo: repos.pageRepo})
 	bracket := competitionUC.NewBracketUseCase(competitionUC.BracketDeps{BracketRepo: repos.bracketRepo, TM: repos.tm})
-	notif := notificationUC.NewNotificationUseCase(notificationUC.NotificationDeps{NotifRepo: repos.notificationRepo, Broadcaster: broadcaster})
+	notif := notificationUC.NewNotificationUseCase(notificationUC.NotificationDeps{
+		NotifRepo:   repos.notificationRepo,
+		TeamRepo:    repos.teamRepo,
+		UserRepo:    repos.userRepo,
+		TM:          repos.tm,
+		Broadcaster: broadcaster,
+	})
 	apiToken := userUC.NewAPITokenUseCase(userUC.APITokenDeps{Repo: repos.apiTokenRepo})
 	bk := backupUC.NewBackupUseCase(backupUC.BackupDeps{
 		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo,
@@ -165,6 +195,10 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		DownloadSecret: "test-download-secret",
 		BaseURL:        "http://localhost:3000",
 	})
+	storageAdmin := storageadminUC.NewUseCase(storageadminUC.Deps{
+		Storage:  fileStorage,
+		AuditLog: repos.auditLogRepo,
+	})
 
 	return &loadTestUseCases{
 		user: u, challenge: ch, solve: solve, team: t, competition: comp,
@@ -172,6 +206,6 @@ func buildLoadTestUseCases(deps *loadTestDeps, repos *loadTestRepos, fileStorage
 		backup: bk, settings: sett, ws: ws, submissionUC: sub, tagUC: tag,
 		fieldUC: field, pageUC: pg, bracketUC: bracket, notifUC: notif,
 		apiTokenUC: apiToken, competitionParamUC: competitionParam, commentUC: comment,
-		trackingUC: tracking, SettingsRepo: repos.SettingsRepo,
+		storageAdminUC: storageAdmin, trackingUC: tracking, ratingUC: rating, SettingsRepo: repos.SettingsRepo,
 	}
 }

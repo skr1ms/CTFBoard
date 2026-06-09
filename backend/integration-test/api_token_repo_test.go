@@ -121,10 +121,37 @@ func TestAPITokenRepo_Delete_Error_WrongUser(t *testing.T) {
 	err := f.APITokenRepo.Create(ctx, token)
 	require.NoError(t, err)
 	err = f.APITokenRepo.Delete(ctx, token.ID, uuid.New())
-	require.NoError(t, err)
+	require.ErrorIs(t, err, apperr.ErrAPITokenNotFound)
 	list, err := f.APITokenRepo.GetByUserID(ctx, user.ID)
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
+}
+
+func TestAPITokenRepo_DeleteAllByUserID(t *testing.T) {
+	t.Parallel()
+	testPool := SetupTestPool(t)
+	f := NewTestFixture(testPool.Pool)
+	ctx := context.Background()
+
+	user := f.CreateUser(t, "delall")
+	other := f.CreateUser(t, "delall_other")
+	token1 := &domain.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
+	token2 := &domain.APIToken{UserID: user.ID, TokenHash: "hash_" + uuid.New().String()}
+	otherToken := &domain.APIToken{UserID: other.ID, TokenHash: "hash_" + uuid.New().String()}
+
+	require.NoError(t, f.APITokenRepo.Create(ctx, token1))
+	require.NoError(t, f.APITokenRepo.Create(ctx, token2))
+	require.NoError(t, f.APITokenRepo.Create(ctx, otherToken))
+
+	require.NoError(t, f.APITokenRepo.DeleteAllByUserID(ctx, user.ID))
+
+	list, err := f.APITokenRepo.GetByUserID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Empty(t, list)
+
+	otherList, err := f.APITokenRepo.GetByUserID(ctx, other.ID)
+	require.NoError(t, err)
+	assert.Len(t, otherList, 1)
 }
 
 func TestAPITokenRepo_UpdateLastUsedAt_Success(t *testing.T) {

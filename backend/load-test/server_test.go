@@ -18,6 +18,11 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
 )
 
+const (
+	loadTestServerIdleTimeout      = 5 * time.Second
+	loadTestServerReadinessTimeout = 250 * time.Millisecond
+)
+
 func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL string, shutdown func(), err error) {
 	deps, err := initLoadTestDeps(redisClient)
 	if err != nil {
@@ -38,7 +43,12 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 		return "", nil, fmt.Errorf("create storage: %w", err)
 	}
 
-	ctx := context.Background()
+	cleanupStorage := func() {
+		_ = fileStorage.Close()
+		_ = os.RemoveAll(storageDir)
+	}
+
+	ctx, cancelServer := context.WithCancel(context.Background())
 
 	hub := wskit.NewHub(
 		wskit.WithRedis(redisClient, "lt:events"),
@@ -64,7 +74,8 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 
 	listener, err := ls.Listen(ctx, "tcp", ":0")
 	if err != nil {
-		_ = os.RemoveAll(storageDir)
+		cancelServer()
+		cleanupStorage()
 
 		return "", nil, fmt.Errorf("listen: %w", err)
 	}
@@ -75,7 +86,7 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 		Handler:      r,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 200 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		IdleTimeout:  loadTestServerIdleTimeout,
 	}
 
 	go func() {
@@ -87,27 +98,9 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 
 	baseURL = fmt.Sprintf("http://localhost:%d", port)
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/api/v1/competition/status", http.NoBody)
-		if err != nil {
-			time.Sleep(50 * time.Millisecond)
+	shutdownServer := func() {
+		cancelServer()
 
-			continue
-		}
-
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil && resp != nil {
-			_ = resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				break
-			}
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	return baseURL, func() {
 		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
@@ -116,6 +109,45 @@ func startLoadTestServer(pool *pgxpool.Pool, redisClient *redis.Client) (baseURL
 			fmt.Printf("[load-test] shutdown: %v\n", serr)
 		}
 
-		_ = os.RemoveAll(storageDir)
-	}, nil
+		cleanupStorage()
+	}
+
+	ready := false
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		reqCtx, cancelReq := context.WithTimeout(context.Background(), loadTestServerReadinessTimeout)
+
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, baseURL+"/api/v1/competition/status", http.NoBody)
+		if err != nil {
+			cancelReq()
+			time.Sleep(50 * time.Millisecond)
+
+			continue
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+
+		cancelReq()
+
+		if err == nil && resp != nil {
+			_ = resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK {
+				ready = true
+
+				break
+			}
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if !ready {
+		shutdownServer()
+
+		return "", nil, fmt.Errorf("load-test server readiness: %s did not return OK before deadline", baseURL)
+	}
+
+	return baseURL, shutdownServer, nil
 }

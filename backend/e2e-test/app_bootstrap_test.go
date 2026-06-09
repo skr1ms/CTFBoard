@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-cachekit"
 	"github.com/wahrwelt-kit/go-jwtkit"
 	"github.com/wahrwelt-kit/go-logkit"
@@ -30,6 +31,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/notification"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/page"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/settings"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/storageadmin"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/user"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/websocket"
@@ -100,11 +102,13 @@ type testUseCases struct {
 	bracketUC          *competition.BracketUseCase
 	notifUC            usecase.NotificationUseCase
 	apiTokenUC         usecase.APITokenUseCase
+	storageAdminUC     usecase.StorageAdminUseCase
 	competitionParamUC *competition.CompetitionParamUseCase
 	commentUC          *challenge.CommentUseCase
 	trackingUC         *user.TrackingUseCase
 	appealUC           *user.BanAppealUseCase
 	SettingsRepo       repo.SettingsRepository
+	TM                 repo.TransactionManager
 }
 
 // startTestServer builds deps, use cases, router, starts HTTP server on random port; returns shutdown and temp dir cleanup.
@@ -336,6 +340,14 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		ScoreboardCache: scoreboardCache,
 		Logger:          deps.logger,
 	})
+	deps.jwt.SetUserRoleLookup(func(ctx context.Context, userID uuid.UUID) (string, error) {
+		u, err := repos.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			return "", fmt.Errorf("SetUserRoleLookup - GetByID: %w", err)
+		}
+
+		return string(u.Role), nil
+	})
 	compUC := competition.NewCompetitionUseCase(competition.CompetitionDeps{
 		CompetitionRepo: repos.compRepo,
 		AuditLogRepo:    repos.auditLogRepo,
@@ -381,6 +393,8 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		ChallengeRepo: repos.challengeRepo,
 		SolveRepo:     repos.solveRepo,
 		RatingRepo:    repos.ratingRepo,
+		UserRepo:      repos.userRepo,
+		TeamRepo:      repos.teamRepo,
 		TM:            repos.tm,
 	})
 	avatarUC := avatar.NewAvatarUseCase(avatar.AvatarDeps{
@@ -406,11 +420,17 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		SolveCreator:   challengeUC,
 		SolveDeleter:   challengeUC,
 	})
-	tagUC := challenge.NewTagUseCase(challenge.TagDeps{TagRepo: repos.tagRepo, ChallengeRepo: repos.challengeRepo})
+	tagUC := challenge.NewTagUseCase(challenge.TagDeps{TagRepo: repos.tagRepo, ChallengeRepo: repos.challengeRepo, SolveRepo: repos.solveRepo})
 	fieldUC := settings.NewFieldUseCase(settings.FieldDeps{FieldRepo: repos.fieldRepo})
 	pageUC := page.NewPageUseCase(page.PageDeps{PageRepo: repos.pageRepo})
 	bracketUC := competition.NewBracketUseCase(competition.BracketDeps{BracketRepo: repos.bracketRepo, TM: repos.tm})
-	notifUC := notification.NewNotificationUseCase(notification.NotificationDeps{NotifRepo: repos.notificationRepo, Broadcaster: broadcaster})
+	notifUC := notification.NewNotificationUseCase(notification.NotificationDeps{
+		NotifRepo:   repos.notificationRepo,
+		TeamRepo:    repos.teamRepo,
+		UserRepo:    repos.userRepo,
+		TM:          repos.tm,
+		Broadcaster: broadcaster,
+	})
 	apiTokenUC := user.NewAPITokenUseCase(user.APITokenDeps{Repo: repos.apiTokenRepo})
 	backupUC := backup.NewBackupUseCase(backup.BackupDeps{
 		CompetitionRepo: repos.compRepo, ChallengeRepo: repos.challengeRepo, TagRepo: repos.tagRepo, HintRepo: repos.hintRepo,
@@ -428,9 +448,16 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		CompRepo:     repos.compRepo,
 		Logger:       deps.logger,
 	})
-	commentUC := challenge.NewCommentUseCase(challenge.CommentDeps{CommentRepo: repos.commentRepo, ChallengeRepo: repos.challengeRepo, TM: repos.tm})
+	commentUC := challenge.NewCommentUseCase(challenge.CommentDeps{
+		CommentRepo:   repos.commentRepo,
+		ChallengeRepo: repos.challengeRepo,
+		SolveRepo:     repos.solveRepo,
+		UserRepo:      repos.userRepo,
+		TeamRepo:      repos.teamRepo,
+		TM:            repos.tm,
+	})
 	trackingUC := user.NewTrackingUseCase(user.TrackingDeps{TrackingRepo: repos.trackingRepo})
-	appealUC := user.NewBanAppealUseCase(repos.banAppealRepo, repos.userRepo, repos.tm)
+	appealUC := user.NewBanAppealUseCase(repos.banAppealRepo, repos.userRepo, repos.tm, userUC)
 	ws := wsV1.NewController(hub, deps.logger, []string{"localhost:*"})
 	fileUC := challenge.NewFileUseCase(challenge.FileDeps{
 		FileRepo:       repos.fileRepo,
@@ -441,14 +468,19 @@ func buildTestUseCases(deps *testDeps, repos *testRepos, fileStorage storage.Pro
 		DownloadSecret: "test-download-secret",
 		BaseURL:        "http://localhost:3000",
 	})
+	storageAdminUC := storageadmin.NewUseCase(storageadmin.Deps{
+		Storage:  fileStorage,
+		AuditLog: repos.auditLogRepo,
+	})
 
 	return &testUseCases{
 		user: userUC, challenge: challengeUC, solve: solveUC, team: teamUC, competition: compUC,
 		hint: hintUC, award: awardUC, email: emailUC, file: fileUC, stats: statsUC, backup: backupUC,
 		settings: settingsUC, ws: ws, submissionUC: submissionUC, tagUC: tagUC, fieldUC: fieldUC,
 		pageUC: pageUC, ratingUC: ratingUC, avatarUC: avatarUC, bracketUC: bracketUC, notifUC: notifUC, apiTokenUC: apiTokenUC,
-		competitionParamUC: competitionParamUC, commentUC: commentUC, trackingUC: trackingUC, appealUC: appealUC,
+		storageAdminUC: storageAdminUC, competitionParamUC: competitionParamUC, commentUC: commentUC, trackingUC: trackingUC, appealUC: appealUC,
 		SettingsRepo: repos.SettingsRepo,
+		TM:           repos.tm,
 	}
 }
 

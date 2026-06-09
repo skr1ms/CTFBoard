@@ -68,6 +68,7 @@ type loadTestRepos struct {
 	hintRepo         *persistent.HintRepo
 	notificationRepo *persistent.NotificationRepo
 	pageRepo         *persistent.PageRepo
+	ratingRepo       *persistent.RatingRepo
 	solveRepo        *persistent.SolveRepo
 	statsRepo        *persistent.StatisticsRepo
 	submissionRepo   *persistent.SubmissionRepo
@@ -97,9 +98,11 @@ type loadTestUseCases struct {
 	tagUC              *challengeUC.TagUseCase
 	fieldUC            *settingsUC.FieldUseCase
 	pageUC             *pageUC.PageUseCase
+	ratingUC           *challengeUC.RatingUseCase
 	bracketUC          *competitionUC.BracketUseCase
 	notifUC            usecase.NotificationUseCase
 	apiTokenUC         usecase.APITokenUseCase
+	storageAdminUC     usecase.StorageAdminUseCase
 	competitionParamUC *competitionUC.CompetitionParamUseCase
 	commentUC          *challengeUC.CommentUseCase
 	trackingUC         *userUC.TrackingUseCase
@@ -162,6 +165,7 @@ func initLoadTestRepos(pool *pgxpool.Pool) *loadTestRepos {
 		fieldValueRepo:   persistent.NewFieldValueRepo(pool),
 		submissionRepo:   persistent.NewSubmissionRepo(pool),
 		pageRepo:         persistent.NewPageRepo(pool),
+		ratingRepo:       persistent.NewRatingRepo(pool),
 		bracketRepo:      persistent.NewBracketRepo(pool),
 		notificationRepo: persistent.NewNotificationRepo(pool),
 		apiTokenRepo:     persistent.NewAPITokenRepo(pool),

@@ -86,7 +86,10 @@ func TestBanAppealRepo_GetByUserID_ReturnsUserAppeals(t *testing.T) {
 	user1 := f.CreateUser(t, "appeal_getuid1")
 	user2 := f.CreateUser(t, "appeal_getuid2")
 
-	createAppealFixture(t, f, user1.ID, 10*24*time.Hour)
+	older := createAppealFixture(t, f, user1.ID, 10*24*time.Hour)
+	older.Decision = domain.AppealDecisionRejected
+	require.NoError(t, f.BanAppealRepo.Update(context.Background(), older))
+
 	createAppealFixture(t, f, user1.ID, 5*24*time.Hour)
 	createAppealFixture(t, f, user2.ID, 0)
 
@@ -114,6 +117,9 @@ func TestBanAppealRepo_GetLatestByUserID_Success(t *testing.T) {
 	user := f.CreateUser(t, "appeal_latest")
 
 	older := createAppealFixture(t, f, user.ID, 8*24*time.Hour)
+	older.Decision = domain.AppealDecisionRejected
+	require.NoError(t, f.BanAppealRepo.Update(context.Background(), older))
+
 	newer := createAppealFixture(t, f, user.ID, 1*time.Hour)
 
 	got, err := f.BanAppealRepo.GetLatestByUserID(context.Background(), user.ID)
@@ -287,4 +293,18 @@ func TestBanAppealRepo_Update_NotFound(t *testing.T) {
 	}
 	err := f.BanAppealRepo.Update(context.Background(), nonExistent)
 	assert.ErrorIs(t, err, apperr.ErrAppealNotFound)
+}
+
+func TestBanAppealRepo_Update_AlreadyReviewed(t *testing.T) {
+	t.Parallel()
+	f := SetupTestFixture(t)
+	user := f.CreateUser(t, "appeal_upd_reviewed_twice")
+
+	appeal := createAppealFixture(t, f, user.ID, 0)
+	appeal.Decision = domain.AppealDecisionRejected
+	require.NoError(t, f.BanAppealRepo.Update(context.Background(), appeal))
+
+	appeal.Decision = domain.AppealDecisionResolved
+	err := f.BanAppealRepo.Update(context.Background(), appeal)
+	assert.ErrorIs(t, err, apperr.ErrAccessDenied)
 }

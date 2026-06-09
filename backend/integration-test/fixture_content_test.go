@@ -199,7 +199,6 @@ func (f *TestFixture) ResetAppSettings(t *testing.T) {
 			reset_ttl_hours = 1,
 			submit_limit_per_user = 10,
 			submit_limit_duration_min = 1,
-			scoreboard_visible = 'public',
 			registration_open = TRUE,
 			writeup_enabled = TRUE,
 			updated_at = CURRENT_TIMESTAMP

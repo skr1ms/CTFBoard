@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	openapiTypes "github.com/oapi-codegen/runtime/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/openapi"
@@ -22,19 +24,51 @@ func TestE2E_ChallengeRequirementsAndFreeze(t *testing.T) {
 
 	suffix := e2eUID("freeze")
 	warmupID := s.createChallengeWithState(admin, "Freeze Warmup "+suffix, "flag{"+suffix+"_warmup}", 100, openapi.CreateChallengeRequestStateVisible)
-	lockedID := s.createChallengeWithState(admin, "Freeze Locked "+suffix, "flag{"+suffix+"_locked}", 200, openapi.CreateChallengeRequestStateVisible)
-	s.setChallengeRequirements(admin, lockedID, warmupID)
+	gatedID := s.createChallengeWithState(admin, "Freeze Gated "+suffix, "flag{"+suffix+"_gated}", 200, openapi.CreateChallengeRequestStateVisible)
+	s.setChallengeRequirements(admin, gatedID, warmupID)
 
-	lockedBefore, err := s.client.GetChallengesChallengeIDWithResponse(context.Background(), lockedID, e2eBearer(player.Token))
+	gatedBefore, err := s.client.GetChallengesChallengeIDWithResponse(context.Background(), gatedID, e2eBearer(player.Token))
 	require.NoError(t, err)
-	requireStatus(t, "freeze locked before requirement", http.StatusNotFound, lockedBefore.StatusCode(), lockedBefore.Body)
-	s.submitFlag(player, lockedID, "flag{"+suffix+"_locked}", false, http.StatusForbidden)
+	requireStatus(t, "freeze gated before requirement", http.StatusNotFound, gatedBefore.StatusCode(), gatedBefore.Body)
+	s.submitFlag(player, gatedID, "flag{"+suffix+"_gated}", false, http.StatusForbidden)
+
+	hiddenPrereqID := s.createChallengeWithState(admin, "Hidden prereq "+suffix, "flag{"+suffix+"_hidden}", 50, openapi.CreateChallengeRequestStateHidden)
+	hiddenGatedID := s.createChallengeWithState(admin, "Hidden gated "+suffix, "flag{"+suffix+"_hidden_gated}", 75, openapi.CreateChallengeRequestStateVisible)
+	s.setChallengeRequirements(admin, hiddenGatedID, hiddenPrereqID)
+
+	hiddenBlocked, err := s.client.GetChallengesChallengeIDWithResponse(context.Background(), hiddenGatedID, e2eBearer(player.Token))
+	require.NoError(t, err)
+	requireStatus(t, "hidden prerequisite blocks dependent challenge", http.StatusNotFound, hiddenBlocked.StatusCode(), hiddenBlocked.Body)
 
 	s.submitFlag(player, warmupID, "flag{"+suffix+"_warmup}", true, http.StatusOK)
 
-	lockedAfter, err := s.client.GetChallengesChallengeIDWithResponse(context.Background(), lockedID, e2eBearer(player.Token))
+	userID := openapiTypes.UUID(uuid.MustParse(player.UserID))
+	teamID := openapiTypes.UUID(uuid.MustParse(player.TeamID))
+	hiddenPrereqUUID := openapiTypes.UUID(uuid.MustParse(hiddenPrereqID))
+	adminSolve, err := s.client.PostAdminSubmissionsWithResponse(context.Background(), openapi.PostAdminSubmissionsJSONRequestBody{
+		UserID:        userID,
+		TeamID:        &teamID,
+		ChallengeID:   hiddenPrereqUUID,
+		SubmittedFlag: "flag{" + suffix + "_hidden}",
+		IsCorrect:     true,
+	}, e2eBearer(admin.Token))
 	require.NoError(t, err)
-	requireStatus(t, "freeze locked after requirement", http.StatusOK, lockedAfter.StatusCode(), lockedAfter.Body)
+	requireStatus(t, "admin solve hidden prerequisite", http.StatusCreated, adminSolve.StatusCode(), adminSolve.Body)
+
+	hiddenAllowed, err := s.client.GetChallengesChallengeIDWithResponse(context.Background(), hiddenGatedID, e2eBearer(player.Token))
+	require.NoError(t, err)
+	requireStatus(t, "hidden prerequisite solve unlocks dependent challenge", http.StatusOK, hiddenAllowed.StatusCode(), hiddenAllowed.Body)
+
+	gatedAfter, err := s.client.GetChallengesChallengeIDWithResponse(context.Background(), gatedID, e2eBearer(player.Token))
+	require.NoError(t, err)
+	requireStatus(t, "freeze gated after requirement", http.StatusOK, gatedAfter.StatusCode(), gatedAfter.Body)
+
+	hardLockedID := s.createChallengeWithState(admin, "Hard locked "+suffix, "flag{"+suffix+"_hard_locked}", 125, openapi.CreateChallengeRequestStateLocked)
+	s.setChallengeRequirements(admin, hardLockedID, warmupID)
+	hardLockedDetail, err := s.client.GetChallengesChallengeIDWithResponse(context.Background(), hardLockedID, e2eBearer(player.Token))
+	require.NoError(t, err)
+	requireStatus(t, "hard locked detail after requirement", http.StatusOK, hardLockedDetail.StatusCode(), hardLockedDetail.Body)
+	s.submitFlag(player, hardLockedID, "flag{"+suffix+"_hard_locked}", false, http.StatusForbidden)
 
 	freezeTime := time.Now().UTC()
 
@@ -42,7 +76,7 @@ func TestE2E_ChallengeRequirementsAndFreeze(t *testing.T) {
 	setCompetitionTimes(freezeTime.Add(-time.Hour), freezeTime.Add(24*time.Hour), &freezeTime)
 	invalidateScoreboardCache(context.Background())
 
-	s.submitFlag(player, lockedID, "flag{"+suffix+"_locked}", true, http.StatusOK)
+	s.submitFlag(player, gatedID, "flag{"+suffix+"_gated}", true, http.StatusOK)
 
 	_, frozenPoints := s.requireScoreboardTeam(admin.Token, player.TeamName, 100, &openapi.GetScoreboardParams{})
 	require.Equal(t, 100, frozenPoints)
