@@ -10,7 +10,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 )
 
 func TestChallengeUseCase_SubmitFlag_InvalidFormat(t *testing.T) {
@@ -30,7 +29,7 @@ func TestChallengeUseCase_SubmitFlag_InvalidFormat(t *testing.T) {
 
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 
 	regex := "^GoCTF\\{.+\\}$"
 	comp := newActiveCompetition()

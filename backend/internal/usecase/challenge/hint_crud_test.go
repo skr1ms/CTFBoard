@@ -98,7 +98,7 @@ func TestHintUseCase_GetByChallengeID_Success(t *testing.T) {
 
 	challenge := &domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
 	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{hint1ID}, nil)
 
@@ -123,7 +123,7 @@ func TestHintUseCase_GetByChallengeID_RepoError(t *testing.T) {
 	teamID := uuid.New()
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(nil, errors.New("db error"))
 
 	result, err := uc.GetByChallengeID(context.Background(), challengeID, &teamID)
@@ -143,7 +143,7 @@ func TestHintUseCase_GetByChallengeID_UnlockRepoError(t *testing.T) {
 	hints := []*domain.Hint{{ID: uuid.New(), ChallengeID: challengeID}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return(hints, nil)
 	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return(nil, errors.New("db error"))
 

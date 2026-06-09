@@ -61,7 +61,6 @@ func newTestAppSettings() *domain.Settings {
 		ResetTTLHours:                    1,
 		SubmitLimitPerUser:               10,
 		SubmitLimitDurationMin:           1,
-		ScoreboardVisible:                domain.ScoreboardVisiblePublic,
 		RegistrationOpen:                 true,
 		DefaultPerPage:                   20,
 		MaxPerPage:                       100,
@@ -83,13 +82,12 @@ func newTestAppSettings() *domain.Settings {
 	}
 }
 
-func newTestAppSettingsWithValues(submitLimit, submitDuration, verifyTTL, resetTTL int, visibility string) *domain.Settings {
+func newTestAppSettingsWithValues(submitLimit, submitDuration, verifyTTL, resetTTL int) *domain.Settings {
 	s := newTestAppSettings()
 	s.SubmitLimitPerUser = submitLimit
 	s.SubmitLimitDurationMin = submitDuration
 	s.VerifyTTLHours = verifyTTL
 	s.ResetTTLHours = resetTTL
-	s.ScoreboardVisible = visibility
 
 	return s
 }

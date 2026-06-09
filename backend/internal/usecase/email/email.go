@@ -2,11 +2,14 @@ package email
 
 import (
 	"context"
+	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-logkit"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
@@ -27,6 +30,8 @@ const (
 	defaultPasswordResetSubject = "Password reset - " + emailPlaceholderCTFName
 	defaultPasswordResetBody    = "Follow the link to reset password: " + emailPlaceholderURL
 	defaultPasswordMinLength    = 8
+	bcryptWorkersPerCPU         = 2
+	bcryptMinWorkers            = 2
 )
 
 func substitute(s string, m map[string]string) string {
@@ -38,7 +43,8 @@ func substitute(s string, m map[string]string) string {
 }
 
 type EmailUseCase struct {
-	deps EmailDeps
+	deps      EmailDeps
+	bcryptSem chan struct{}
 }
 
 type ConfigGetter interface {
@@ -47,18 +53,19 @@ type ConfigGetter interface {
 }
 
 type EmailDeps struct {
-	UserRepo    UserRepository
-	TokenRepo   VerificationTokenRepository
-	TM          TransactionManager
-	Mailer      Mailer
-	ConfigUC    ConfigGetter
-	JWTRevoker  JWTRevoker
-	VerifyTTL   time.Duration
-	ResetTTL    time.Duration
-	FrontendURL string
-	Enabled     bool
-	Logger      logkit.Logger
-	BcryptCost  int // 0 = bcrypt.DefaultCost; set to bcrypt.MinCost in tests
+	UserRepo        UserRepository
+	TokenRepo       VerificationTokenRepository
+	TM              TransactionManager
+	Mailer          Mailer
+	ConfigUC        ConfigGetter
+	JWTRevoker      JWTRevoker
+	APITokenRevoker APITokenRevoker
+	VerifyTTL       time.Duration
+	ResetTTL        time.Duration
+	FrontendURL     string
+	Enabled         bool
+	Logger          logkit.Logger
+	BcryptCost      int // 0 = bcrypt.DefaultCost; set to bcrypt.MinCost in tests
 }
 
 var _ usecase.EmailUseCase = (*EmailUseCase)(nil)
@@ -68,9 +75,35 @@ func NewEmailUseCase(deps EmailDeps) *EmailUseCase {
 		deps.Logger = logkit.Noop()
 	}
 
-	return &EmailUseCase{deps: deps}
+	n := max(runtime.NumCPU()*bcryptWorkersPerCPU, bcryptMinWorkers)
+
+	return &EmailUseCase{deps: deps, bcryptSem: make(chan struct{}, n)}
 }
 
 func (uc *EmailUseCase) IsEnabled() bool {
 	return uc.deps.Enabled
+}
+
+func (d EmailDeps) bcryptCostValue() int {
+	if d.BcryptCost > 0 {
+		return d.BcryptCost
+	}
+
+	return bcrypt.DefaultCost
+}
+
+func (uc *EmailUseCase) hashPassword(ctx context.Context, password string) (string, error) {
+	select {
+	case uc.bcryptSem <- struct{}{}:
+		defer func() { <-uc.bcryptSem }()
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), uc.deps.bcryptCostValue())
+	if err != nil {
+		return "", fmt.Errorf("EmailUseCase - hashPassword - GenerateFromPassword: %w", err)
+	}
+
+	return string(hash), nil
 }

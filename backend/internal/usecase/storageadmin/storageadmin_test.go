@@ -5,138 +5,111 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
-type storageAdminFakeStorage struct {
-	listPrefix string
-	listPaths  []string
-	listErr    error
-	listCalls  int
-
-	deletePath  string
+type fakeStorageAdminStorage struct {
+	deletedPath string
 	deleteErr   error
-	deleteCalls int
 }
 
-func (s *storageAdminFakeStorage) List(_ context.Context, prefix string) ([]string, error) {
-	s.listPrefix = prefix
-	s.listCalls++
-
-	return s.listPaths, s.listErr
+func (s *fakeStorageAdminStorage) List(context.Context, string) ([]string, error) {
+	return nil, nil
 }
 
-func (s *storageAdminFakeStorage) Delete(_ context.Context, path string) error {
-	s.deletePath = path
-	s.deleteCalls++
+func (s *fakeStorageAdminStorage) Delete(_ context.Context, path string) error {
+	s.deletedPath = path
 
 	return s.deleteErr
 }
 
-func TestUseCaseListAllowsEmptyPrefix(t *testing.T) {
+type fakeStorageAdminAuditLogRepo struct {
+	log *domain.AuditLog
+	err error
+}
+
+func (r *fakeStorageAdminAuditLogRepo) Create(_ context.Context, log *domain.AuditLog) error {
+	r.log = log
+
+	return r.err
+}
+
+func TestUseCase_Delete_WritesAuditLog(t *testing.T) {
 	t.Parallel()
 
-	storage := &storageAdminFakeStorage{listPaths: []string{"a.txt", "dir/b.txt"}}
-	uc := NewUseCase(Deps{Storage: storage})
+	storage := &fakeStorageAdminStorage{}
+	auditRepo := &fakeStorageAdminAuditLogRepo{}
+	actorID := uuid.New()
 
-	got, err := uc.List(context.Background(), "")
+	uc := NewUseCase(Deps{Storage: storage, AuditLog: auditRepo})
+	err := uc.Delete(context.Background(), usecase.StorageAdminDeleteParams{
+		Path:     "challenges/file.zip",
+		ActorID:  actorID,
+		ClientIP: "192.0.2.10",
+	})
 
 	require.NoError(t, err)
-	assert.Equal(t, []string{"a.txt", "dir/b.txt"}, got)
-	assert.Equal(t, "", storage.listPrefix)
-	assert.Equal(t, 1, storage.listCalls)
+	assert.Equal(t, "challenges/file.zip", storage.deletedPath)
+	require.NotNil(t, auditRepo.log)
+	assert.Equal(t, &actorID, auditRepo.log.UserID)
+	assert.Equal(t, domain.AuditActionDelete, auditRepo.log.Action)
+	assert.Equal(t, domain.AuditEntityStorage, auditRepo.log.EntityType)
+	assert.Equal(t, storageAuditEntityID, auditRepo.log.EntityID)
+	assert.Equal(t, "192.0.2.10", auditRepo.log.IP)
+	assert.Equal(t, "storage object deleted", auditRepo.log.Details["message"])
+	assert.Equal(t, "challenges/file.zip", auditRepo.log.Details["path"])
 }
 
-func TestUseCaseListRejectsUnsafePrefixes(t *testing.T) {
+func TestUseCase_Delete_ReturnsAuditError(t *testing.T) {
 	t.Parallel()
 
-	tests := []string{"../secret", "safe/../secret", "/absolute"}
+	storage := &fakeStorageAdminStorage{}
+	auditErr := errors.New("audit unavailable")
+	uc := NewUseCase(Deps{Storage: storage, AuditLog: &fakeStorageAdminAuditLogRepo{err: auditErr}})
 
-	for _, prefix := range tests {
-		t.Run(prefix, func(t *testing.T) {
-			t.Parallel()
+	err := uc.Delete(context.Background(), usecase.StorageAdminDeleteParams{
+		Path:    "challenges/file.zip",
+		ActorID: uuid.New(),
+	})
 
-			storage := &storageAdminFakeStorage{}
-			uc := NewUseCase(Deps{Storage: storage})
-
-			got, err := uc.List(context.Background(), prefix)
-
-			require.Error(t, err)
-			assert.Nil(t, got)
-			assert.Equal(t, 0, storage.listCalls)
-
-			var validationErr *apperr.ValidationError
-			assert.ErrorAs(t, err, &validationErr)
-		})
-	}
+	require.Error(t, err)
+	assert.ErrorIs(t, err, auditErr)
+	assert.Equal(t, "challenges/file.zip", storage.deletedPath)
 }
 
-func TestUseCaseListWrapsStorageError(t *testing.T) {
+func TestUseCase_Delete_DoesNotAuditWhenStorageDeleteFails(t *testing.T) {
 	t.Parallel()
 
 	storageErr := errors.New("storage unavailable")
-	storage := &storageAdminFakeStorage{listErr: storageErr}
-	uc := NewUseCase(Deps{Storage: storage})
+	storage := &fakeStorageAdminStorage{deleteErr: storageErr}
+	auditRepo := &fakeStorageAdminAuditLogRepo{}
+	uc := NewUseCase(Deps{Storage: storage, AuditLog: auditRepo})
 
-	got, err := uc.List(context.Background(), "uploads/")
-
-	require.Error(t, err)
-	assert.Nil(t, got)
-	assert.ErrorIs(t, err, storageErr)
-	assert.Equal(t, "uploads/", storage.listPrefix)
-	assert.Equal(t, 1, storage.listCalls)
-}
-
-func TestUseCaseDeletePassesSafePath(t *testing.T) {
-	t.Parallel()
-
-	storage := &storageAdminFakeStorage{}
-	uc := NewUseCase(Deps{Storage: storage})
-
-	err := uc.Delete(context.Background(), "uploads/file.txt")
-
-	require.NoError(t, err)
-	assert.Equal(t, "uploads/file.txt", storage.deletePath)
-	assert.Equal(t, 1, storage.deleteCalls)
-}
-
-func TestUseCaseDeleteRejectsUnsafePaths(t *testing.T) {
-	t.Parallel()
-
-	tests := []string{"", "../secret", "safe/../secret", "/absolute"}
-
-	for _, path := range tests {
-		t.Run(path, func(t *testing.T) {
-			t.Parallel()
-
-			storage := &storageAdminFakeStorage{}
-			uc := NewUseCase(Deps{Storage: storage})
-
-			err := uc.Delete(context.Background(), path)
-
-			require.Error(t, err)
-			assert.Equal(t, 0, storage.deleteCalls)
-
-			var validationErr *apperr.ValidationError
-			assert.ErrorAs(t, err, &validationErr)
-		})
-	}
-}
-
-func TestUseCaseDeleteWrapsStorageError(t *testing.T) {
-	t.Parallel()
-
-	storageErr := errors.New("delete failed")
-	storage := &storageAdminFakeStorage{deleteErr: storageErr}
-	uc := NewUseCase(Deps{Storage: storage})
-
-	err := uc.Delete(context.Background(), "uploads/file.txt")
+	err := uc.Delete(context.Background(), usecase.StorageAdminDeleteParams{
+		Path:    "challenges/file.zip",
+		ActorID: uuid.New(),
+	})
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, storageErr)
-	assert.Equal(t, "uploads/file.txt", storage.deletePath)
-	assert.Equal(t, 1, storage.deleteCalls)
+	assert.Equal(t, "challenges/file.zip", storage.deletedPath)
+	assert.Nil(t, auditRepo.log)
+}
+
+func TestUseCase_Delete_RequiresActor(t *testing.T) {
+	t.Parallel()
+
+	storage := &fakeStorageAdminStorage{}
+	uc := NewUseCase(Deps{Storage: storage, AuditLog: &fakeStorageAdminAuditLogRepo{}})
+
+	err := uc.Delete(context.Background(), usecase.StorageAdminDeleteParams{Path: "challenges/file.zip"})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "actor_id is required")
+	assert.Empty(t, storage.deletedPath)
 }

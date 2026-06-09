@@ -2,6 +2,7 @@ package challenge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,14 +10,15 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 // submitCheckRequirementsInTx verifies that the team has solved all prerequisite challenges.
 // Called inside the submit transaction so the check is consistent with the advisory lock.
 func (uc *ChallengeUseCase) submitCheckRequirementsInTx(ctx context.Context, challengeID, teamID uuid.UUID) error {
-	requirements, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
+	requirements, err := uc.deps.ChallengeRepo.GetRequirementsForEnforcement(ctx, challengeID)
 	if err != nil {
-		return fmt.Errorf("ChallengeUseCase - submitRecordSolve - GetRequirements: %w", err)
+		return fmt.Errorf("ChallengeUseCase - submitRecordSolve - GetRequirementsForEnforcement: %w", err)
 	}
 
 	if uc.deps.SolveRepo == nil || len(requirements) == 0 {
@@ -60,6 +62,69 @@ func (uc *ChallengeUseCase) countAttempts(ctx context.Context, teamID, challenge
 	return uc.deps.SubmissionRepo.CountSubmissionsByTeamAndChallenge(ctx, teamID, challengeID)
 }
 
+func (uc *ChallengeUseCase) submitRecheckIncorrectEligibilityInTx(ctx context.Context, sc *submitContext) error {
+	comp := sc.comp
+
+	if uc.deps.CompRepo != nil {
+		freshComp, err := uc.deps.CompRepo.Get(ctx)
+		if err != nil && !errors.Is(err, apperr.ErrCompetitionNotFound) {
+			return fmt.Errorf("ChallengeUseCase - submitRecheckIncorrectEligibilityInTx - CompRepo.Get: %w", err)
+		}
+
+		if freshComp != nil {
+			comp = freshComp
+		}
+	}
+
+	if comp != nil && !comp.IsSubmissionAllowed() {
+		return apperr.ErrSubmissionNotAllowed
+	}
+
+	var freshUser *domain.User
+
+	if uc.deps.UserRepo != nil {
+		if err := uc.deps.UserRepo.Lock(ctx, sc.userID); err != nil {
+			return fmt.Errorf("ChallengeUseCase - submitRecheckIncorrectEligibilityInTx - UserRepo.Lock: %w", err)
+		}
+
+		var err error
+
+		freshUser, err = uc.deps.UserRepo.GetByID(ctx, sc.userID)
+		if err != nil {
+			return fmt.Errorf("ChallengeUseCase - submitRecheckIncorrectEligibilityInTx - UserRepo.GetByID: %w", err)
+		}
+
+		if freshUser.TeamID == nil || *freshUser.TeamID != sc.teamID {
+			return apperr.ErrTeamMemberNotFound
+		}
+
+		if freshUser.IsBanned {
+			return apperr.ErrUserBanned
+		}
+
+		if freshUser.WasInBannedTeam && freshUser.Role != domain.RoleAdmin {
+			return apperr.ErrUserWasInBannedTeam
+		}
+	}
+
+	if uc.deps.TeamRepo != nil {
+		if err := uc.deps.TeamRepo.Lock(ctx, sc.teamID); err != nil {
+			return fmt.Errorf("ChallengeUseCase - submitRecheckIncorrectEligibilityInTx - TeamRepo.Lock: %w", err)
+		}
+
+		freshTeam, err := uc.deps.TeamRepo.GetByID(ctx, sc.teamID)
+		if err != nil {
+			return fmt.Errorf("ChallengeUseCase - submitRecheckIncorrectEligibilityInTx - TeamRepo.GetByID: %w", err)
+		}
+
+		if err := guard.ValidateSubmissionEligibility(ctx, freshUser, freshTeam, comp, uc.deps.TeamRepo); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // submitLogIncorrectAndEnforceMaxAttempts records an incorrect submission and enforces the
 // per-team, per-challenge attempt limit. When MaxAttempts is configured it wraps both
 // operations in the transaction manager's default isolation level protected by an
@@ -81,6 +146,12 @@ func (uc *ChallengeUseCase) submitLogIncorrectAndEnforceMaxAttempts(sc *submitCo
 
 	if challenge.MaxAttempts > 0 && uc.deps.SubmissionRepo != nil && uc.deps.TM != nil {
 		err := uc.deps.TM.Run(sc.ctx, func(ctx context.Context) error {
+			if uc.deps.UserRepo != nil {
+				if err := uc.submitRecheckIncorrectEligibilityInTx(ctx, sc); err != nil {
+					return err
+				}
+			}
+
 			if err := uc.deps.SubmissionRepo.AcquireAdvisoryLockForSubmit(ctx, sc.teamID, sc.challengeID); err != nil {
 				return fmt.Errorf("ChallengeUseCase - submitLogIncorrectAndEnforceMaxAttempts - AcquireAdvisoryLockForSubmit: %w", err)
 			}
@@ -104,6 +175,21 @@ func (uc *ChallengeUseCase) submitLogIncorrectAndEnforceMaxAttempts(sc *submitCo
 	}
 
 	if uc.deps.SubmissionRepo != nil {
+		if uc.deps.UserRepo != nil && uc.deps.TM != nil {
+			err := uc.deps.TM.Run(sc.ctx, func(ctx context.Context) error {
+				if err := uc.submitRecheckIncorrectEligibilityInTx(ctx, sc); err != nil {
+					return err
+				}
+
+				return uc.deps.SubmissionRepo.Create(ctx, sub)
+			})
+			if err != nil {
+				return fmt.Errorf("ChallengeUseCase - submitLogIncorrectAndEnforceMaxAttempts - TM.Run: %w", err)
+			}
+
+			return nil
+		}
+
 		return uc.deps.SubmissionRepo.Create(sc.ctx, sub)
 	}
 

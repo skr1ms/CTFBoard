@@ -2,19 +2,33 @@ package user
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 )
 
+const oauthUsernameHashLen = 12
+
 func truncateUsername(s string) string {
+	return truncateUsernameRunes(s, usernameMaxLen)
+}
+
+func truncateUsernameRunes(s string, maxLen int) string {
 	runes := []rune(s)
-	if len(runes) <= usernameMaxLen {
+	if len(runes) <= maxLen {
 		return s
 	}
 
-	return string(runes[:usernameMaxLen])
+	return string(runes[:maxLen])
+}
+
+func oauthUsernameHash(provider, providerID string) string {
+	sum := sha256.Sum256([]byte(provider + ":" + providerID))
+
+	return hex.EncodeToString(sum[:])[:oauthUsernameHashLen]
 }
 
 func oauthUsernameCandidates(desired, provider, providerID string) (string, string) {
@@ -23,7 +37,14 @@ func oauthUsernameCandidates(desired, provider, providerID string) (string, stri
 	}
 
 	desired = truncateUsername(desired)
-	fallback := truncateUsername(fmt.Sprintf("%s-%s-%s", desired, provider, providerID))
+	suffix := fmt.Sprintf("-%s-%s", provider, oauthUsernameHash(provider, providerID))
+
+	maxBaseLen := usernameMaxLen - len([]rune(suffix))
+	if maxBaseLen < 1 {
+		return desired, truncateUsername(provider + "-" + oauthUsernameHash(provider, providerID))
+	}
+
+	fallback := truncateUsernameRunes(desired, maxBaseLen) + suffix
 
 	return desired, fallback
 }

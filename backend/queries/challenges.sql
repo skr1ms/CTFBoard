@@ -144,6 +144,13 @@ WHERE cr.challenge_id = $1
   AND c.state IN ('visible', 'locked')
 ORDER BY c.title;
 
+-- name: GetChallengeRequirementsForEnforcement :many
+SELECT c.id, c.title, c.category
+FROM challenge_requirements cr
+JOIN challenges c ON c.id = cr.required_challenge_id
+WHERE cr.challenge_id = $1
+ORDER BY c.title;
+
 -- name: DeleteChallengeRequirements :exec
 DELETE FROM challenge_requirements WHERE challenge_id = $1;
 

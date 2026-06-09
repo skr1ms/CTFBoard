@@ -35,12 +35,18 @@ func (f fakeTeamReader) GetByID(_ context.Context, _ uuid.UUID) (*domain.Team, e
 	return f.team, f.err
 }
 
-type fakeTeamMemberReader struct {
+type fakeNotificationUserReader struct {
+	user    *domain.User
+	userErr error
 	members []*domain.User
 	err     error
 }
 
-func (f fakeTeamMemberReader) GetByTeamID(_ context.Context, _ uuid.UUID) ([]*domain.User, error) {
+func (f fakeNotificationUserReader) GetByID(_ context.Context, _ uuid.UUID) (*domain.User, error) {
+	return f.user, f.userErr
+}
+
+func (f fakeNotificationUserReader) GetByTeamID(_ context.Context, _ uuid.UUID) ([]*domain.User, error) {
 	return f.members, f.err
 }
 
@@ -186,8 +192,12 @@ func TestCreateGlobal_RepoError(t *testing.T) {
 func TestCreatePersonal_Success(t *testing.T) {
 	t.Parallel()
 
-	uc, repo, _ := newUC(t)
+	repo := notifMock.NewMockNotificationRepository(t)
 	userID := uuid.New()
+	uc := NewNotificationUseCase(NotificationDeps{
+		NotifRepo: repo,
+		UserRepo:  fakeNotificationUserReader{user: &domain.User{ID: userID}},
+	})
 
 	repo.EXPECT().CreateUserNotification(mock.Anything, mock.MatchedBy(func(n *domain.UserNotification) bool {
 		return n.UserID == userID && n.Title == "personal" && n.Content == "body" && !n.IsRead
@@ -199,6 +209,21 @@ func TestCreatePersonal_Success(t *testing.T) {
 	require.NotNil(t, notif)
 	assert.Equal(t, userID, notif.UserID)
 	assert.False(t, notif.IsRead)
+}
+
+func TestCreatePersonal_UserNotFound_Error(t *testing.T) {
+	t.Parallel()
+
+	repo := notifMock.NewMockNotificationRepository(t)
+	userID := uuid.New()
+	uc := NewNotificationUseCase(NotificationDeps{
+		NotifRepo: repo,
+		UserRepo:  fakeNotificationUserReader{userErr: apperr.ErrUserNotFound},
+	})
+
+	_, err := uc.CreatePersonal(context.Background(), notificationPersonalParams(userID, "personal", "body", domain.NotificationWarning))
+
+	require.ErrorIs(t, err, apperr.ErrUserNotFound)
 }
 
 func TestCreatePersonal_EmptyContent_Error(t *testing.T) {
@@ -223,7 +248,7 @@ func TestCreateTeam_FanOutActiveMembersOnly(t *testing.T) {
 	uc := NewNotificationUseCase(NotificationDeps{
 		NotifRepo: repo,
 		TeamRepo:  fakeTeamReader{team: &domain.Team{ID: teamID}},
-		UserRepo: fakeTeamMemberReader{members: []*domain.User{
+		UserRepo: fakeNotificationUserReader{members: []*domain.User{
 			{ID: activeA, TeamID: &teamID},
 			{ID: banned, TeamID: &teamID, IsBanned: true},
 			nil,
@@ -257,7 +282,7 @@ func TestCreateTeam_BannedTeam_Error(t *testing.T) {
 	uc := NewNotificationUseCase(NotificationDeps{
 		NotifRepo: repo,
 		TeamRepo:  fakeTeamReader{team: &domain.Team{ID: teamID, IsBanned: true}},
-		UserRepo:  fakeTeamMemberReader{},
+		UserRepo:  fakeNotificationUserReader{},
 		TM:        &fakeTransactionManager{},
 	})
 
@@ -274,7 +299,7 @@ func TestCreateTeam_MissingTeam_Error(t *testing.T) {
 	uc := NewNotificationUseCase(NotificationDeps{
 		NotifRepo: repo,
 		TeamRepo:  fakeTeamReader{err: apperr.ErrTeamNotFound},
-		UserRepo:  fakeTeamMemberReader{},
+		UserRepo:  fakeNotificationUserReader{},
 		TM:        &fakeTransactionManager{},
 	})
 
@@ -293,7 +318,7 @@ func TestCreateTeam_InsertError(t *testing.T) {
 	uc := NewNotificationUseCase(NotificationDeps{
 		NotifRepo: repo,
 		TeamRepo:  fakeTeamReader{team: &domain.Team{ID: teamID}},
-		UserRepo:  fakeTeamMemberReader{members: []*domain.User{{ID: userID, TeamID: &teamID}}},
+		UserRepo:  fakeNotificationUserReader{members: []*domain.User{{ID: userID, TeamID: &teamID}}},
 		TM:        &fakeTransactionManager{},
 	})
 	repo.EXPECT().CreateUserNotification(mock.Anything, mock.Anything).Return(expectedErr).Once()

@@ -105,6 +105,14 @@ func TestBackupUseCase_PrepareImportFiles_FiltersUnsafeOrMissingPayloads(t *test
 		Filename:    "escape.txt",
 		SHA256:      testSHA256([]byte("escape")),
 	}
+	legacyLocation := domain.File{
+		ID:          uuid.New(),
+		Type:        domain.FileTypeChallenge,
+		ChallengeID: &challengeID,
+		Location:    "0123456789abcdef/legacy.txt",
+		Filename:    "legacy.txt",
+		SHA256:      testSHA256([]byte("legacy")),
+	}
 	hashMismatch := domain.File{
 		ID:          uuid.New(),
 		Type:        domain.FileTypeChallenge,
@@ -124,14 +132,15 @@ func TestBackupUseCase_PrepareImportFiles_FiltersUnsafeOrMissingPayloads(t *test
 		mismatchPath: mismatchContent,
 	})
 
-	prepared, warnings := uc.prepareImportFiles(zr, []domain.File{validFile, missingPayload, invalidLocation, hashMismatch}, true)
+	prepared, warnings := uc.prepareImportFiles(zr, []domain.File{validFile, missingPayload, invalidLocation, legacyLocation, hashMismatch}, true)
 
 	require.Len(t, prepared, 1)
 	assert.Equal(t, validFile.ID, prepared[0].ID)
-	assert.Len(t, warnings, 3)
+	assert.Len(t, warnings, 4)
 	assert.Contains(t, warnings[0], "payload not found")
 	assert.Contains(t, warnings[1], "invalid storage location")
-	assert.Contains(t, warnings[2], "sha256 mismatch")
+	assert.Contains(t, warnings[2], "invalid storage location")
+	assert.Contains(t, warnings[3], "sha256 mismatch")
 }
 
 func TestBackupUseCase_PrepareImportFiles_SkipsSymlinkPayload(t *testing.T) {

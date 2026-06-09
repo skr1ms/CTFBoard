@@ -1,11 +1,10 @@
 -- +goose Up
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- =============================================================================
 -- Singletons
 -- =============================================================================
-
 -- Competition (singleton row, id = 1)
 CREATE TABLE competition (
     id INT PRIMARY KEY DEFAULT 1 CONSTRAINT chk_competition_singleton CHECK (id = 1),
@@ -17,23 +16,37 @@ CREATE TABLE competition (
     paused_at TIMESTAMPTZ NULL,
     is_public BOOLEAN NOT NULL DEFAULT TRUE,
     flag_regex TEXT,
-    mode VARCHAR(20) NOT NULL DEFAULT 'teams_only' CONSTRAINT chk_competition_mode CHECK (mode IN ('solo_only', 'teams_only')),
+    mode VARCHAR(20) NOT NULL DEFAULT 'teams_only' CONSTRAINT chk_competition_mode CHECK (
+        mode IN ('solo_only', 'teams_only')
+    ),
     allow_team_switch BOOLEAN NOT NULL DEFAULT TRUE,
     min_team_size INT NOT NULL DEFAULT 1 CONSTRAINT chk_competition_min_team_size CHECK (min_team_size >= 1),
     max_team_size INT NOT NULL DEFAULT 10 CONSTRAINT chk_competition_max_team_size CHECK (max_team_size >= 1),
-    CONSTRAINT chk_max_team_size_gte_min CHECK (max_team_size >= min_team_size),
+    CONSTRAINT chk_max_team_size_gte_min CHECK (
+        max_team_size >= min_team_size
+    ),
     keep_scoreboard_frozen_after_end BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_competition_time_order
-        CHECK (start_time IS NULL OR end_time IS NULL OR start_time < end_time),
-    CONSTRAINT chk_competition_freeze_in_range
-        CHECK (freeze_time IS NULL OR (
-            (start_time IS NULL OR freeze_time >= start_time) AND
-            (end_time IS NULL OR freeze_time <= end_time)
-        ))
+    CONSTRAINT chk_competition_time_order CHECK (
+        start_time IS NULL
+        OR end_time IS NULL
+        OR start_time < end_time
+    ),
+    CONSTRAINT chk_competition_freeze_in_range CHECK (
+        freeze_time IS NULL
+        OR (
+            (
+                start_time IS NULL
+                OR freeze_time >= start_time
+            )
+            AND (
+                end_time IS NULL
+                OR freeze_time <= end_time
+            )
+        )
+    )
 );
-
 -- App settings (singleton, id = 1)
 CREATE TABLE app_settings (
     id INT PRIMARY KEY DEFAULT 1 CONSTRAINT chk_app_settings_singleton CHECK (id = 1),
@@ -48,7 +61,6 @@ CREATE TABLE app_settings (
     reset_ttl_hours INT NOT NULL DEFAULT 1,
     submit_limit_per_user INT NOT NULL DEFAULT 10,
     submit_limit_duration_min INT NOT NULL DEFAULT 1,
-    scoreboard_visible VARCHAR(20) NOT NULL DEFAULT 'public' CONSTRAINT chk_app_settings_scoreboard_visible CHECK (scoreboard_visible IN ('public', 'hidden', 'admins_only')),
     registration_open BOOLEAN NOT NULL DEFAULT TRUE,
     default_per_page INT NOT NULL DEFAULT 50,
     max_per_page INT NOT NULL DEFAULT 100,
@@ -72,23 +84,20 @@ CREATE TABLE app_settings (
     oauth_google_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 -- =============================================================================
 -- Users & Teams
 -- =============================================================================
-
 -- Brackets (team categories)
 CREATE TABLE brackets (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 -- Users (team_id FK deferred - see ALTER TABLE below)
 CREATE TABLE users (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     team_id uuid DEFAULT NULL,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(254) NOT NULL UNIQUE,
@@ -105,14 +114,17 @@ CREATE TABLE users (
 );
 
 CREATE INDEX idx_users_team ON users (team_id);
-CREATE INDEX idx_users_avatar_url ON users(avatar_url) WHERE avatar_url IS NOT NULL;
-CREATE INDEX idx_users_username_trgm ON users USING gin (username gin_trgm_ops);
 
+CREATE INDEX idx_users_avatar_url ON users (avatar_url)
+WHERE
+    avatar_url IS NOT NULL;
+
+CREATE INDEX idx_users_username_trgm ON users USING gin (username gin_trgm_ops);
 -- Teams (captain_id and bracket_id are inline; users.team_id added below)
 CREATE TABLE teams (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     name VARCHAR(50) NOT NULL,
-    invite_token uuid DEFAULT uuid_generate_v4() NOT NULL,
+    invite_token uuid DEFAULT uuid_generate_v4 () NOT NULL,
     captain_id uuid NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
     bracket_id uuid REFERENCES brackets (id) ON DELETE SET NULL,
     is_solo BOOLEAN NOT NULL DEFAULT FALSE,
@@ -127,20 +139,33 @@ CREATE TABLE teams (
     invite_token_expires_at TIMESTAMPTZ DEFAULT NULL
 );
 
-CREATE UNIQUE INDEX idx_brackets_single_default ON brackets (is_default) WHERE is_default = true;
-CREATE UNIQUE INDEX teams_name_active_key ON teams (name) WHERE deleted_at IS NULL;
-CREATE INDEX idx_teams_avatar_url ON teams(avatar_url) WHERE avatar_url IS NOT NULL;
-CREATE UNIQUE INDEX teams_invite_token_active_key ON teams (invite_token) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_brackets_single_default ON brackets (is_default)
+WHERE
+    is_default = true;
+
+CREATE UNIQUE INDEX teams_name_active_key ON teams (name)
+WHERE
+    deleted_at IS NULL;
+
+CREATE INDEX idx_teams_avatar_url ON teams (avatar_url)
+WHERE
+    avatar_url IS NOT NULL;
+
+CREATE UNIQUE INDEX teams_invite_token_active_key ON teams (invite_token)
+WHERE
+    deleted_at IS NULL;
+
 CREATE INDEX idx_teams_bracket_id ON teams (bracket_id);
-
 -- Closes the circular dependency: users.team_id -> teams.id
-ALTER TABLE users ADD CONSTRAINT fk_users_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE SET NULL;
-
+ALTER TABLE users
+ADD CONSTRAINT fk_users_team FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE SET NULL;
 -- OAuth accounts (external identity provider links)
 CREATE TABLE oauth_accounts (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    provider VARCHAR(20) NOT NULL CONSTRAINT chk_oauth_accounts_provider CHECK (provider IN ('github', 'google')),
+    provider VARCHAR(20) NOT NULL CONSTRAINT chk_oauth_accounts_provider CHECK (
+        provider IN ('github', 'google')
+    ),
     provider_user_id VARCHAR(255) NOT NULL,
     access_token TEXT,
     refresh_token TEXT,
@@ -150,24 +175,28 @@ CREATE TABLE oauth_accounts (
 );
 
 CREATE INDEX idx_oauth_accounts_user_id ON oauth_accounts (user_id);
-
 -- Verification tokens (email verification, password reset)
 CREATE TABLE verification_tokens (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     token VARCHAR(64) NOT NULL UNIQUE,
-    type VARCHAR(20) NOT NULL CONSTRAINT chk_verification_tokens_type CHECK (type IN ('email_verification', 'password_reset')),
+    type VARCHAR(20) NOT NULL CONSTRAINT chk_verification_tokens_type CHECK (
+        type IN (
+            'email_verification',
+            'password_reset'
+        )
+    ),
     expires_at TIMESTAMPTZ NOT NULL,
     used_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_verification_user_type ON verification_tokens (user_id, type);
-CREATE INDEX idx_verification_expires ON verification_tokens (expires_at);
 
+CREATE INDEX idx_verification_expires ON verification_tokens (expires_at);
 -- API tokens (user API access tokens)
 CREATE TABLE api_tokens (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     token_hash VARCHAR(64) NOT NULL UNIQUE,
     description VARCHAR(255),
@@ -177,14 +206,12 @@ CREATE TABLE api_tokens (
 );
 
 CREATE INDEX idx_api_tokens_user_id ON api_tokens (user_id);
-
 -- =============================================================================
 -- Challenges
 -- =============================================================================
-
 -- Challenges (with dynamic scoring and optional regex flag)
 CREATE TABLE challenges (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     title VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     category VARCHAR(50) NOT NULL DEFAULT '',
@@ -195,8 +222,10 @@ CREATE TABLE challenges (
     max_attempts INT NOT NULL DEFAULT 0,
     max_attempts_window BIGINT NOT NULL DEFAULT 0,
     position INT NOT NULL DEFAULT 0,
-    next_challenge_id uuid REFERENCES challenges(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-    state VARCHAR(20) NOT NULL DEFAULT 'visible' CONSTRAINT chk_challenges_state CHECK (state IN ('visible', 'hidden', 'locked')),
+    next_challenge_id uuid REFERENCES challenges (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
+    state VARCHAR(20) NOT NULL DEFAULT 'visible' CONSTRAINT chk_challenges_state CHECK (
+        state IN ('visible', 'hidden', 'locked')
+    ),
     initial_value INT NOT NULL DEFAULT 500,
     min_value INT NOT NULL DEFAULT 100,
     decay INT NOT NULL DEFAULT 20,
@@ -211,21 +240,18 @@ CREATE TABLE challenges (
     CONSTRAINT chk_challenges_decay_non_negative CHECK (decay >= 0),
     CONSTRAINT chk_challenges_min_lte_initial CHECK (min_value <= initial_value)
 );
-
 -- Tags (for challenge categorization)
 CREATE TABLE tags (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     name VARCHAR(50) NOT NULL UNIQUE,
     color VARCHAR(7) DEFAULT '#6b7280'
 );
-
 -- Topics (organizer taxonomy for challenge classification)
 CREATE TABLE topics (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     name VARCHAR(100) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 -- Challenge–tag many-to-many
 CREATE TABLE challenge_tags (
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
@@ -234,28 +260,31 @@ CREATE TABLE challenge_tags (
 );
 
 CREATE INDEX idx_challenge_tags_tag_id ON challenge_tags (tag_id);
-
 -- Challenge–topic many-to-many
 CREATE TABLE challenge_topics (
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     topic_id uuid NOT NULL REFERENCES topics (id) ON DELETE CASCADE,
     PRIMARY KEY (challenge_id, topic_id)
 );
-
 -- Challenge prerequisites (challenge requires solving other challenges)
 CREATE TABLE challenge_requirements (
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     required_challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
-    PRIMARY KEY (challenge_id, required_challenge_id),
-    CONSTRAINT chk_no_self_requirement CHECK (challenge_id != required_challenge_id)
+    PRIMARY KEY (
+        challenge_id,
+        required_challenge_id
+    ),
+    CONSTRAINT chk_no_self_requirement CHECK (
+        challenge_id != required_challenge_id
+    )
 );
 
 CREATE INDEX idx_challenge_requirements_challenge_id ON challenge_requirements (challenge_id);
-CREATE INDEX idx_challenge_requirements_required_id ON challenge_requirements (required_challenge_id);
 
+CREATE INDEX idx_challenge_requirements_required_id ON challenge_requirements (required_challenge_id);
 -- Hints (per challenge)
 CREATE TABLE hints (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     title TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL,
@@ -265,10 +294,9 @@ CREATE TABLE hints (
 );
 
 CREATE INDEX idx_hints_challenge ON hints (challenge_id);
-
 -- Hint unlocks (per team per hint)
 CREATE TABLE hint_unlocks (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     hint_id uuid NOT NULL REFERENCES hints (id) ON DELETE CASCADE,
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
     unlocked_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -277,12 +305,20 @@ CREATE TABLE hint_unlocks (
 );
 
 CREATE INDEX idx_hint_unlocks_hint ON hint_unlocks (hint_id);
-CREATE INDEX idx_hint_unlocks_banned_team_id ON hint_unlocks (banned_team_id) WHERE banned_team_id IS NOT NULL;
 
+CREATE INDEX idx_hint_unlocks_banned_team_id ON hint_unlocks (banned_team_id)
+WHERE
+    banned_team_id IS NOT NULL;
 -- Files (challenge attachments, writeups; stored externally)
 CREATE TABLE files (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type VARCHAR(20) NOT NULL CONSTRAINT chk_files_type CHECK (type IN ('challenge', 'writeup', 'page')),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    type VARCHAR(20) NOT NULL CONSTRAINT chk_files_type CHECK (
+        type IN (
+            'challenge',
+            'writeup',
+            'page'
+        )
+    ),
     challenge_id uuid REFERENCES challenges (id) ON DELETE CASCADE,
     page_id uuid,
     location VARCHAR(512) NOT NULL,
@@ -290,28 +326,34 @@ CREATE TABLE files (
     size BIGINT NOT NULL,
     sha256 VARCHAR(64) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_files_owner CHECK (num_nonnulls(challenge_id, page_id) = 1)
+    CONSTRAINT chk_files_owner CHECK (
+        num_nonnulls (challenge_id, page_id) = 1
+    )
 );
 
 CREATE INDEX idx_files_challenge_id ON files (challenge_id);
-CREATE UNIQUE INDEX idx_files_location ON files (location);
 
+CREATE UNIQUE INDEX idx_files_location ON files (location);
 -- Solutions (one per challenge, stores markdown writeup content)
 CREATE TABLE solutions (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     challenge_id uuid UNIQUE NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     content TEXT NOT NULL DEFAULT '',
-    state VARCHAR(20) NOT NULL DEFAULT 'solved_only' CONSTRAINT chk_solutions_state CHECK (state IN ('hidden', 'solved_only', 'after_event', 'admin_only'))
+    state VARCHAR(20) NOT NULL DEFAULT 'solved_only' CONSTRAINT chk_solutions_state CHECK (
+        state IN (
+            'hidden',
+            'solved_only',
+            'after_event',
+            'admin_only'
+        )
+    )
 );
-
-
 -- =============================================================================
 -- Competition activity
 -- =============================================================================
-
 -- Solves (one per team per challenge)
 CREATE TABLE solves (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
@@ -323,13 +365,19 @@ CREATE TABLE solves (
 );
 
 CREATE INDEX idx_solves_user ON solves (user_id);
-CREATE INDEX idx_solves_challenge_date ON solves (challenge_id, solved_at);
-CREATE INDEX idx_solves_banned_team_id ON solves (banned_team_id) WHERE banned_team_id IS NOT NULL;
-CREATE INDEX idx_solves_banned_user_id ON solves (banned_user_id) WHERE banned_user_id IS NOT NULL;
 
+CREATE INDEX idx_solves_challenge_date ON solves (challenge_id, solved_at);
+
+CREATE INDEX idx_solves_banned_team_id ON solves (banned_team_id)
+WHERE
+    banned_team_id IS NOT NULL;
+
+CREATE INDEX idx_solves_banned_user_id ON solves (banned_user_id)
+WHERE
+    banned_user_id IS NOT NULL;
 -- Submissions (flag submission attempts history)
 CREATE TABLE submissions (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     team_id uuid REFERENCES teams (id) ON DELETE CASCADE,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
@@ -340,35 +388,58 @@ CREATE TABLE submissions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
     banned_user_id uuid NULL REFERENCES users (id) ON DELETE SET NULL,
-    CONSTRAINT chk_submission_type CHECK (submission_type IN ('correct', 'incorrect', 'ratelimited', 'discard')),
-    CONSTRAINT chk_submission_type_correct CHECK ((submission_type = 'correct') = is_correct),
+    CONSTRAINT chk_submission_type CHECK (
+        submission_type IN (
+            'correct',
+            'incorrect',
+            'ratelimited',
+            'discard'
+        )
+    ),
+    CONSTRAINT chk_submission_type_correct CHECK (
+        (submission_type = 'correct') = is_correct
+    ),
     CONSTRAINT chk_submitted_flag_length CHECK (length(submitted_flag) <= 500)
 );
 
 CREATE INDEX idx_submissions_created_at ON submissions (created_at DESC);
-CREATE INDEX idx_submissions_user_correct ON submissions (user_id, is_correct);
-CREATE INDEX idx_submissions_team_correct ON submissions (team_id, is_correct);
-CREATE INDEX idx_submissions_banned_team_id ON submissions (banned_team_id) WHERE banned_team_id IS NOT NULL;
 
+CREATE INDEX idx_submissions_user_correct ON submissions (user_id, is_correct);
+
+CREATE INDEX idx_submissions_team_correct ON submissions (team_id, is_correct);
+
+CREATE INDEX idx_submissions_banned_team_id ON submissions (banned_team_id)
+WHERE
+    banned_team_id IS NOT NULL;
 -- Ratings (one per team per challenge)
 CREATE TABLE ratings (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
-    value INT NOT NULL CONSTRAINT chk_ratings_value CHECK (value >= 1 AND value <= 5),
+    banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL,
+    value INT NOT NULL CONSTRAINT chk_ratings_value CHECK (
+        value >= 1
+        AND value <= 5
+    ),
     review TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_rating_team_challenge UNIQUE (team_id, challenge_id)
 );
+
 CREATE INDEX idx_ratings_challenge_id ON ratings (challenge_id);
+
 CREATE INDEX idx_ratings_team_id ON ratings (team_id);
+
 CREATE INDEX idx_ratings_user_id ON ratings (user_id);
 
+CREATE INDEX idx_ratings_banned_team_id ON ratings (banned_team_id)
+WHERE
+    banned_team_id IS NOT NULL;
 -- Comments (challenge discussion after CTF ends)
 CREATE TABLE comments (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
     content TEXT NOT NULL,
@@ -377,16 +448,16 @@ CREATE TABLE comments (
 );
 
 CREATE INDEX idx_comments_challenge_id ON comments (challenge_id);
-CREATE INDEX idx_comments_user_id ON comments (user_id);
-CREATE INDEX idx_comments_created_at ON comments (created_at);
 
+CREATE INDEX idx_comments_user_id ON comments (user_id);
+
+CREATE INDEX idx_comments_created_at ON comments (created_at);
 -- =============================================================================
 -- Awards & Audit
 -- =============================================================================
-
 -- Awards (bonus/penalty points per team)
 CREATE TABLE awards (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
     value INT NOT NULL,
     description VARCHAR(255) NOT NULL,
@@ -395,11 +466,12 @@ CREATE TABLE awards (
     banned_team_id uuid NULL REFERENCES teams (id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_awards_banned_team_id ON awards (banned_team_id) WHERE banned_team_id IS NOT NULL;
-
+CREATE INDEX idx_awards_banned_team_id ON awards (banned_team_id)
+WHERE
+    banned_team_id IS NOT NULL;
 -- Team audit log (join/leave/kick etc. per team)
 CREATE TABLE team_audit_log (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     team_id uuid NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
     user_id uuid REFERENCES users (id) ON DELETE SET NULL,
     action VARCHAR(50) NOT NULL,
@@ -408,12 +480,17 @@ CREATE TABLE team_audit_log (
 );
 
 CREATE INDEX idx_team_audit_log_user_id ON team_audit_log (user_id);
-CREATE INDEX idx_team_audit_log_action ON team_audit_log (action);
-CREATE INDEX idx_team_audit_log_team_action ON team_audit_log (team_id, action, created_at DESC);
 
+CREATE INDEX idx_team_audit_log_action ON team_audit_log (action);
+
+CREATE INDEX idx_team_audit_log_team_action ON team_audit_log (
+    team_id,
+    action,
+    created_at DESC
+);
 -- Audit logs (global admin/entity actions)
 CREATE TABLE audit_logs (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid REFERENCES users (id) ON DELETE SET NULL,
     action VARCHAR(50) NOT NULL,
     entity_type VARCHAR(50) NOT NULL,
@@ -424,78 +501,114 @@ CREATE TABLE audit_logs (
 );
 
 CREATE INDEX idx_audit_logs_user_id ON audit_logs (user_id);
-CREATE INDEX idx_audit_logs_entity_type ON audit_logs (entity_type);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs (created_at);
 
+CREATE INDEX idx_audit_logs_entity_type ON audit_logs (entity_type);
+
+CREATE INDEX idx_audit_logs_created_at ON audit_logs (created_at);
 -- Asynchronous backup import jobs
 CREATE TABLE backup_import_jobs (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    requested_by uuid REFERENCES users (id) ON DELETE SET NULL,
-    client_ip VARCHAR(45),
-    archive_filename TEXT NOT NULL DEFAULT '',
-    archive_size BIGINT NOT NULL DEFAULT 0 CONSTRAINT chk_backup_import_jobs_archive_size CHECK (archive_size >= 0),
-    staging_location TEXT NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'queued' CONSTRAINT chk_backup_import_jobs_status CHECK (status IN ('queued', 'running', 'completed', 'failed')),
-    phase VARCHAR(30) NOT NULL DEFAULT 'queued' CONSTRAINT chk_backup_import_jobs_phase CHECK (phase IN ('queued', 'validating', 'importing_db', 'restoring_files', 'cleanup', 'finished')),
-    options JSONB NOT NULL DEFAULT '{}'::jsonb,
-    result JSONB,
-    error TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    started_at TIMESTAMPTZ,
-    finished_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    requested_by uuid REFERENCES users (id) ON DELETE
+    SET NULL,
+        client_ip VARCHAR(45),
+        archive_filename TEXT NOT NULL DEFAULT '',
+        archive_size BIGINT NOT NULL DEFAULT 0 CONSTRAINT chk_backup_import_jobs_archive_size CHECK (archive_size >= 0),
+        staging_location TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'queued' CONSTRAINT chk_backup_import_jobs_status CHECK (
+            status IN ('queued', 'running', 'completed', 'failed')
+        ),
+        phase VARCHAR(30) NOT NULL DEFAULT 'queued' CONSTRAINT chk_backup_import_jobs_phase CHECK (
+            phase IN (
+                'queued',
+                'validating',
+                'importing_db',
+                'restoring_files',
+                'cleanup',
+                'finished'
+            )
+        ),
+        options JSONB NOT NULL DEFAULT '{}'::jsonb,
+        result JSONB,
+        error TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        started_at TIMESTAMPTZ,
+        finished_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 -- Ban appeals (user appeals against bans)
 CREATE TABLE ban_appeals (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    message     TEXT        NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     reviewed_at TIMESTAMPTZ,
     admin_response TEXT,
-    decision    TEXT        NOT NULL DEFAULT 'pending'
-        CHECK (decision IN ('pending', 'resolved', 'rejected'))
+    decision TEXT NOT NULL DEFAULT 'pending' CHECK (
+        decision IN (
+            'pending',
+            'resolved',
+            'rejected'
+        )
+    )
 );
 
-CREATE INDEX ban_appeals_user_id_idx  ON ban_appeals(user_id);
-CREATE INDEX ban_appeals_decision_idx ON ban_appeals(decision) WHERE decision = 'pending';
+CREATE INDEX ban_appeals_user_id_idx ON ban_appeals (user_id);
 
+CREATE INDEX ban_appeals_decision_idx ON ban_appeals (decision)
+WHERE
+    decision = 'pending';
 -- =============================================================================
 -- Content
 -- =============================================================================
-
 -- Notifications (global announcements)
 CREATE TABLE notifications (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     title VARCHAR(200) NOT NULL,
     content TEXT NOT NULL,
-    type VARCHAR(20) NOT NULL DEFAULT 'info' CONSTRAINT chk_notifications_type CHECK (type IN ('info', 'warning', 'success', 'error')),
+    type VARCHAR(20) NOT NULL DEFAULT 'info' CONSTRAINT chk_notifications_type CHECK (
+        type IN (
+            'info',
+            'warning',
+            'success',
+            'error'
+        )
+    ),
     is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
     is_global BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_notifications_created_at ON notifications (created_at DESC);
-
 -- User notifications (global announcements and user-specific)
 CREATE TABLE user_notifications (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     notification_id uuid REFERENCES notifications (id) ON DELETE CASCADE,
     title VARCHAR(200),
     content TEXT,
-    type VARCHAR(20) NOT NULL DEFAULT 'info' CONSTRAINT chk_user_notifications_type CHECK (type IN ('info', 'warning', 'success', 'error')),
+    type VARCHAR(20) NOT NULL DEFAULT 'info' CONSTRAINT chk_user_notifications_type CHECK (
+        type IN (
+            'info',
+            'warning',
+            'success',
+            'error'
+        )
+    ),
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_notification CHECK (notification_id IS NOT NULL OR (title IS NOT NULL AND content IS NOT NULL))
+    CONSTRAINT chk_notification CHECK (
+        notification_id IS NOT NULL
+        OR (
+            title IS NOT NULL
+            AND content IS NOT NULL
+        )
+    )
 );
 
 CREATE INDEX idx_user_notifications_user_id ON user_notifications (user_id);
-
 -- Pages (static content)
 CREATE TABLE pages (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     title VARCHAR(200) NOT NULL,
     slug VARCHAR(100) NOT NULL UNIQUE,
     content TEXT NOT NULL,
@@ -507,20 +620,30 @@ CREATE TABLE pages (
 
 CREATE INDEX idx_pages_order ON pages (order_index);
 
-ALTER TABLE files ADD CONSTRAINT fk_files_page_id FOREIGN KEY (page_id) REFERENCES pages (id) ON DELETE CASCADE;
-CREATE INDEX idx_files_page_id ON files (page_id);
+ALTER TABLE files
+ADD CONSTRAINT fk_files_page_id FOREIGN KEY (page_id) REFERENCES pages (id) ON DELETE CASCADE;
 
+CREATE INDEX idx_files_page_id ON files (page_id);
 -- =============================================================================
 -- Custom fields
 -- =============================================================================
-
 -- Custom fields (user/team registration)
 CREATE TABLE fields (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     name VARCHAR(100) NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    field_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_field_type CHECK (field_type IN ('text', 'number', 'select', 'boolean', 'json')),
-    entity_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_entity_type CHECK (entity_type IN ('user', 'team')),
+    field_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_field_type CHECK (
+        field_type IN (
+            'text',
+            'number',
+            'select',
+            'boolean',
+            'json'
+        )
+    ),
+    entity_type VARCHAR(20) NOT NULL CONSTRAINT chk_fields_entity_type CHECK (
+        entity_type IN ('user', 'team')
+    ),
     required BOOLEAN NOT NULL DEFAULT FALSE,
     is_public BOOLEAN NOT NULL DEFAULT FALSE,
     editable BOOLEAN NOT NULL DEFAULT FALSE,
@@ -530,10 +653,9 @@ CREATE TABLE fields (
 );
 
 CREATE INDEX idx_fields_entity_type ON fields (entity_type);
-
 -- Field values (custom field values for users or teams)
 CREATE TABLE field_values (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     field_id uuid NOT NULL REFERENCES fields (id) ON DELETE CASCADE,
     entity_id uuid NOT NULL,
     value TEXT NOT NULL,
@@ -542,26 +664,30 @@ CREATE TABLE field_values (
 );
 
 CREATE INDEX idx_field_values_entity ON field_values (entity_id);
-
 -- =============================================================================
 -- Config & Tracking
 -- =============================================================================
-
 -- Dynamic configs (key-value store, in-memory cached)
 CREATE TABLE configs (
     key VARCHAR(100) PRIMARY KEY,
     value TEXT NOT NULL,
-    value_type VARCHAR(20) NOT NULL DEFAULT 'string' CONSTRAINT chk_configs_value_type CHECK (value_type IN ('string', 'int', 'bool', 'json')),
+    value_type VARCHAR(20) NOT NULL DEFAULT 'string' CONSTRAINT chk_configs_value_type CHECK (
+        value_type IN (
+            'string',
+            'int',
+            'bool',
+            'json'
+        )
+    ),
     description TEXT,
     category VARCHAR(50) NOT NULL DEFAULT 'general',
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_configs_category_key ON configs (category, key);
-
 -- IP/user-agent tracking per user
 CREATE TABLE tracking (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     ip VARCHAR(45) NOT NULL,
     user_agent TEXT,
@@ -569,12 +695,13 @@ CREATE TABLE tracking (
 );
 
 CREATE INDEX idx_tracking_user_id ON tracking (user_id);
-CREATE INDEX idx_tracking_tracked_at ON tracking (tracked_at DESC);
-CREATE INDEX idx_tracking_ip_user_id ON tracking (ip, user_id);
 
+CREATE INDEX idx_tracking_tracked_at ON tracking (tracked_at DESC);
+
+CREATE INDEX idx_tracking_ip_user_id ON tracking (ip, user_id);
 -- Challenge open events (tracks when users view challenges)
 CREATE TABLE challenge_opens (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4 (),
     user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     team_id uuid REFERENCES teams (id) ON DELETE SET NULL,
     challenge_id uuid NOT NULL REFERENCES challenges (id) ON DELETE CASCADE,
@@ -583,11 +710,17 @@ CREATE TABLE challenge_opens (
 );
 
 CREATE INDEX idx_challenge_opens_user_id ON challenge_opens (user_id);
-CREATE INDEX idx_challenge_opens_team_id ON challenge_opens (team_id) WHERE team_id IS NOT NULL;
-CREATE INDEX idx_challenge_opens_challenge_id ON challenge_opens (challenge_id);
-CREATE INDEX idx_challenge_opens_opened_at ON challenge_opens (opened_at DESC);
 
+CREATE INDEX idx_challenge_opens_team_id ON challenge_opens (team_id)
+WHERE
+    team_id IS NOT NULL;
+
+CREATE INDEX idx_challenge_opens_challenge_id ON challenge_opens (challenge_id);
+
+CREATE INDEX idx_challenge_opens_opened_at ON challenge_opens (opened_at DESC);
 -- +goose Down
 DROP SCHEMA public CASCADE;
+
 CREATE SCHEMA public;
+
 GRANT ALL ON SCHEMA public TO public;

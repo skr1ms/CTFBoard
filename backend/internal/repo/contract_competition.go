@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 )
 
 // =============================================================================
@@ -14,12 +15,6 @@ import (
 // =============================================================================
 
 type (
-	// ScoreboardEntry is an alias for domain.ScoreboardEntry.
-	ScoreboardEntry = domain.ScoreboardEntry
-
-	// FirstBloodEntry is an alias for domain.FirstBloodEntry.
-	FirstBloodEntry = domain.FirstBloodEntry
-
 	// SolveRepository provides persistence operations for correct solves and scoreboard queries.
 	SolveRepository interface {
 		Create(ctx context.Context, solve *domain.Solve) error
@@ -34,8 +29,8 @@ type (
 		GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID) ([]*domain.SolveWithDetails, error)
 		GetAll(ctx context.Context) ([]*domain.Solve, error)
 		GetAllForBackup(ctx context.Context) ([]*domain.Solve, error)
-		GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*ScoreboardEntry, error)
-		GetFirstBlood(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*FirstBloodEntry, error)
+		GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*domain.ScoreboardEntry, error)
+		GetFirstBlood(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.FirstBloodEntry, error)
 		GetTeamScore(ctx context.Context, teamID uuid.UUID) (int, error)
 		DeleteByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) error
 		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
@@ -43,7 +38,7 @@ type (
 		RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error
 		SoftBanByTeamIDAndUserID(ctx context.Context, teamID, userID uuid.UUID) error
 		RestoreByBannedUserID(ctx context.Context, userID uuid.UUID) error
-		GetSolvesForPointsRecalc(ctx context.Context, challengeIDs []uuid.UUID) ([]*SolveForPointsRecalc, error)
+		GetSolvesForPointsRecalc(ctx context.Context, challengeIDs []uuid.UUID) ([]*scoring.SolveForPointsRecalc, error)
 		BatchUpdateSolvePoints(ctx context.Context, solveIDs []uuid.UUID, points []int) error
 	}
 )

@@ -37,8 +37,13 @@ func (uc *UserUseCase) Logout(ctx context.Context, refreshToken string, accessTo
 		}
 	}
 
+	refreshToken = strings.TrimSpace(refreshToken)
+	if refreshToken == "" {
+		return nil
+	}
+
 	if err := uc.deps.JWTService.RevokeRefreshToken(ctx, refreshToken); err != nil {
-		return fmt.Errorf("UserUseCase - Logout - JWTService.RevokeRefreshToken: %w", apperr.ErrNotAuthenticated)
+		uc.deps.Logger.WithError(err).Warn("UserUseCase - Logout - JWTService.RevokeRefreshToken")
 	}
 
 	return nil

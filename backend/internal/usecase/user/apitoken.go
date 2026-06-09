@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -18,20 +20,35 @@ import (
 const (
 	apiTokenDescriptionMaxLen = 255
 	apiTokenRandomBytes       = 32
+	apiTokenLastUsedMinTTL    = time.Minute
 )
 
 type APITokenUseCase struct {
 	deps APITokenDeps
+
+	lastUsedMu sync.Mutex
+	lastUsedAt map[uuid.UUID]time.Time
+	lastUsedSF singleflight.Group
 }
 
 type APITokenDeps struct {
-	Repo repo.APITokenRepository
+	Repo                      repo.APITokenRepository
+	Now                       func() time.Time
+	LastUsedUpdateMinInterval time.Duration
 }
 
 var _ usecase.APITokenUseCase = (*APITokenUseCase)(nil)
 
 func NewAPITokenUseCase(deps APITokenDeps) *APITokenUseCase {
-	return &APITokenUseCase{deps: deps}
+	if deps.Now == nil {
+		deps.Now = time.Now
+	}
+
+	if deps.LastUsedUpdateMinInterval <= 0 {
+		deps.LastUsedUpdateMinInterval = apiTokenLastUsedMinTTL
+	}
+
+	return &APITokenUseCase{deps: deps, lastUsedAt: make(map[uuid.UUID]time.Time)}
 }
 
 func (uc *APITokenUseCase) List(ctx context.Context, userID uuid.UUID) ([]*domain.APIToken, error) {
@@ -60,7 +77,7 @@ func (uc *APITokenUseCase) Create(ctx context.Context, userID uuid.UUID, descrip
 		TokenHash:   tokenHash,
 		Description: description,
 		ExpiresAt:   expiresAt,
-		CreatedAt:   time.Now(),
+		CreatedAt:   uc.now(),
 	}
 	if err := uc.deps.Repo.Create(ctx, token); err != nil {
 		return "", nil, fmt.Errorf("APITokenUseCase - Create - APITokenRepo.Create: %w", err)
@@ -73,6 +90,14 @@ func (uc *APITokenUseCase) Delete(ctx context.Context, ID, userID uuid.UUID) err
 	err := uc.deps.Repo.Delete(ctx, ID, userID)
 	if err != nil {
 		return fmt.Errorf("APITokenUseCase - Delete - APITokenRepo.Delete: %w", err)
+	}
+
+	return nil
+}
+
+func (uc *APITokenUseCase) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
+	if err := uc.deps.Repo.DeleteAllByUserID(ctx, userID); err != nil {
+		return fmt.Errorf("APITokenUseCase - RevokeAllForUser - APITokenRepo.DeleteAllByUserID: %w", err)
 	}
 
 	return nil
@@ -108,12 +133,26 @@ func (uc *APITokenUseCase) AuthenticatePlaintext(ctx context.Context, plaintext 
 }
 
 func (uc *APITokenUseCase) UpdateLastUsedAt(ctx context.Context, ID uuid.UUID) error {
-	err := uc.deps.Repo.UpdateLastUsedAt(ctx, ID, time.Now())
-	if err != nil {
-		return fmt.Errorf("APITokenUseCase - UpdateLastUsedAt - APITokenRepo.UpdateLastUsedAt: %w", err)
+	if !uc.shouldUpdateLastUsedAt(ID, uc.now()) {
+		return nil
 	}
 
-	return nil
+	_, err, _ := uc.lastUsedSF.Do(ID.String(), func() (any, error) {
+		now := uc.now()
+		if !uc.shouldUpdateLastUsedAt(ID, now) {
+			return nil, nil
+		}
+
+		if err := uc.deps.Repo.UpdateLastUsedAt(ctx, ID, now); err != nil {
+			return nil, fmt.Errorf("APITokenUseCase - UpdateLastUsedAt - APITokenRepo.UpdateLastUsedAt: %w", err)
+		}
+
+		uc.markLastUsedAt(ID, now)
+
+		return nil, nil
+	})
+
+	return err
 }
 
 func (uc *APITokenUseCase) ValidateToken(t *domain.APIToken) bool {
@@ -121,9 +160,29 @@ func (uc *APITokenUseCase) ValidateToken(t *domain.APIToken) bool {
 		return false
 	}
 
-	if t.ExpiresAt != nil && t.ExpiresAt.Before(time.Now()) {
+	if t.ExpiresAt != nil && t.ExpiresAt.Before(uc.now()) {
 		return false
 	}
 
 	return true
+}
+
+func (uc *APITokenUseCase) now() time.Time {
+	return uc.deps.Now()
+}
+
+func (uc *APITokenUseCase) shouldUpdateLastUsedAt(ID uuid.UUID, now time.Time) bool {
+	uc.lastUsedMu.Lock()
+	defer uc.lastUsedMu.Unlock()
+
+	last, ok := uc.lastUsedAt[ID]
+
+	return !ok || now.Sub(last) >= uc.deps.LastUsedUpdateMinInterval
+}
+
+func (uc *APITokenUseCase) markLastUsedAt(ID uuid.UUID, at time.Time) {
+	uc.lastUsedMu.Lock()
+	defer uc.lastUsedMu.Unlock()
+
+	uc.lastUsedAt[ID] = at
 }

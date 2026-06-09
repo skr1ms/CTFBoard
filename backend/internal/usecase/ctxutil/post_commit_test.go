@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const expectedPostCommitTimeout = 30 * time.Second
+
 func TestPostCommitContextSurvivesParentCancelWithDeadline(t *testing.T) {
 	t.Parallel()
 
@@ -24,7 +26,7 @@ func TestPostCommitContextSurvivesParentCancelWithDeadline(t *testing.T) {
 		t.Fatal("expected post-commit context deadline")
 	}
 
-	if time.Until(deadline) > postCommitTimeout {
+	if time.Until(deadline) > expectedPostCommitTimeout {
 		t.Fatalf("deadline exceeds post-commit timeout: %s", time.Until(deadline))
 	}
 }

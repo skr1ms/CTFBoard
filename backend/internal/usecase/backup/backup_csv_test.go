@@ -12,7 +12,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	backupMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mock"
 )
 
@@ -45,7 +44,7 @@ func TestBackupUseCase_ExportCSV_ChallengesIncludesMetadata(t *testing.T) {
 	log := logMock.NewMockLogger(t)
 
 	nextID := uuid.New()
-	challengeRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{
+	challengeRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*domain.ChallengeWithSolved{
 		{
 			Challenge: &domain.Challenge{
 				ID:              uuid.New(),

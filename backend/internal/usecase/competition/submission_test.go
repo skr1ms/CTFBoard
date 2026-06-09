@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
@@ -21,6 +22,18 @@ func adminCreateSubmissionParams(userID uuid.UUID, teamID *uuid.UUID, challengeI
 		IsCorrect:     isCorrect,
 		IP:            ip,
 	}
+}
+
+type adminSolveCreatorFunc func(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error
+
+func (f adminSolveCreatorFunc) AdminCreateSolve(ctx context.Context, userID, teamID, challengeID uuid.UUID, skipCompetitionCheck bool) error {
+	return f(ctx, userID, teamID, challengeID, skipCompetitionCheck)
+}
+
+type adminSolveDeleterFunc func(ctx context.Context, teamID, challengeID uuid.UUID) error
+
+func (f adminSolveDeleterFunc) AdminDeleteSolve(ctx context.Context, teamID, challengeID uuid.UUID) error {
+	return f(ctx, teamID, challengeID)
 }
 
 func TestSubmissionUseCase_LogSubmission_Success(t *testing.T) {
@@ -299,6 +312,57 @@ func TestSubmissionUseCase_AdminCreate_Success(t *testing.T) {
 	assert.Equal(t, expected.SubmittedFlag, got.SubmittedFlag)
 }
 
+func TestSubmissionUseCase_AdminCreate_CorrectSubmissionUsesCorrectType(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+	userID, teamID, challengeID := uuid.New(), uuid.New(), uuid.New()
+
+	expected := &domain.SubmissionWithDetails{
+		Submission: domain.Submission{
+			UserID: userID, TeamID: &teamID, ChallengeID: challengeID,
+			SubmittedFlag: "flag{correct}", IsCorrect: true, Type: domain.SubmissionTypeCorrect,
+		},
+	}
+
+	var captured *domain.Submission
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.submissionRepo.EXPECT().Create(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, sub *domain.Submission) { captured = sub }).
+		Return(nil)
+	d.submissionRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(expected, nil)
+
+	solveCalled := false
+	uc := NewSubmissionUseCase(SubmissionDeps{
+		SubmissionRepo: d.submissionRepo,
+		TM:             d.tm,
+		SolveCreator: adminSolveCreatorFunc(func(_ context.Context, gotUserID, gotTeamID, gotChallengeID uuid.UUID, skipCompetitionCheck bool) error {
+			solveCalled = true
+
+			assert.Equal(t, userID, gotUserID)
+			assert.Equal(t, teamID, gotTeamID)
+			assert.Equal(t, challengeID, gotChallengeID)
+			assert.True(t, skipCompetitionCheck)
+
+			return nil
+		}),
+		SolveDeleter: adminSolveDeleterFunc(func(context.Context, uuid.UUID, uuid.UUID) error { return nil }),
+	})
+	got, err := uc.AdminCreate(ctx, adminCreateSubmissionParams(userID, &teamID, challengeID, "flag{correct}", true, "127.0.0.1"))
+
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.True(t, solveCalled)
+
+	if assert.NotNil(t, captured) {
+		assert.Equal(t, domain.SubmissionTypeCorrect, captured.Type)
+		assert.True(t, captured.IsCorrect)
+	}
+}
+
 func TestSubmissionUseCase_AdminCreate_UserBanned(t *testing.T) {
 	t.Parallel()
 	d := newCompetitionTestDeps(t)
@@ -316,4 +380,66 @@ func TestSubmissionUseCase_AdminCreate_UserBanned(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, got)
+}
+
+func TestSubmissionUseCase_AdminCreate_UserRepoErrorFailClosed(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+	userID, challengeID := uuid.New(), uuid.New()
+
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, assert.AnError).Once()
+
+	uc := NewSubmissionUseCase(SubmissionDeps{
+		SubmissionRepo: d.submissionRepo,
+		UserRepo:       d.userRepo,
+		Logger:         d.logger,
+	})
+	got, err := uc.AdminCreate(ctx, adminCreateSubmissionParams(userID, nil, challengeID, "flag", false, "127.0.0.1"))
+
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Nil(t, got)
+	d.submissionRepo.AssertNotCalled(t, "Create")
+}
+
+func TestSubmissionUseCase_AdminCreate_UserWasInBannedTeamRejected(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+	userID, teamID, challengeID := uuid.New(), uuid.New(), uuid.New()
+
+	d.userRepo.EXPECT().
+		GetByID(mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &teamID, WasInBannedTeam: true, Role: domain.RoleUser}, nil).
+		Once()
+
+	uc := NewSubmissionUseCase(SubmissionDeps{
+		SubmissionRepo: d.submissionRepo,
+		UserRepo:       d.userRepo,
+		Logger:         d.logger,
+	})
+	got, err := uc.AdminCreate(ctx, adminCreateSubmissionParams(userID, &teamID, challengeID, "flag{correct}", true, "127.0.0.1"))
+
+	assert.ErrorIs(t, err, apperr.ErrUserWasInBannedTeam)
+	assert.Nil(t, got)
+}
+
+func TestSubmissionUseCase_AdminCreate_TeamRepoErrorFailClosed(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	ctx := context.Background()
+	userID, teamID, challengeID := uuid.New(), uuid.New(), uuid.New()
+
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nil, assert.AnError).Once()
+
+	uc := NewSubmissionUseCase(SubmissionDeps{
+		SubmissionRepo: d.submissionRepo,
+		TeamRepo:       d.teamRepo,
+		Logger:         d.logger,
+	})
+	got, err := uc.AdminCreate(ctx, adminCreateSubmissionParams(userID, &teamID, challengeID, "flag", false, "127.0.0.1"))
+
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Nil(t, got)
+	d.submissionRepo.AssertNotCalled(t, "Create")
 }

@@ -13,6 +13,13 @@ import (
 // =============================================================================
 
 type (
+	UserAdminBanStatus string
+
+	UserAdminSearchFilter struct {
+		Search    *string
+		BanStatus UserAdminBanStatus
+	}
+
 	// UserRepository provides persistence operations for user accounts.
 	UserRepository interface {
 		Create(ctx context.Context, user *domain.User) error
@@ -24,8 +31,12 @@ type (
 		GetAll(ctx context.Context) ([]*domain.User, error)
 		Search(ctx context.Context, search *string, limit, offset int) ([]*domain.User, error)
 		CountSearch(ctx context.Context, search *string) (int64, error)
+		SearchAdmin(ctx context.Context, filter UserAdminSearchFilter, limit, offset int) ([]*domain.User, error)
+		CountSearchAdmin(ctx context.Context, filter UserAdminSearchFilter) (int64, error)
 		SearchByIP(ctx context.Context, ip string, limit, offset int) ([]*domain.User, error)
 		CountSearchByIP(ctx context.Context, ip string) (int64, error)
+		SearchAdminByIP(ctx context.Context, ip string, banStatus UserAdminBanStatus, limit, offset int) ([]*domain.User, error)
+		CountSearchAdminByIP(ctx context.Context, ip string, banStatus UserAdminBanStatus) (int64, error)
 		CountActiveUsers(ctx context.Context) (int64, error)
 		UpdateTeamID(ctx context.Context, userID uuid.UUID, teamID *uuid.UUID) error
 		UpdateTeamIDBatch(ctx context.Context, userIDs []uuid.UUID, teamID *uuid.UUID) error
@@ -46,6 +57,14 @@ type (
 		ClearAvatarURL(ctx context.Context, userID uuid.UUID) error
 		ListAllUserAvatarURLs(ctx context.Context) ([]*string, error)
 	}
+)
+
+const (
+	UserAdminBanStatusAll           UserAdminBanStatus = "all"
+	UserAdminBanStatusNotBanned     UserAdminBanStatus = "not_banned"
+	UserAdminBanStatusDirect        UserAdminBanStatus = "direct"
+	UserAdminBanStatusTeamInherited UserAdminBanStatus = "team_inherited"
+	UserAdminBanStatusBlocked       UserAdminBanStatus = "blocked"
 )
 
 // =============================================================================

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -119,52 +118,6 @@ func TestFileUseCase_Download(t *testing.T) {
 		assert.ErrorIs(t, err, expectedErr, "err should wrap expectedErr")
 
 		d.fileStorage.AssertExpectations(t)
-	})
-}
-
-func TestFileUseCase_GetDownloadURL(t *testing.T) {
-	t.Parallel()
-	t.Run("Success", func(t *testing.T) {
-		t.Parallel()
-		d := newChallengeTestDeps(t)
-		uc := d.createFileUseCase()
-
-		ctx := context.Background()
-		fileID := uuid.New()
-		fileentity := &domain.File{
-			ID:       fileID,
-			Location: "loc/path/file.txt",
-		}
-		expectedURL := "http://example.com/file"
-
-		d.fileRepo.On("GetByID", ctx, fileID).Return(fileentity, nil)
-		d.fileStorage.On("GetPresignedURL", ctx, fileentity.Location, time.Hour).Return(expectedURL, nil)
-
-		url, err := uc.GetDownloadURL(ctx, fileID)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedURL, url)
-
-		d.fileRepo.AssertExpectations(t)
-		d.fileStorage.AssertExpectations(t)
-	})
-
-	t.Run("Error_FileNotFound", func(t *testing.T) {
-		t.Parallel()
-		d := newChallengeTestDeps(t)
-		uc := d.createFileUseCase()
-
-		ctx := context.Background()
-		fileID := uuid.New()
-
-		d.fileRepo.On("GetByID", ctx, fileID).Return(nil, apperr.ErrFileNotFound)
-
-		url, err := uc.GetDownloadURL(ctx, fileID)
-		assert.Error(t, err)
-		assert.Empty(t, url)
-		assert.Contains(t, err.Error(), "GetByID")
-
-		d.fileRepo.AssertExpectations(t)
-		d.fileStorage.AssertNotCalled(t, "GetPresignedURL")
 	})
 }
 

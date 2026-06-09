@@ -20,7 +20,8 @@ func TestTeamUseCase_DisbandTeam_Success(t *testing.T) {
 	teamID := uuid.New()
 	captain := &domain.User{ID: captainID, TeamID: &teamID}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -63,7 +64,8 @@ func TestTeamUseCase_DisbandTeam_WithSolves_UsesGetByIDs(t *testing.T) {
 		{Solve: domain.Solve{ChallengeID: ch2ID}, ChallengePoints: 200, ChallengeTitle: "Ch2"},
 	}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -115,7 +117,8 @@ func TestTeamUseCase_DisbandTeam_BannedCaptain_ReturnsErrUserBanned(t *testing.T
 	teamID := uuid.New()
 	captain := &domain.User{ID: captainID, TeamID: &teamID, IsBanned: true}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: domain.ModeTeamsOnly, AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -142,7 +145,8 @@ func TestTeamUseCase_KickMember_Success(t *testing.T) {
 	captain := &domain.User{ID: captainID, TeamID: &teamID}
 	target := &domain.User{ID: targetID, TeamID: &teamID}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()

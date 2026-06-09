@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -14,7 +13,9 @@ import (
 )
 
 // AdminCreate creates a submission record on behalf of an admin. It checks
-// user and team ban status before persisting. When isCorrect is true and
+// user and team ban status before persisting. Users marked as former members
+// of banned teams are rejected for non-admin accounts, matching regular submit
+// eligibility. When isCorrect is true and
 // teamID is provided it additionally calls RecordSolveInTx with dynamic score
 // decay inside a transaction so the solve and submission are written atomically
 // the scoreboard cache is then invalidated for the affected team. Passing
@@ -29,16 +30,18 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, params usecase.Adm
 	if uc.deps.UserRepo != nil {
 		u, err := uc.deps.UserRepo.GetByID(ctx, params.UserID)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logkit.UserID(params.UserID.String())).Warn("SubmissionUseCase - AdminCreate: failed to check user ban status")
+			return nil, fmt.Errorf("SubmissionUseCase - AdminCreate - UserRepo.GetByID: %w", err)
 		} else if u.IsBanned {
 			return nil, apperr.ErrUserBanned
+		} else if u.WasInBannedTeam && u.Role != domain.RoleAdmin {
+			return nil, apperr.ErrUserWasInBannedTeam
 		}
 	}
 
 	if params.TeamID != nil && uc.deps.TeamRepo != nil {
 		t, err := uc.deps.TeamRepo.GetByID(ctx, *params.TeamID)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"team_id": params.TeamID.String()}).Warn("SubmissionUseCase - AdminCreate: failed to check team ban status")
+			return nil, fmt.Errorf("SubmissionUseCase - AdminCreate - TeamRepo.GetByID: %w", err)
 		} else if t.IsBanned {
 			return nil, apperr.ErrTeamBanned
 		}
@@ -51,6 +54,7 @@ func (uc *SubmissionUseCase) AdminCreate(ctx context.Context, params usecase.Adm
 		ChallengeID:   params.ChallengeID,
 		SubmittedFlag: params.SubmittedFlag,
 		IsCorrect:     params.IsCorrect,
+		Type:          domain.SubmissionTypeFromCorrect(params.IsCorrect),
 		IP:            params.IP,
 		CreatedAt:     time.Now(),
 	}

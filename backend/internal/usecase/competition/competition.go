@@ -15,9 +15,9 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 const (
@@ -140,35 +140,32 @@ func (uc *CompetitionUseCase) Update(ctx context.Context, comp *domain.Competiti
 		return fmt.Errorf("CompetitionUseCase - Update - TM.Run: %w", err)
 	}
 
-	uc.localComp.Store(nil)
-	uc.localCompAt.Store(0)
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		uc.localComp.Store(nil)
+		uc.localCompAt.Store(0)
 
-	if uc.deps.Redis != nil {
-		_ = uc.deps.Redis.Del(ctx, cacheutil.KeyCompetitionGuard)
-	}
+		if uc.deps.Redis != nil {
+			_ = uc.deps.Redis.Del(ctx, cacheutil.KeyCompetitionGuard)
 
-	uc.sf.Forget(cacheutil.KeyCompetition)
-
-	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
-	defer postCancel()
-
-	if uc.deps.Redis != nil {
-		err := uc.deps.Redis.Del(postCtx, cacheutil.KeyCompetition)
-		if err != nil {
-			uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Update: failed to invalidate cache; stale data for up to 5s")
+			err := uc.deps.Redis.Del(ctx, cacheutil.KeyCompetition)
+			if err != nil {
+				uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Update: failed to invalidate cache; stale data for up to 5s")
+			}
 		}
-	}
 
-	if uc.deps.StatsCacheInvalidator != nil {
-		err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(postCtx)
-		if err != nil {
-			uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Update: failed to invalidate statistics cache")
+		uc.sf.Forget(cacheutil.KeyCompetition)
+
+		if uc.deps.StatsCacheInvalidator != nil {
+			err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx)
+			if err != nil {
+				uc.deps.Logger.WithError(err).Warn("CompetitionUseCase - Update: failed to invalidate statistics cache")
+			}
 		}
-	}
 
-	if uc.deps.ScoreboardCache != nil {
-		uc.deps.ScoreboardCache.InvalidateAll(postCtx)
-	}
+		if uc.deps.ScoreboardCache != nil {
+			uc.deps.ScoreboardCache.InvalidateAll(ctx)
+		}
+	})
 
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-cachekit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
@@ -34,6 +35,12 @@ func (s *UserCacheService) InvalidateUser(ctx context.Context, userID uuid.UUID)
 		return
 	}
 
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		s.invalidateUserNow(ctx, userID)
+	})
+}
+
+func (s *UserCacheService) invalidateUserNow(ctx context.Context, userID uuid.UUID) {
 	_ = s.cache.Del(ctx, cacheutil.KeyUser(userID.String()))
 }
 
@@ -73,6 +80,12 @@ func (s *ScoreboardCacheService) InvalidateAll(ctx context.Context) {
 		return
 	}
 
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		s.invalidateAllNow(ctx)
+	})
+}
+
+func (s *ScoreboardCacheService) invalidateAllNow(ctx context.Context) {
 	if s.localClear != nil {
 		s.localClear()
 	}
@@ -87,20 +100,28 @@ func (s *ScoreboardCacheService) InvalidateAll(ctx context.Context) {
 // InvalidateForTeam purges all scoreboard cache entries. Currently equivalent to InvalidateAll
 // because any team score change can affect global rankings.
 func (s *ScoreboardCacheService) InvalidateForTeam(ctx context.Context, _ uuid.UUID) {
-	if s == nil || s.cache == nil {
+	if s == nil {
 		return
 	}
 
-	s.InvalidateAll(ctx)
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		s.invalidateAllNow(ctx)
+	})
 }
 
 // InvalidateLiveOnly purges only the live (non-frozen) scoreboard keys for the global board and,
 // when resolvable, the team's bracket board. Frozen snapshots are left intact.
 func (s *ScoreboardCacheService) InvalidateLiveOnly(ctx context.Context, teamID uuid.UUID) {
-	if s == nil || s.cache == nil {
+	if s == nil {
 		return
 	}
 
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		s.invalidateLiveOnlyNow(ctx, teamID)
+	})
+}
+
+func (s *ScoreboardCacheService) invalidateLiveOnlyNow(ctx context.Context, teamID uuid.UUID) {
 	liveKeys := []string{cacheutil.KeyScoreboard}
 
 	if s.getter != nil {
@@ -113,6 +134,10 @@ func (s *ScoreboardCacheService) InvalidateLiveOnly(ctx context.Context, teamID 
 		s.localClearLiveOnly(liveKeys)
 	} else if s.localClear != nil {
 		s.localClear()
+	}
+
+	if s.cache == nil {
+		return
 	}
 
 	err := s.cache.Del(ctx, liveKeys...)

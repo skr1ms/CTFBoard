@@ -22,21 +22,26 @@ func TestBanAppealUseCase_ReviewAppeal_Resolved_UnbansUser(t *testing.T) {
 	userID := uuid.New()
 	appealID := uuid.New()
 	actorID := uuid.New()
+	teamID := uuid.New()
 	adminResp := "appeal granted"
 	appeal := newTestAppeal(userID, time.Now().Add(-24*time.Hour), domain.AppealDecisionPending)
 	appeal.ID = appealID
+	d.banRestorer.teamIDsToInvalidate = []uuid.UUID{teamID}
 
 	d.repo.EXPECT().GetByID(mock.Anything, appealID).Return(appeal, nil).Once()
 	d.setupTxRun()
 	d.repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(a *domain.BanAppeal) bool {
 		return a.ID == appealID && a.Decision == domain.AppealDecisionResolved && a.AdminResponse == &adminResp
 	})).Return(nil).Once()
-	d.userRepo.EXPECT().Unban(mock.Anything, userID).Return(nil).Once()
 
 	got, err := uc.ReviewAppeal(context.Background(), appealID, domain.AppealDecisionResolved, &adminResp, actorID)
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
 	assert.Equal(t, domain.AppealDecisionResolved, got.Decision)
+	assert.Equal(t, 1, d.banRestorer.restoreCalls)
+	assert.Equal(t, userID, d.banRestorer.invalidatedUserID)
+	assert.Equal(t, []uuid.UUID{teamID}, d.banRestorer.invalidatedTeamIDs)
+	assert.True(t, d.banRestorer.invalidatedAfterCommit)
 }
 
 func TestBanAppealUseCase_ReviewAppeal_Rejected_NoUnban(t *testing.T) {
@@ -52,6 +57,7 @@ func TestBanAppealUseCase_ReviewAppeal_Rejected_NoUnban(t *testing.T) {
 	appeal.ID = appealID
 
 	d.repo.EXPECT().GetByID(mock.Anything, appealID).Return(appeal, nil).Once()
+	d.setupTxRun()
 	d.repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(a *domain.BanAppeal) bool {
 		return a.ID == appealID && a.Decision == domain.AppealDecisionRejected
 	})).Return(nil).Once()
@@ -61,6 +67,7 @@ func TestBanAppealUseCase_ReviewAppeal_Rejected_NoUnban(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
 	assert.Equal(t, domain.AppealDecisionRejected, got.Decision)
+	assert.Equal(t, 0, d.banRestorer.restoreCalls)
 }
 
 func TestBanAppealUseCase_ReviewAppeal_AlreadyReviewed(t *testing.T) {
@@ -124,15 +131,16 @@ func TestBanAppealUseCase_ReviewAppeal_Resolved_UnbanError(t *testing.T) {
 	unbanErr := errors.New("unban failed")
 	appeal := newTestAppeal(userID, time.Now().Add(-24*time.Hour), domain.AppealDecisionPending)
 	appeal.ID = appealID
+	d.banRestorer.restoreErr = unbanErr
 
 	d.repo.EXPECT().GetByID(mock.Anything, appealID).Return(appeal, nil).Once()
 	d.setupTxRun()
-	d.repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Once()
-	d.userRepo.EXPECT().Unban(mock.Anything, userID).Return(unbanErr).Once()
 
 	got, err := uc.ReviewAppeal(context.Background(), appealID, domain.AppealDecisionResolved, nil, uuid.New())
 	assert.Nil(t, got)
 	assert.ErrorIs(t, err, unbanErr)
+	assert.Equal(t, 1, d.banRestorer.restoreCalls)
+	assert.False(t, d.banRestorer.invalidatedAfterCommit)
 }
 
 func TestBanAppealUseCase_ReviewAppeal_Rejected_AlreadyRejected(t *testing.T) {

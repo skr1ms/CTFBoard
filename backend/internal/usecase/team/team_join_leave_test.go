@@ -34,7 +34,8 @@ func TestTeamUseCase_Join_Success(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(3)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByInviteToken(mock.Anything, inviteToken).Return(team, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
@@ -75,7 +76,8 @@ func TestTeamUseCase_Join_TeamFull_Error(t *testing.T) {
 		existingMembers[i] = &domain.User{ID: uuid.New()}
 	}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true, MaxTeamSize: 10}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true, MaxTeamSize: 10}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true, MaxTeamSize: 10}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -112,7 +114,8 @@ func TestTeamUseCase_Join_WithSoloTeam_Success(t *testing.T) {
 		TeamID: &oldTeamID,
 	}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(3)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -167,7 +170,8 @@ func TestTeamUseCase_Leave_Success(t *testing.T) {
 
 	members := []*domain.User{user, {ID: captainID, TeamID: &teamID}}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -207,7 +211,8 @@ func TestTeamUseCase_Leave_CaptainCannotLeave_Error(t *testing.T) {
 
 	members := []*domain.User{captain, {ID: uuid.New(), TeamID: &teamID}}
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
@@ -238,7 +243,8 @@ func TestTeamUseCase_Leave_TeamBelowMinSize_Error(t *testing.T) {
 	members := []*domain.User{user, {ID: captainID, TeamID: &teamID}} // 2 members
 
 	comp := &domain.Competition{Mode: "teams_only", AllowTeamSwitch: true, MinTeamSize: 2}
-	d.compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(comp, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()

@@ -43,4 +43,4 @@ SELECT COUNT(*) FROM ban_appeals WHERE decision = $1;
 -- name: UpdateBanAppeal :execrows
 UPDATE ban_appeals
 SET decision = $2, admin_response = $3, reviewed_at = $4
-WHERE id = $1;
+WHERE id = $1 AND decision = 'pending';

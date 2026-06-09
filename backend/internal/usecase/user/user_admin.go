@@ -11,8 +11,8 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
 )
 
 // AdminCreate creates a new user account with an optional role.
@@ -149,9 +149,6 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 		return nil, fmt.Errorf("UserUseCase - AdminUpdate - UserRepo.GetByID: %w", err)
 	}
 
-	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
-	defer postCancel()
-
 	// Revoke JWT when password changed or role demoted (admin -> user)
 	needsRevoke := passwordHash != nil
 
@@ -159,13 +156,15 @@ func (uc *UserUseCase) AdminUpdate(ctx context.Context, userID uuid.UUID, userna
 		needsRevoke = true
 	}
 
-	if needsRevoke && uc.deps.JWTService != nil {
-		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil {
-			uc.deps.Logger.WithError(err).Warn("UserUseCase - AdminUpdate - RevokeAllForUser")
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		if needsRevoke && uc.deps.JWTService != nil {
+			if err := uc.deps.JWTService.RevokeAllForUser(ctx, userID); err != nil {
+				uc.deps.Logger.WithError(err).Warn("UserUseCase - AdminUpdate - RevokeAllForUser")
+			}
 		}
-	}
 
-	cacheutil.InvalidateUser(postCtx, uc.deps.UserCache, userID)
+		cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
+	})
 
 	return user, nil
 }
@@ -237,22 +236,21 @@ func (uc *UserUseCase) AdminDelete(ctx context.Context, userID, actorID uuid.UUI
 		return fmt.Errorf("UserUseCase - AdminDelete - TM.Run: %w", err)
 	}
 
-	postCtx, postCancel := ctxutil.PostCommitContext(ctx)
-	defer postCancel()
-
-	if uc.deps.JWTService != nil {
-		if err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID); err != nil {
-			uc.deps.Logger.WithError(err).Warn("UserUseCase - AdminDelete - RevokeAllForUser")
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		if uc.deps.JWTService != nil {
+			if err := uc.deps.JWTService.RevokeAllForUser(ctx, userID); err != nil {
+				uc.deps.Logger.WithError(err).Warn("UserUseCase - AdminDelete - RevokeAllForUser")
+			}
 		}
-	}
 
-	cacheutil.InvalidateUser(postCtx, uc.deps.UserCache, userID)
+		cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
 
-	if scoreboardInvalidateTeamID != nil {
-		cacheutil.InvalidateScoreboardForTeam(postCtx, uc.deps.ScoreboardCache, *scoreboardInvalidateTeamID)
-		cacheutil.InvalidateTeam(postCtx, uc.deps.TeamCache, uc.deps.Logger, *scoreboardInvalidateTeamID)
-		cacheutil.InvalidateChallengeList(postCtx, uc.deps.ChallengeListCache)
-	}
+		if scoreboardInvalidateTeamID != nil {
+			cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, *scoreboardInvalidateTeamID)
+			cacheutil.InvalidateTeam(ctx, uc.deps.TeamCache, uc.deps.Logger, *scoreboardInvalidateTeamID)
+			cacheutil.InvalidateChallengeList(ctx, uc.deps.ChallengeListCache)
+		}
+	})
 
 	return nil
 }

@@ -374,6 +374,40 @@ func (q *Queries) GetChallengeRequirements(ctx context.Context, challengeID uuid
 	return items, nil
 }
 
+const getChallengeRequirementsForEnforcement = `-- name: GetChallengeRequirementsForEnforcement :many
+SELECT c.id, c.title, c.category
+FROM challenge_requirements cr
+JOIN challenges c ON c.id = cr.required_challenge_id
+WHERE cr.challenge_id = $1
+ORDER BY c.title
+`
+
+type GetChallengeRequirementsForEnforcementRow struct {
+	ID       uuid.UUID `json:"id"`
+	Title    string    `json:"title"`
+	Category string    `json:"category"`
+}
+
+func (q *Queries) GetChallengeRequirementsForEnforcement(ctx context.Context, challengeID uuid.UUID) ([]GetChallengeRequirementsForEnforcementRow, error) {
+	rows, err := q.db.Query(ctx, getChallengeRequirementsForEnforcement, challengeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChallengeRequirementsForEnforcementRow
+	for rows.Next() {
+		var i GetChallengeRequirementsForEnforcementRow
+		if err := rows.Scan(&i.ID, &i.Title, &i.Category); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getChallenges = `-- name: GetChallenges :many
 SELECT c.id, c.title, c.description, c.category, c.points, c.initial_value, c.min_value, c.decay, c.solve_count, c.flag_hash, c.attribution, c.connection_info, c.max_attempts, c.max_attempts_window, c.position, c.next_challenge_id, c.state, c.is_regex, c.is_case_insensitive, c.flag_regex, c.flag_format_regex, c.created_at, c.updated_at, 0::int as solved
 FROM challenges c

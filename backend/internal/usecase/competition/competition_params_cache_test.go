@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 )
 
 func TestCompetitionParamUseCase_Get_WhenCacheHit_ReturnsFromRedis(t *testing.T) {
@@ -65,6 +66,37 @@ func TestCompetitionParamUseCase_Set_CallsCacheDelAndPubSubPublish(t *testing.T)
 	require.Len(t, pubsub.publishCalls, 1)
 	assert.Equal(t, configsInvChannel, pubsub.publishCalls[0].Channel)
 	assert.Equal(t, "1", pubsub.publishCalls[0].Message)
+}
+
+func TestCompetitionParamUseCase_Set_DefersInvalidationInTransaction(t *testing.T) {
+	t.Parallel()
+
+	d := newCompetitionTestDeps(t)
+	collector := txctx.NewCollector()
+	ctx := txctx.WithCollector(context.Background(), collector)
+	key, value := "k", "v"
+	actorID := uuid.New()
+
+	d.configRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
+	d.auditLogRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+
+	kv := &fakeKeyValueStore{store: map[string][]byte{configsCacheKey: []byte("stale")}}
+	pubsub := &fakePubSubStore{}
+
+	uc := d.createCompetitionParamUseCaseWithCache(kv, pubsub)
+	err := uc.Set(ctx, competitionParamSetParams(key, value, "", domain.CompetitionParamTypeString, "", actorID, ""))
+
+	assert.NoError(t, err)
+
+	_, ok := kv.store[configsCacheKey]
+	assert.True(t, ok, "invalidate should wait for outer commit")
+	assert.Empty(t, pubsub.publishCalls)
+
+	collector.Run(context.Background())
+
+	_, ok = kv.store[configsCacheKey]
+	assert.False(t, ok)
+	require.Len(t, pubsub.publishCalls, 1)
 }
 
 func TestCompetitionParamUseCase_Get_WhenRedisReturnsInvalidJSON_FallsBackToDB(t *testing.T) {

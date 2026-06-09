@@ -51,7 +51,7 @@ func TestChallengeUseCase_SubmitFlag_AlreadySolved(t *testing.T) {
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
@@ -86,7 +86,7 @@ func TestChallengeUseCase_SubmitFlag_BeginTxError(t *testing.T) {
 	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(expectedError)
 
 	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
@@ -130,7 +130,7 @@ func TestChallengeUseCase_SubmitFlag_CreateTxError(t *testing.T) {
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})
@@ -175,7 +175,7 @@ func TestChallengeUseCase_SubmitFlag_GetByTeamAndChallengeTxUnexpectedError(t *t
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	})

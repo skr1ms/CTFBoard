@@ -158,6 +158,71 @@ func TestFilesystemProvider_UploadDownload_WithNestedPath(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestFilesystemProvider_CanceledContext(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := os.MkdirTemp("", "ctf-platform-storage-canceled")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
+
+	provider, err := storage.NewFilesystemProvider(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = provider.Close() })
+
+	ctx := context.Background()
+	path := "cancel/file.txt"
+	content := []byte("content")
+
+	require.NoError(t, provider.Upload(ctx, path, bytes.NewReader(content), int64(len(content)), "text/plain"))
+
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = provider.Upload(canceledCtx, "cancel/new.txt", bytes.NewReader(content), int64(len(content)), "text/plain")
+	assert.ErrorIs(t, err, context.Canceled)
+
+	rc, err := provider.Download(canceledCtx, path)
+	require.Nil(t, rc)
+	assert.ErrorIs(t, err, context.Canceled)
+
+	_, err = provider.List(canceledCtx, ".")
+	assert.ErrorIs(t, err, context.Canceled)
+
+	err = provider.Delete(canceledCtx, path)
+	assert.ErrorIs(t, err, context.Canceled)
+
+	err = provider.Ping(canceledCtx)
+	assert.ErrorIs(t, err, context.Canceled)
+
+	_, err = provider.GetPresignedURL(canceledCtx, path, time.Hour)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestFilesystemProvider_UploadCanceledDuringCopyRemovesPartialFile(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := os.MkdirTemp("", "ctf-platform-storage-copy-cancel")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
+
+	provider, err := storage.NewFilesystemProvider(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = provider.Close() })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	path := "cancel/during-copy.txt"
+	reader := cancelingReader{
+		cancel: cancel,
+		data:   []byte("partial"),
+	}
+
+	err = provider.Upload(ctx, path, &reader, int64(len(reader.data)), "text/plain")
+	require.ErrorIs(t, err, context.Canceled)
+
+	_, statErr := os.Stat(filepath.Join(tmpDir, path))
+	require.True(t, os.IsNotExist(statErr))
+}
+
 func TestNewFilesystemProvider_InvalidPath(t *testing.T) {
 	t.Parallel()
 
@@ -189,4 +254,22 @@ func TestFilesystemProvider_Download_NotFound(t *testing.T) {
 	_, err = provider.Download(context.Background(), "nonexistent/path.txt")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "FilesystemProvider - Download")
+}
+
+type cancelingReader struct {
+	cancel context.CancelFunc
+	data   []byte
+	read   bool
+}
+
+func (r *cancelingReader) Read(p []byte) (int, error) {
+	if r.read {
+		return 0, io.EOF
+	}
+
+	r.read = true
+	n := copy(p, r.data)
+	r.cancel()
+
+	return n, nil
 }

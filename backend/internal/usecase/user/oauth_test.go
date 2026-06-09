@@ -133,6 +133,20 @@ func TestOAuthUseCase_ExchangeCode_RoundTripAndReplayRejected(t *testing.T) {
 	assert.ErrorIs(t, err, apperr.ErrTokenNotFound)
 }
 
+func TestOAuthUsernameCandidates_LongDesiredKeepsProviderHashSuffix(t *testing.T) {
+	t.Parallel()
+
+	longDesired := "this-username-is-way-too-long-for-the-allowed-oauth-username-length"
+
+	desired, fallbackA := oauthUsernameCandidates(longDesired, "github", "provider-user-a")
+	_, fallbackB := oauthUsernameCandidates(longDesired, "github", "provider-user-b")
+
+	assert.Len(t, desired, usernameMaxLen)
+	assert.LessOrEqual(t, len([]rune(fallbackA)), usernameMaxLen)
+	assert.Contains(t, fallbackA, "-github-")
+	assert.NotEqual(t, fallbackA, fallbackB)
+}
+
 func (d *oauthTestDeps) createUseCase() *OAuthUseCase {
 	return NewOAuthUseCase(OAuthDeps{
 		UserRepo: d.UserRepo, OAuthRepo: d.OAuthRepo, TM: d.TM,
@@ -209,6 +223,29 @@ func TestOAuthUseCase_ValidateState_Mismatch(t *testing.T) {
 	assert.False(t, d.createUseCase().ValidateState("cookie-state", "different-state"))
 }
 
+func TestOAuthUseCase_HandleCallback_UnverifiedExistingEmailReturnsEmailNotVerified(t *testing.T) {
+	t.Parallel()
+	d := newOAuthTestDeps(t)
+	uc := d.createUseCase()
+
+	existingUser := &domain.User{
+		ID:           uuid.New(),
+		Email:        "user@example.com",
+		Username:     "local-user",
+		PasswordHash: "local-password-hash",
+		IsVerified:   false,
+	}
+
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(defaultOAuthSettings(), nil).Once()
+	d.OAuthRepo.EXPECT().GetByProvider(mock.Anything, "github", "gh-1").Return(nil, apperr.ErrOAuthAccountNotFound).Once()
+	d.UserRepo.EXPECT().GetByEmail(mock.Anything, "user@example.com").Return(existingUser, nil).Once()
+
+	pair, err := uc.HandleCallback(context.Background(), "github", "oauth-code")
+
+	assert.Nil(t, pair)
+	assert.ErrorIs(t, err, apperr.ErrEmailNotVerified)
+}
+
 func TestOAuthUseCase_LoginExistingUser_Success(t *testing.T) {
 	t.Parallel()
 	d := newOAuthTestDeps(t)
@@ -241,7 +278,28 @@ func TestOAuthUseCase_LoginExistingUser_UserRepoError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestOAuthUseCase_LoginExistingUser_WasInBannedTeam_Rejected(t *testing.T) {
+func TestOAuthUseCase_LoginExistingUser_DirectBannedAllowedForAppealState(t *testing.T) {
+	t.Parallel()
+	d := newOAuthTestDeps(t)
+	uc := d.createUseCase()
+
+	userID := uuid.New()
+	existingAcc := newTestOAuthAccount(userID, "github", "gh-123", "old-token")
+	existingUser := &domain.User{ID: userID, Email: "user@gh.com", Username: "ghuser", Role: domain.RoleUser, IsBanned: true}
+	tokenPair := &jwtkit.TokenPair{AccessToken: "banned-access", RefreshToken: "banned-refresh", AccessExpiresAt: time.Now().Unix()}
+
+	d.UserRepo.EXPECT().GetByID(mock.Anything, userID).Return(existingUser, nil)
+	d.OAuthRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
+	d.JWTService.EXPECT().GenerateTokenPair(mock.Anything, userID, string(existingUser.Role)).Return(tokenPair, nil)
+	d.JWTService.EXPECT().ValidateAccessToken(mock.Anything, "banned-access").Return(&jwtkit.CustomClaims{}, nil)
+
+	pair, err := uc.loginExistingOAuthUser(context.Background(), existingAcc, &OAuthProviderToken{AccessToken: "new-token"}, "github")
+
+	require.NoError(t, err)
+	assert.Equal(t, "banned-access", pair.AccessToken)
+}
+
+func TestOAuthUseCase_LoginExistingUser_WasInBannedTeamAllowedForAppealState(t *testing.T) {
 	t.Parallel()
 	d := newOAuthTestDeps(t)
 	uc := d.createUseCase()
@@ -249,11 +307,65 @@ func TestOAuthUseCase_LoginExistingUser_WasInBannedTeam_Rejected(t *testing.T) {
 	userID := uuid.New()
 	existingAcc := newTestOAuthAccount(userID, "github", "gh-123", "old-token")
 	existingUser := &domain.User{ID: userID, Email: "user@gh.com", Username: "ghuser", Role: domain.RoleUser, WasInBannedTeam: true}
+	tokenPair := &jwtkit.TokenPair{AccessToken: "team-banned-access", RefreshToken: "team-banned-refresh", AccessExpiresAt: time.Now().Unix()}
 
 	d.UserRepo.EXPECT().GetByID(mock.Anything, userID).Return(existingUser, nil)
+	d.OAuthRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
+	d.JWTService.EXPECT().GenerateTokenPair(mock.Anything, userID, string(existingUser.Role)).Return(tokenPair, nil)
 
-	_, err := uc.loginExistingOAuthUser(context.Background(), existingAcc, &OAuthProviderToken{AccessToken: "new-token"}, "github")
-	assert.ErrorIs(t, err, apperr.ErrInvalidCredentials)
+	pair, err := uc.loginExistingOAuthUser(context.Background(), existingAcc, &OAuthProviderToken{AccessToken: "new-token"}, "github")
+	require.NoError(t, err)
+	assert.Equal(t, "team-banned-access", pair.AccessToken)
+}
+
+func TestOAuthUseCase_LinkExistingUser_DirectBannedAllowedForAppealState(t *testing.T) {
+	t.Parallel()
+	d := newOAuthTestDeps(t)
+	uc := d.createUseCase()
+
+	userID := uuid.New()
+	existingUser := &domain.User{ID: userID, Email: "user@gh.com", Username: "ghuser", Role: domain.RoleUser, IsBanned: true}
+	profile := &domain.OAuthUserProfile{ID: "gh-123", Email: existingUser.Email, Username: existingUser.Username}
+	tokenPair := &jwtkit.TokenPair{AccessToken: "linked-access", RefreshToken: "linked-refresh", AccessExpiresAt: time.Now().Unix()}
+
+	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.OAuthRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
+	d.JWTService.EXPECT().GenerateTokenPair(mock.Anything, userID, string(existingUser.Role)).Return(tokenPair, nil)
+	d.JWTService.EXPECT().ValidateAccessToken(mock.Anything, "linked-access").Return(&jwtkit.CustomClaims{}, nil)
+
+	pair, err := uc.linkOAuthToExistingUser(context.Background(), existingUser, profile, &OAuthProviderToken{AccessToken: "gh-access"}, "github")
+
+	require.NoError(t, err)
+	assert.Equal(t, "linked-access", pair.AccessToken)
+}
+
+func TestOAuthUseCase_LinkExistingUser_WasInBannedTeamAllowedForAppealState(t *testing.T) {
+	t.Parallel()
+	d := newOAuthTestDeps(t)
+	uc := d.createUseCase()
+
+	existingUser := &domain.User{
+		ID:              uuid.New(),
+		Email:           "user@gh.com",
+		Username:        "ghuser",
+		Role:            domain.RoleUser,
+		WasInBannedTeam: true,
+	}
+	profile := &domain.OAuthUserProfile{ID: "gh-123", Email: existingUser.Email, Username: existingUser.Username}
+	tokenPair := &jwtkit.TokenPair{AccessToken: "linked-team-banned-access", RefreshToken: "linked-team-banned-refresh", AccessExpiresAt: time.Now().Unix()}
+
+	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	})
+	d.OAuthRepo.EXPECT().Upsert(mock.Anything, mock.Anything).Return(nil)
+	d.JWTService.EXPECT().GenerateTokenPair(mock.Anything, existingUser.ID, string(existingUser.Role)).Return(tokenPair, nil)
+
+	pair, err := uc.linkOAuthToExistingUser(context.Background(), existingUser, profile, &OAuthProviderToken{AccessToken: "gh-access"}, "github")
+
+	require.NoError(t, err)
+	assert.Equal(t, "linked-team-banned-access", pair.AccessToken)
 }
 
 func TestOAuthUseCase_RegisterNewUser_Success(t *testing.T) {
@@ -268,7 +380,7 @@ func TestOAuthUseCase_RegisterNewUser_Success(t *testing.T) {
 		return fn(ctx)
 	})
 	d.UserRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Times(3)
-	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Twice()
 	d.UserRepo.EXPECT().GetByEmail(mock.Anything, "newuser@gh.com").Return(nil, apperr.ErrUserNotFound)
 	d.UserRepo.EXPECT().GetByUsername(mock.Anything, "newghuser").Return(nil, apperr.ErrUserNotFound)
 	d.UserRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Run(func(_ context.Context, u *domain.User) {
@@ -289,6 +401,7 @@ func TestOAuthUseCase_RegisterNewUser_TxError(t *testing.T) {
 
 	profile := &domain.OAuthUserProfile{ID: "gh-err", Email: "err@gh.com", Username: "erruser"}
 
+	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
 	d.TM.EXPECT().Run(mock.Anything, mock.Anything).Return(errors.New("tx error"))
 
 	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
@@ -302,9 +415,6 @@ func TestOAuthUseCase_RegisterNewUser_RegistrationClosed(t *testing.T) {
 
 	profile := &domain.OAuthUserProfile{ID: "gh-closed", Email: "new@gh.com", Username: "newuser"}
 
-	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
-		return fn(ctx)
-	})
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: false}, nil).Once()
 
 	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
@@ -322,9 +432,6 @@ func TestOAuthUseCase_RegisterNewUser_RegistrationVisibilityPrivate(t *testing.T
 
 	profile := &domain.OAuthUserProfile{ID: "gh-private", Email: "private@gh.com", Username: "privateuser"}
 
-	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
-		return fn(ctx)
-	})
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
 
 	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
@@ -345,9 +452,6 @@ func TestOAuthUseCase_RegisterNewUser_RegistrationCodeConfigured(t *testing.T) {
 
 	profile := &domain.OAuthUserProfile{ID: "gh-code", Email: "code@gh.com", Username: "codeuser"}
 
-	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
-		return fn(ctx)
-	})
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
 
 	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")
@@ -365,11 +469,7 @@ func TestOAuthUseCase_RegisterNewUser_MaxUsersReached(t *testing.T) {
 
 	profile := &domain.OAuthUserProfile{ID: "gh-full", Email: "full@gh.com", Username: "fulluser"}
 
-	d.TM.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
-		return fn(ctx)
-	})
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true, MaxUsers: 1}, nil).Once()
-	d.UserRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Once()
 	d.UserRepo.EXPECT().CountActiveUsers(mock.Anything).Return(int64(1), nil).Once()
 
 	_, err := uc.registerNewOAuthUser(context.Background(), profile, &OAuthProviderToken{AccessToken: "token"}, "github")

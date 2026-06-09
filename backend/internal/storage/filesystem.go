@@ -42,7 +42,11 @@ func NewFilesystemProvider(basePath string) (*FilesystemProvider, error) {
 	}, nil
 }
 
-func (p *FilesystemProvider) Upload(_ context.Context, path string, reader io.Reader, _ int64, _ string) error {
+func (p *FilesystemProvider) Upload(ctx context.Context, path string, reader io.Reader, _ int64, _ string) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("FilesystemProvider - Upload - context: %w", err)
+	}
+
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "/" {
 		err := p.root.MkdirAll(dir, defaultDirMode)
@@ -51,16 +55,27 @@ func (p *FilesystemProvider) Upload(_ context.Context, path string, reader io.Re
 		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("FilesystemProvider - Upload - context: %w", err)
+	}
+
 	file, err := p.root.Create(path)
 	if err != nil {
 		return fmt.Errorf("FilesystemProvider - Upload - Create: %w", err)
 	}
 
-	if _, err := io.Copy(file, reader); err != nil {
+	if _, err := io.Copy(file, contextReader{ctx: ctx, reader: reader}); err != nil {
 		_ = file.Close()
 		_ = p.root.Remove(path)
 
 		return fmt.Errorf("FilesystemProvider - Upload - Copy: %w", err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		_ = file.Close()
+		_ = p.root.Remove(path)
+
+		return fmt.Errorf("FilesystemProvider - Upload - context: %w", err)
 	}
 
 	if err := file.Close(); err != nil {
@@ -72,10 +87,20 @@ func (p *FilesystemProvider) Upload(_ context.Context, path string, reader io.Re
 	return nil
 }
 
-func (p *FilesystemProvider) Download(_ context.Context, path string) (io.ReadCloser, error) {
+func (p *FilesystemProvider) Download(ctx context.Context, path string) (io.ReadCloser, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("FilesystemProvider - Download - context: %w", err)
+	}
+
 	file, err := p.root.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("FilesystemProvider - Download: %w", err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		_ = file.Close()
+
+		return nil, fmt.Errorf("FilesystemProvider - Download - context: %w", err)
 	}
 
 	return file, nil
@@ -85,10 +110,18 @@ func (p *FilesystemProvider) Close() error {
 	return p.root.Close()
 }
 
-func (p *FilesystemProvider) Delete(_ context.Context, path string) error {
+func (p *FilesystemProvider) Delete(ctx context.Context, path string) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("FilesystemProvider - Delete - context: %w", err)
+	}
+
 	err := p.root.Remove(path)
 	if err != nil {
 		return fmt.Errorf("FilesystemProvider - Delete: %w", err)
+	}
+
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("FilesystemProvider - Delete - context: %w", err)
 	}
 
 	dir := filepath.Dir(path)
@@ -99,7 +132,11 @@ func (p *FilesystemProvider) Delete(_ context.Context, path string) error {
 	return nil
 }
 
-func (p *FilesystemProvider) Ping(_ context.Context) error {
+func (p *FilesystemProvider) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("FilesystemProvider - Ping - context: %w", err)
+	}
+
 	_, err := os.Stat(p.basePath)
 	if err != nil {
 		return fmt.Errorf("FilesystemProvider - Ping: %w", err)
@@ -162,10 +199,32 @@ func (p *FilesystemProvider) List(ctx context.Context, prefix string) ([]string,
 	return paths, nil
 }
 
-func (p *FilesystemProvider) GetPresignedURL(_ context.Context, path string, _ time.Duration) (string, error) {
+func (p *FilesystemProvider) GetPresignedURL(ctx context.Context, path string, _ time.Duration) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", fmt.Errorf("FilesystemProvider - GetPresignedURL - context: %w", err)
+	}
+
 	if strings.HasPrefix(path, PrefixUsers) || strings.HasPrefix(path, PrefixTeams) {
 		return fmt.Sprintf("/api/v1/avatars/%s", path), nil
 	}
 
 	return fmt.Sprintf("/api/v1/files/download/%s", path), nil
+}
+
+type contextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r contextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+
+	n, err := r.reader.Read(p)
+	if ctxErr := r.ctx.Err(); ctxErr != nil {
+		return n, ctxErr
+	}
+
+	return n, err
 }

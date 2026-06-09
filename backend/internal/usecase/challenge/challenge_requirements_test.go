@@ -11,7 +11,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
 )
 
 func TestChallengeUseCase_GetRequirements_Success(t *testing.T) {
@@ -21,22 +21,22 @@ func TestChallengeUseCase_GetRequirements_Success(t *testing.T) {
 
 	challengeID := uuid.New()
 	cat := "web"
-	req1 := &repo.ChallengeRequirement{
+	req1 := &domain.ChallengeRequirement{
 		ChallengeID:    uuid.New(),
 		ChallengeTitle: "Prereq One",
 		Category:       &cat,
 	}
-	req2 := &repo.ChallengeRequirement{
+	req2 := &domain.ChallengeRequirement{
 		ChallengeID:    uuid.New(),
 		ChallengeTitle: "Prereq Two",
 		Category:       nil,
 	}
-	requirements := []*repo.ChallengeRequirement{req1, req2}
+	requirements := []*domain.ChallengeRequirement{req1, req2}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
 	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
 
-	got, err := uc.GetRequirements(context.Background(), challengeID)
+	got, err := uc.GetRequirements(context.Background(), challengeID, nil, true)
 
 	assert.NoError(t, err)
 	assert.Len(t, got, 2)
@@ -54,11 +54,97 @@ func TestChallengeUseCase_GetRequirements_ChallengeNotFound(t *testing.T) {
 	challengeID := uuid.New()
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(nil, apperr.ErrChallengeNotFound)
 
-	got, err := uc.GetRequirements(context.Background(), challengeID)
+	got, err := uc.GetRequirements(context.Background(), challengeID, nil, true)
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, got)
+}
+
+func TestChallengeUseCase_GetRequirements_UnmetWithoutAnonymizeReturnsNotFound(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	challengeID := uuid.New()
+	teamID := uuid.New()
+	prereqID := uuid.New()
+	requirements := []*domain.ChallengeRequirement{
+		{ChallengeID: prereqID, ChallengeTitle: "Prereq", Category: nil},
+	}
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
+	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, []uuid.UUID{prereqID}).Return([]uuid.UUID{}, nil)
+
+	got, err := uc.GetRequirements(context.Background(), challengeID, &teamID, false)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
+	assert.Nil(t, got)
+}
+
+func TestChallengeUseCase_GetRequirements_UnmetWithAnonymizeReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+	compParams := compMock.NewMockCompetitionParamUseCase(t)
+	uc.deps.CompParamUC = compParams
+
+	challengeID := uuid.New()
+	teamID := uuid.New()
+	prereqID := uuid.New()
+	requirements := []*domain.ChallengeRequirement{
+		{ChallengeID: prereqID, ChallengeTitle: "Prereq", Category: nil},
+	}
+
+	compParams.EXPECT().GetBool(mock.Anything, "challenge_prerequisite_anonymize", false).Return(true).Once()
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
+	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, []uuid.UUID{prereqID}).Return([]uuid.UUID{}, nil)
+
+	got, err := uc.GetRequirements(context.Background(), challengeID, &teamID, false)
+
+	assert.NoError(t, err)
+	assert.Empty(t, got)
+}
+
+func TestChallengeUseCase_GetRequirements_MetReturnsMetadata(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	challengeID := uuid.New()
+	teamID := uuid.New()
+	prereqID := uuid.New()
+	requirements := []*domain.ChallengeRequirement{
+		{ChallengeID: prereqID, ChallengeTitle: "Prereq", Category: nil},
+	}
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
+	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
+	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, []uuid.UUID{prereqID}).Return([]uuid.UUID{prereqID}, nil)
+
+	got, err := uc.GetRequirements(context.Background(), challengeID, &teamID, false)
+
+	assert.NoError(t, err)
+	assert.Equal(t, requirements, got)
+}
+
+func TestChallengeUseCase_GetTags_HiddenChallengeNotFound(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc, _ := d.createChallengeUseCase()
+
+	challengeID := uuid.New()
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateHidden}, nil)
+
+	got, err := uc.GetTags(context.Background(), challengeID, nil)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
+	assert.Nil(t, got)
+	d.tagRepo.AssertNotCalled(t, "GetByChallengeID", mock.Anything, mock.Anything)
 }
 
 func TestChallengeUseCase_SetRequirements_Success(t *testing.T) {
@@ -83,7 +169,8 @@ func TestChallengeUseCase_SetRequirements_Success(t *testing.T) {
 		assert.True(t, ok)
 		assert.NoError(t, fn(ctx))
 	}).Return(nil)
-	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
+	d.challengeRepo.On("AcquireRequirementsLock", mock.Anything).Return(nil)
+	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
 	d.challengeRepo.On("GetAllRequirementPairs", mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil)
 	d.challengeRepo.On("SetRequirements", mock.Anything, challengeID, reqIDs).Return(nil)
 
@@ -126,7 +213,8 @@ func TestChallengeUseCase_SetRequirements_Cycle(t *testing.T) {
 		assert.True(t, ok)
 		assert.Error(t, fn(ctx))
 	}).Return(apperr.NewValidationErrorf("requirements contain a cycle"))
-	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
+	d.challengeRepo.On("AcquireRequirementsLock", mock.Anything).Return(nil)
+	d.challengeRepo.On("GetByIDForUpdate", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID}, nil)
 	d.challengeRepo.On("GetAllRequirementPairs", mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil)
 
 	err := uc.SetRequirements(context.Background(), challengeID, reqIDs)
@@ -147,12 +235,12 @@ func TestChallengeUseCase_GetDetail_RequirementsNotMet_ReturnsNotFound(t *testin
 	teamID := uuid.New()
 	prereqID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Locked", "Web", 100, "")
-	requirements := []*repo.ChallengeRequirement{
+	requirements := []*domain.ChallengeRequirement{
 		{ChallengeID: prereqID, ChallengeTitle: "Prereq", Category: nil},
 	}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return(requirements, nil)
 	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, mock.Anything).Return([]uuid.UUID{}, nil)
 
 	detail, err := uc.GetDetail(context.Background(), challengeID, &teamID)
@@ -193,14 +281,14 @@ func TestChallengeUseCase_SubmitFlag_RequirementsNotMet(t *testing.T) {
 	flag := "flag{test}"
 	challenge := newTestChallenge(challengeID, "Main Challenge", "Web", 100, challengeTestSha256Hash(flag))
 	team := newTestTeam(teamID)
-	requirements := []*repo.ChallengeRequirement{
+	requirements := []*domain.ChallengeRequirement{
 		{ChallengeID: prereqID, ChallengeTitle: "Prereq", Category: nil},
 	}
 
 	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return(requirements, nil)
 	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, mock.Anything).Return([]uuid.UUID{}, nil)
 
 	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
@@ -222,7 +310,7 @@ func TestChallengeUseCase_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 	flag := "flag{test}"
 	challenge := newTestChallenge(challengeID, "Main Challenge", "Web", 100, challengeTestSha256Hash(flag))
 	team := newTestTeam(teamID)
-	requirements := []*repo.ChallengeRequirement{
+	requirements := []*domain.ChallengeRequirement{
 		{ChallengeID: prereqID, ChallengeTitle: "Prereq", Category: nil},
 	}
 
@@ -232,7 +320,7 @@ func TestChallengeUseCase_SubmitFlag_RequirementsMet_Success(t *testing.T) {
 	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return(requirements, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return(requirements, nil)
 	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, mock.Anything).Return([]uuid.UUID{prereqID}, nil)
 
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {

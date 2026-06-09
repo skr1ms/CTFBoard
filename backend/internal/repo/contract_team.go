@@ -14,6 +14,15 @@ import (
 // =============================================================================
 
 type (
+	TeamAdminBanStatus  string
+	TeamAdminVisibility string
+
+	TeamAdminSearchFilter struct {
+		Search     *string
+		BanStatus  TeamAdminBanStatus
+		Visibility TeamAdminVisibility
+	}
+
 	// TeamRepository provides persistence operations for teams and their audit logs.
 	TeamRepository interface {
 		Create(ctx context.Context, team *domain.Team) error
@@ -25,8 +34,8 @@ type (
 		GetAll(ctx context.Context) ([]*domain.Team, error)
 		Search(ctx context.Context, search *string, limit, offset int) ([]*domain.Team, error)
 		CountSearch(ctx context.Context, search *string) (int64, error)
-		SearchAdmin(ctx context.Context, search *string, limit, offset int) ([]*domain.Team, error)
-		CountSearchAdmin(ctx context.Context, search *string) (int64, error)
+		SearchAdmin(ctx context.Context, filter TeamAdminSearchFilter, limit, offset int) ([]*domain.Team, error)
+		CountSearchAdmin(ctx context.Context, filter TeamAdminSearchFilter) (int64, error)
 		CountTeamMembers(ctx context.Context, teamID uuid.UUID) (int, error)
 		CountActiveTeams(ctx context.Context) (int, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
@@ -49,6 +58,16 @@ type (
 		ClearAvatarURL(ctx context.Context, teamID uuid.UUID) error
 		ListAllTeamAvatarURLs(ctx context.Context) ([]*string, error)
 	}
+)
+
+const (
+	TeamAdminBanStatusAll       TeamAdminBanStatus = "all"
+	TeamAdminBanStatusNotBanned TeamAdminBanStatus = "not_banned"
+	TeamAdminBanStatusBanned    TeamAdminBanStatus = "banned"
+
+	TeamAdminVisibilityAll     TeamAdminVisibility = "all"
+	TeamAdminVisibilityVisible TeamAdminVisibility = "visible"
+	TeamAdminVisibilityHidden  TeamAdminVisibility = "hidden"
 )
 
 // =============================================================================

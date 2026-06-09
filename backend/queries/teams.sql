@@ -95,13 +95,33 @@ SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, 
 FROM teams
 WHERE deleted_at IS NULL
   AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%')
+  AND (
+    sqlc.arg('ban_status')::text = 'all'
+    OR (sqlc.arg('ban_status')::text = 'banned' AND is_banned = true)
+    OR (sqlc.arg('ban_status')::text = 'not_banned' AND is_banned = false)
+  )
+  AND (
+    sqlc.arg('visibility')::text = 'all'
+    OR (sqlc.arg('visibility')::text = 'hidden' AND is_hidden = true)
+    OR (sqlc.arg('visibility')::text = 'visible' AND is_hidden = false)
+  )
 ORDER BY created_at ASC
 LIMIT $1 OFFSET $2;
 
 -- name: CountSearchTeamsAdmin :one
 SELECT COUNT(*)::bigint FROM teams
 WHERE deleted_at IS NULL
-  AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%');
+  AND (sqlc.narg('search')::text IS NULL OR name ILIKE '%' || sqlc.narg('search') || '%')
+  AND (
+    sqlc.arg('ban_status')::text = 'all'
+    OR (sqlc.arg('ban_status')::text = 'banned' AND is_banned = true)
+    OR (sqlc.arg('ban_status')::text = 'not_banned' AND is_banned = false)
+  )
+  AND (
+    sqlc.arg('visibility')::text = 'all'
+    OR (sqlc.arg('visibility')::text = 'hidden' AND is_hidden = true)
+    OR (sqlc.arg('visibility')::text = 'visible' AND is_hidden = false)
+  );
 
 -- name: LockTeam :one
 SELECT id FROM teams WHERE id = $1 AND deleted_at IS NULL FOR UPDATE;

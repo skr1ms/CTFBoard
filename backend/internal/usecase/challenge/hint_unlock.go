@@ -167,6 +167,10 @@ func (uc *HintUseCase) unlockHintInTx(ctx context.Context, userID, teamID, hintI
 		unlockedSet[id] = struct{}{}
 	}
 
+	if _, ok := unlockedSet[hint.ID]; ok {
+		return apperr.ErrHintAlreadyUnlocked
+	}
+
 	for _, h := range hints {
 		if h.ID == hint.ID {
 			continue

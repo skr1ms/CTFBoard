@@ -163,7 +163,7 @@ func (d *challengeTestDeps) createHintUseCase() (*HintUseCase, redismock.ClientM
 }
 
 func (d *challengeTestDeps) createTagUseCase() *TagUseCase {
-	return NewTagUseCase(TagDeps{TagRepo: d.tagRepo, ChallengeRepo: d.challengeRepo})
+	return NewTagUseCase(TagDeps{TagRepo: d.tagRepo, ChallengeRepo: d.challengeRepo, SolveRepo: d.solveRepo})
 }
 
 func (d *challengeTestDeps) createTopicUseCase() *TopicUseCase {
@@ -171,7 +171,7 @@ func (d *challengeTestDeps) createTopicUseCase() *TopicUseCase {
 }
 
 func (d *challengeTestDeps) createCommentUseCase() *CommentUseCase {
-	return NewCommentUseCase(CommentDeps{CommentRepo: d.commentRepo, ChallengeRepo: d.challengeRepo})
+	return NewCommentUseCase(CommentDeps{CommentRepo: d.commentRepo, ChallengeRepo: d.challengeRepo, SolveRepo: d.solveRepo})
 }
 
 func challengeTestSha256Hash(text string) string {
@@ -187,8 +187,8 @@ func newTestChallenge(id uuid.UUID, title, category string, points int, flagHash
 	}
 }
 
-func newTestChallengeWithSolved(challenge *domain.Challenge, solved bool) *repo.ChallengeWithSolved {
-	return &repo.ChallengeWithSolved{Challenge: challenge, Solved: solved}
+func newTestChallengeWithSolved(challenge *domain.Challenge, solved bool) *domain.ChallengeWithSolved {
+	return &domain.ChallengeWithSolved{Challenge: challenge, Solved: solved}
 }
 
 func newTestTeam(id uuid.UUID) *domain.Team {

@@ -14,8 +14,8 @@ import (
 	logMock "github.com/wahrwelt-kit/go-logkit/mock"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	backupMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/backup/mock"
+	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
 )
 
 func TestNewBackupUseCase(t *testing.T) {
@@ -39,7 +39,7 @@ func TestBackupUseCase_Export_Success(t *testing.T) {
 	challengeID := uuid.New()
 
 	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
-	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*domain.ChallengeWithSolved{
 		{
 			Challenge: &domain.Challenge{
 				ID:              challengeID,
@@ -91,7 +91,7 @@ func TestBackupUseCase_Export_CompetitionRepoError(t *testing.T) {
 	log := logMock.NewMockLogger(t)
 
 	compRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
-	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*domain.ChallengeWithSolved{}, nil).Maybe()
 	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
 	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 
@@ -120,7 +120,7 @@ func TestBackupUseCase_ExportZIP_Success(t *testing.T) {
 
 	comp := &domain.Competition{Name: "Test", Mode: "teams_only"}
 	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
-	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Once()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*domain.ChallengeWithSolved{}, nil).Once()
 	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
 	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 	log.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
@@ -154,7 +154,7 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 	log := logMock.NewMockLogger(t)
 
 	compRepo.EXPECT().Get(mock.Anything).Return(nil, errors.New("db error")).Once()
-	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*domain.ChallengeWithSolved{}, nil).Maybe()
 	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
 	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 
@@ -177,6 +177,50 @@ func TestBackupUseCase_ExportZIP_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "db error")
 }
 
+func TestBackupUseCase_ExportZIP_FileDownloadErrorFailsStream(t *testing.T) {
+	t.Parallel()
+	compRepo := backupMock.NewMockCompetitionRepository(t)
+	challRepo := backupMock.NewMockChallengeRepository(t)
+	fileRepo := challengeMock.NewMockFileRepository(t)
+	storage := backupMock.NewMockBackupStorage(t)
+	log := logMock.NewMockLogger(t)
+
+	comp := &domain.Competition{Name: "Test", Mode: "teams_only"}
+	challengeID := uuid.New()
+	file := &domain.File{
+		ID:          uuid.New(),
+		Type:        domain.FileTypeChallenge,
+		ChallengeID: &challengeID,
+		Location:    "tasks/0123456789abcdef/task.txt",
+		Filename:    "task.txt",
+	}
+
+	compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*domain.ChallengeWithSolved{}, nil).Once()
+	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
+	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
+	fileRepo.EXPECT().GetAll(mock.Anything).Return([]*domain.File{file}, nil).Once()
+	storage.EXPECT().Download(mock.Anything, file.Location).Return(nil, errors.New("storage unavailable")).Once()
+
+	uc := NewBackupUseCase(BackupDeps{
+		CompetitionRepo: compRepo,
+		ChallengeRepo:   challRepo,
+		FileRepo:        fileRepo,
+		Storage:         storage,
+		Logger:          log,
+	})
+
+	rc, err := uc.ExportZIP(context.Background(), domain.ExportOptions{IncludeFiles: true})
+	require.NoError(t, err)
+
+	defer rc.Close()
+
+	_, err = io.ReadAll(rc)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "storage unavailable")
+}
+
 func TestBackupUseCase_ExportZIP_CloseCancelsWorker(t *testing.T) {
 	t.Parallel()
 	compRepo := backupMock.NewMockCompetitionRepository(t)
@@ -192,7 +236,7 @@ func TestBackupUseCase_ExportZIP_CloseCancelsWorker(t *testing.T) {
 
 		return nil, ctx.Err()
 	}).Once()
-	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*repo.ChallengeWithSolved{}, nil).Maybe()
+	challRepo.EXPECT().GetAllForBackup(mock.Anything).Return([]*domain.ChallengeWithSolved{}, nil).Maybe()
 	challRepo.EXPECT().GetAllRequirementPairs(mock.Anything).Return([]*domain.ChallengeRequirementPair{}, nil).Maybe()
 	challRepo.EXPECT().GetAllSolutions(mock.Anything).Return([]*domain.SolutionBackup{}, nil).Maybe()
 

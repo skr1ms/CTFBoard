@@ -2,6 +2,7 @@ package challenge
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -75,4 +76,104 @@ func TestFileUseCase_GetByChallengeIDWithAccess_WriteupsDisabledDenied(t *testin
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, apperr.ErrWriteupsDisabled)
+}
+
+func TestFileUseCase_GetDownloadURLWithAccess_PageFilePublishedAllowed(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc := d.createFileUseCase()
+
+	pageID := uuid.New()
+	fileID := uuid.New()
+	uc.deps.PageRepo = fakePageReader{pages: map[uuid.UUID]*domain.Page{
+		pageID: {ID: pageID, IsDraft: false},
+	}}
+
+	d.fileRepo.On("GetByID", mock.Anything, fileID).Return(&domain.File{
+		ID:       fileID,
+		Type:     domain.FileTypePage,
+		PageID:   &pageID,
+		Location: "tasks/0123456789abcdef/rules.pdf",
+	}, nil).Once()
+
+	url, err := uc.GetDownloadURLWithAccess(context.Background(), fileID, nil, false)
+
+	assert.NoError(t, err)
+	assert.True(t, strings.HasPrefix(url, "http://localhost:8080/api/v1/files/download/tasks/0123456789abcdef/rules.pdf?token="))
+}
+
+func TestFileUseCase_GetDownloadURLWithAccess_InvalidStorageLocationDenied(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc := d.createFileUseCase()
+
+	fileID := uuid.New()
+	d.fileRepo.On("GetByID", mock.Anything, fileID).Return(&domain.File{
+		ID:       fileID,
+		Type:     domain.FileTypeChallenge,
+		Location: "pages/rules.pdf",
+	}, nil).Once()
+
+	url, err := uc.GetDownloadURLWithAccess(context.Background(), fileID, nil, true)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrFileNotFound)
+	assert.Empty(t, url)
+}
+
+func TestFileUseCase_GetDownloadURLWithAccess_PageFileDraftDenied(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc := d.createFileUseCase()
+
+	pageID := uuid.New()
+	fileID := uuid.New()
+	uc.deps.PageRepo = fakePageReader{pages: map[uuid.UUID]*domain.Page{
+		pageID: {ID: pageID, IsDraft: true},
+	}}
+
+	d.fileRepo.On("GetByID", mock.Anything, fileID).Return(&domain.File{
+		ID:       fileID,
+		Type:     domain.FileTypePage,
+		PageID:   &pageID,
+		Location: "tasks/0123456789abcdef/draft.pdf",
+	}, nil).Once()
+
+	url, err := uc.GetDownloadURLWithAccess(context.Background(), fileID, nil, false)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrFileNotFound)
+	assert.Empty(t, url)
+}
+
+func TestFileUseCase_GetDownloadURLWithAccess_PageFileWithoutPageDenied(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	uc := d.createFileUseCase()
+
+	fileID := uuid.New()
+	d.fileRepo.On("GetByID", mock.Anything, fileID).Return(&domain.File{
+		ID:       fileID,
+		Type:     domain.FileTypePage,
+		Location: "pages/orphan.pdf",
+	}, nil).Once()
+
+	url, err := uc.GetDownloadURLWithAccess(context.Background(), fileID, nil, false)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrFileNotFound)
+	assert.Empty(t, url)
+}
+
+type fakePageReader struct {
+	pages map[uuid.UUID]*domain.Page
+}
+
+func (r fakePageReader) GetByID(_ context.Context, ID uuid.UUID) (*domain.Page, error) {
+	page, ok := r.pages[ID]
+	if !ok {
+		return nil, apperr.ErrPageNotFound
+	}
+
+	return page, nil
 }

@@ -64,6 +64,61 @@ func (q *Queries) CountSearchUsers(ctx context.Context, search *string) (int64, 
 	return column_1, err
 }
 
+const countSearchUsersAdmin = `-- name: CountSearchUsersAdmin :one
+SELECT COUNT(*)::bigint
+FROM users
+WHERE (
+    $1::text IS NULL
+    OR username ILIKE '%' || $1 || '%'
+    OR email ILIKE '%' || $1 || '%'
+  )
+  AND (
+    $2::text = 'all'
+    OR ($2::text = 'direct' AND is_banned = true)
+    OR ($2::text = 'team_inherited' AND is_banned = false AND was_in_banned_team = true AND role <> 'admin')
+    OR ($2::text = 'blocked' AND (is_banned = true OR (was_in_banned_team = true AND role <> 'admin')))
+    OR ($2::text = 'not_banned' AND is_banned = false AND NOT (was_in_banned_team = true AND role <> 'admin'))
+  )
+`
+
+type CountSearchUsersAdminParams struct {
+	Search    *string `json:"search"`
+	BanStatus string  `json:"ban_status"`
+}
+
+func (q *Queries) CountSearchUsersAdmin(ctx context.Context, arg CountSearchUsersAdminParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchUsersAdmin, arg.Search, arg.BanStatus)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countSearchUsersAdminByIP = `-- name: CountSearchUsersAdminByIP :one
+SELECT COUNT(DISTINCT u.id)::bigint
+FROM users u
+INNER JOIN tracking t ON t.user_id = u.id
+WHERE t.ip = $1
+  AND (
+    $2::text = 'all'
+    OR ($2::text = 'direct' AND u.is_banned = true)
+    OR ($2::text = 'team_inherited' AND u.is_banned = false AND u.was_in_banned_team = true AND u.role <> 'admin')
+    OR ($2::text = 'blocked' AND (u.is_banned = true OR (u.was_in_banned_team = true AND u.role <> 'admin')))
+    OR ($2::text = 'not_banned' AND u.is_banned = false AND NOT (u.was_in_banned_team = true AND u.role <> 'admin'))
+  )
+`
+
+type CountSearchUsersAdminByIPParams struct {
+	IP        string `json:"ip"`
+	BanStatus string `json:"ban_status"`
+}
+
+func (q *Queries) CountSearchUsersAdminByIP(ctx context.Context, arg CountSearchUsersAdminByIPParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchUsersAdminByIP, arg.IP, arg.BanStatus)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countSearchUsersByIP = `-- name: CountSearchUsersByIP :one
 SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
@@ -422,6 +477,135 @@ type SearchUsersParams struct {
 
 func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]User, error) {
 	rows, err := q.db.Query(ctx, searchUsers, arg.Limit, arg.Offset, arg.Search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Username,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.IsVerified,
+			&i.VerifiedAt,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.WasInBannedTeam,
+			&i.AvatarUrl,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsersAdmin = `-- name: SearchUsersAdmin :many
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, avatar_url, created_at
+FROM users
+WHERE (
+    $3::text IS NULL
+    OR username ILIKE '%' || $3 || '%'
+    OR email ILIKE '%' || $3 || '%'
+  )
+  AND (
+    $4::text = 'all'
+    OR ($4::text = 'direct' AND is_banned = true)
+    OR ($4::text = 'team_inherited' AND is_banned = false AND was_in_banned_team = true AND role <> 'admin')
+    OR ($4::text = 'blocked' AND (is_banned = true OR (was_in_banned_team = true AND role <> 'admin')))
+    OR ($4::text = 'not_banned' AND is_banned = false AND NOT (was_in_banned_team = true AND role <> 'admin'))
+  )
+ORDER BY created_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type SearchUsersAdminParams struct {
+	Limit     int32   `json:"limit"`
+	Offset    int32   `json:"offset"`
+	Search    *string `json:"search"`
+	BanStatus string  `json:"ban_status"`
+}
+
+func (q *Queries) SearchUsersAdmin(ctx context.Context, arg SearchUsersAdminParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, searchUsersAdmin,
+		arg.Limit,
+		arg.Offset,
+		arg.Search,
+		arg.BanStatus,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeamID,
+			&i.Username,
+			&i.Email,
+			&i.PasswordHash,
+			&i.Role,
+			&i.IsVerified,
+			&i.VerifiedAt,
+			&i.IsBanned,
+			&i.BannedAt,
+			&i.BannedReason,
+			&i.WasInBannedTeam,
+			&i.AvatarUrl,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsersAdminByIP = `-- name: SearchUsersAdminByIP :many
+SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u.is_verified, u.verified_at, u.is_banned, u.banned_at, u.banned_reason, u.was_in_banned_team, u.avatar_url, u.created_at
+FROM users u
+INNER JOIN tracking t ON t.user_id = u.id
+WHERE t.ip = $1
+  AND (
+    $4::text = 'all'
+    OR ($4::text = 'direct' AND u.is_banned = true)
+    OR ($4::text = 'team_inherited' AND u.is_banned = false AND u.was_in_banned_team = true AND u.role <> 'admin')
+    OR ($4::text = 'blocked' AND (u.is_banned = true OR (u.was_in_banned_team = true AND u.role <> 'admin')))
+    OR ($4::text = 'not_banned' AND u.is_banned = false AND NOT (u.was_in_banned_team = true AND u.role <> 'admin'))
+  )
+ORDER BY u.created_at ASC
+LIMIT $2 OFFSET $3
+`
+
+type SearchUsersAdminByIPParams struct {
+	IP        string `json:"ip"`
+	Limit     int32  `json:"limit"`
+	Offset    int32  `json:"offset"`
+	BanStatus string `json:"ban_status"`
+}
+
+func (q *Queries) SearchUsersAdminByIP(ctx context.Context, arg SearchUsersAdminByIPParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, searchUsersAdminByIP,
+		arg.IP,
+		arg.Limit,
+		arg.Offset,
+		arg.BanStatus,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,8 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 func TestTeamUseCase_AdminListTeams_Success(t *testing.T) {
@@ -23,12 +25,24 @@ func TestTeamUseCase_AdminListTeams_Success(t *testing.T) {
 	}).Once()
 
 	teams := []*domain.Team{{ID: uuid.New(), Name: "AdminTeam1"}}
-	d.teamRepo.EXPECT().SearchAdmin(mock.Anything, (*string)(nil), 10, 0).Return(teams, nil).Once()
-	d.teamRepo.EXPECT().CountSearchAdmin(mock.Anything, (*string)(nil)).Return(int64(1), nil).Once()
+	filter := repo.TeamAdminSearchFilter{
+		Search:     nil,
+		BanStatus:  repo.TeamAdminBanStatusAll,
+		Visibility: repo.TeamAdminVisibilityAll,
+	}
+	d.teamRepo.EXPECT().SearchAdmin(mock.Anything, filter, 10, 0).Return(teams, nil).Once()
+	d.teamRepo.EXPECT().CountSearchAdmin(mock.Anything, filter).Return(int64(1), nil).Once()
 
 	uc := d.createUseCase()
 
-	result, err := uc.AdminListTeams(context.Background(), nil, 1, 10)
+	result, err := uc.AdminListTeams(
+		context.Background(),
+		nil,
+		usecase.AdminTeamBanStatusAll,
+		usecase.AdminTeamVisibilityAll,
+		1,
+		10,
+	)
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -47,7 +61,14 @@ func TestTeamUseCase_AdminListTeams_Error(t *testing.T) {
 
 	uc := d.createUseCase()
 
-	_, err := uc.AdminListTeams(context.Background(), nil, 1, 10)
+	_, err := uc.AdminListTeams(
+		context.Background(),
+		nil,
+		usecase.AdminTeamBanStatusAll,
+		usecase.AdminTeamVisibilityAll,
+		1,
+		10,
+	)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "AdminListTeams")
@@ -157,7 +178,7 @@ func TestTeamUseCase_AdminAddMember_Success(t *testing.T) {
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(nonSoloTeam, nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	d.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return([]*domain.User{}, nil).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", MaxTeamSize: 5}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", MaxTeamSize: 5}, nil).Once()
 	d.userRepo.EXPECT().UpdateTeamID(mock.Anything, userID, &teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
 		return l.TeamID == teamID && l.UserID != nil && *l.UserID == userID && l.Action == domain.TeamActionJoined

@@ -14,26 +14,30 @@ import (
 // flip from racing with score recalculations.
 func (uc *TeamUseCase) SetHidden(ctx context.Context, teamID uuid.UUID, hidden bool) error {
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
-			return fmt.Errorf("TeamUseCase - SetHidden - TeamRepo.Lock: %w", err)
-		}
-
-		_, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
-		if err != nil {
-			return fmt.Errorf("TeamUseCase - SetHidden - TeamRepo.GetByID: %w", err)
-		}
-
-		if err := uc.deps.TeamRepo.SetHidden(ctx, teamID, hidden); err != nil {
-			return fmt.Errorf("TeamUseCase - SetHidden - TeamRepo.SetHidden: %w", err)
-		}
-
-		return nil
+		return uc.setHiddenTx(ctx, teamID, hidden)
 	})
 	if err != nil {
 		return fmt.Errorf("TeamUseCase - SetHidden - TM.Run: %w", err)
 	}
 
 	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, teamID)
+
+	return nil
+}
+
+func (uc *TeamUseCase) setHiddenTx(ctx context.Context, teamID uuid.UUID, hidden bool) error {
+	if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
+		return fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.Lock: %w", err)
+	}
+
+	_, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.GetByID: %w", err)
+	}
+
+	if err := uc.deps.TeamRepo.SetHidden(ctx, teamID, hidden); err != nil {
+		return fmt.Errorf("TeamUseCase - setHiddenTx - TeamRepo.SetHidden: %w", err)
+	}
 
 	return nil
 }

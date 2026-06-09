@@ -50,6 +50,10 @@ func (uc *AwardUseCase) Create(ctx context.Context, teamID uuid.UUID, value int,
 
 	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		if uc.deps.TeamRepo != nil {
+			if err := uc.deps.TeamRepo.Lock(ctx, teamID); err != nil {
+				return fmt.Errorf("AwardUseCase - Create - TeamRepo.Lock: %w", err)
+			}
+
 			team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
 			if err != nil {
 				return fmt.Errorf("AwardUseCase - Create - TeamRepo.GetByID: %w", err)

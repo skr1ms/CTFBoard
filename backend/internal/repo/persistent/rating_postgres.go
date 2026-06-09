@@ -94,15 +94,32 @@ func (r *RatingRepo) DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
 	return nil
 }
 
+func (r *RatingRepo) SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.Q(ctx).SoftBanRatingsByTeamID(ctx, &teamID); err != nil {
+		return fmt.Errorf("RatingRepo - SoftBanByTeamID: %w", err)
+	}
+
+	return nil
+}
+
+func (r *RatingRepo) RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error {
+	if err := r.Q(ctx).RestoreRatingsByBannedTeamID(ctx, &teamID); err != nil {
+		return fmt.Errorf("RatingRepo - RestoreByBannedTeamID: %w", err)
+	}
+
+	return nil
+}
+
 func toDomainRating(row sqlc.Rating) *domain.Rating {
 	return &domain.Rating{
-		ID:          row.ID,
-		ChallengeID: row.ChallengeID,
-		UserID:      row.UserID,
-		TeamID:      row.TeamID,
-		Value:       int(row.Value),
-		Review:      row.Review,
-		CreatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
-		UpdatedAt:   pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt)),
+		ID:           row.ID,
+		ChallengeID:  row.ChallengeID,
+		UserID:       row.UserID,
+		TeamID:       row.TeamID,
+		BannedTeamID: row.BannedTeamID,
+		Value:        int(row.Value),
+		Review:       row.Review,
+		CreatedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.CreatedAt)),
+		UpdatedAt:    pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.UpdatedAt)),
 	}
 }

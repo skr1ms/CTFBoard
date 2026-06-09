@@ -31,6 +31,10 @@ func (r *BanAppealRepo) Create(ctx context.Context, a *domain.BanAppeal) error {
 		Message: a.Message,
 	})
 	if err != nil {
+		if pgutil.IsPgUniqueViolation(err) {
+			return apperr.ErrAppealRateLimited
+		}
+
 		return fmt.Errorf("BanAppealRepo - Create: %w", err)
 	}
 
@@ -132,7 +136,15 @@ func (r *BanAppealRepo) Update(ctx context.Context, a *domain.BanAppeal) error {
 	}
 
 	if n == 0 {
-		return apperr.ErrAppealNotFound
+		if _, getErr := r.Q(ctx).GetBanAppealByID(ctx, a.ID); getErr != nil {
+			if pgutil.IsNoRows(getErr) {
+				return apperr.ErrAppealNotFound
+			}
+
+			return fmt.Errorf("BanAppealRepo - Update - GetByID: %w", getErr)
+		}
+
+		return apperr.ErrAccessDenied
 	}
 
 	return nil

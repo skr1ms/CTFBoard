@@ -5,9 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-logkit"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
@@ -31,25 +35,21 @@ func (uc *BackupUseCase) importZIP(ctx context.Context, r io.ReaderAt, size int6
 		progress(ctx, domain.ImportJobPhaseValidating)
 	}
 
+	if size < 0 {
+		return nil, fmt.Errorf("BackupUseCase - ImportZIP: negative size")
+	}
+
 	zr, err := zip.NewReader(r, size)
 	if err != nil {
 		return nil, fmt.Errorf("BackupUseCase - ImportZIP - NewReader: %w", err)
 	}
 
-	var totalUncompressed uint64
-
-	for _, f := range zr.File {
-		totalUncompressed += f.UncompressedSize64
+	if err := validateZIPUncompressedSize(zr.File, size); err != nil {
+		return nil, fmt.Errorf("BackupUseCase - ImportZIP: %w", err)
 	}
 
-	if size < 0 {
-		return nil, fmt.Errorf("BackupUseCase - ImportZIP: negative size")
-	}
-
-	maxAllowed := min(uint64(size)*maxUncompressedRatio, maxUncompressedAbsolute)
-
-	if totalUncompressed > maxAllowed {
-		return nil, fmt.Errorf("BackupUseCase - ImportZIP: uncompressed size %d exceeds limit %d (zip bomb protection)", totalUncompressed, maxAllowed)
+	if err := validateUniqueZIPEntries(zr); err != nil {
+		return nil, fmt.Errorf("BackupUseCase - ImportZIP - validateUniqueZIPEntries: %w", err)
 	}
 
 	backupData, err := uc.importZIPReadBackup(zr)
@@ -61,7 +61,20 @@ func (uc *BackupUseCase) importZIP(ctx context.Context, r io.ReaderAt, size int6
 		return nil, fmt.Errorf("BackupUseCase - ImportZIP - importZIPValidateVersion: %w", err)
 	}
 
-	preparedFiles, fileWarnings := uc.prepareImportFiles(zr, backupData.Files, opts.ValidateFiles)
+	if err := validateBackupChallengeRequirements(backupData); err != nil {
+		return nil, fmt.Errorf("BackupUseCase - ImportZIP - validateBackupChallengeRequirements: %w", err)
+	}
+
+	validateFiles := opts.ValidateFiles || opts.EraseExisting
+
+	preparedFiles, fileWarnings := uc.prepareImportFiles(zr, backupData.Files, validateFiles)
+	if opts.EraseExisting && len(fileWarnings) > 0 {
+		return nil, apperr.NewValidationErrorf(
+			"erase_existing import requires a complete valid file set: %s",
+			summarizeImportWarnings(fileWarnings),
+		)
+	}
+
 	backupData.Files = preparedFiles
 
 	result := &domain.ImportResult{
@@ -107,4 +120,116 @@ func (uc *BackupUseCase) importZIP(ctx context.Context, r io.ReaderAt, size int6
 	})
 
 	return result, nil
+}
+
+func summarizeImportWarnings(warnings []string) string {
+	const maxShown = 3
+
+	if len(warnings) <= maxShown {
+		return strings.Join(warnings, "; ")
+	}
+
+	return fmt.Sprintf("%s; and %d more", strings.Join(warnings[:maxShown], "; "), len(warnings)-maxShown)
+}
+
+func validateZIPUncompressedSize(files []*zip.File, archiveSize int64) error {
+	maxAllowed, err := maxZIPUncompressedAllowed(archiveSize)
+	if err != nil {
+		return err
+	}
+
+	var total uint64
+
+	for _, f := range files {
+		if f.UncompressedSize64 > maxAllowed || total > maxAllowed-f.UncompressedSize64 {
+			return fmt.Errorf("uncompressed size exceeds limit %d (zip bomb protection)", maxAllowed)
+		}
+
+		total += f.UncompressedSize64
+	}
+
+	return nil
+}
+
+func maxZIPUncompressedAllowed(size int64) (uint64, error) {
+	if size < 0 {
+		return 0, fmt.Errorf("negative size")
+	}
+
+	archiveSize := uint64(size)
+	absoluteLimit := uint64(maxUncompressedAbsolute)
+	ratio := uint64(maxUncompressedRatio)
+
+	if archiveSize > absoluteLimit/ratio {
+		return absoluteLimit, nil
+	}
+
+	return min(archiveSize*ratio, absoluteLimit), nil
+}
+
+func validateBackupChallengeRequirements(data *domain.BackupData) error {
+	if len(data.ChallengeRequirements) == 0 {
+		return nil
+	}
+
+	challengeIDs := make(map[uuid.UUID]struct{}, len(data.Challenges))
+	for _, ch := range data.Challenges {
+		challengeIDs[ch.ID] = struct{}{}
+	}
+
+	adj := make(map[uuid.UUID][]uuid.UUID, len(data.ChallengeRequirements))
+
+	for _, pair := range data.ChallengeRequirements {
+		if _, ok := challengeIDs[pair.ChallengeID]; !ok {
+			return fmt.Errorf("requirement references unknown challenge_id %s", pair.ChallengeID)
+		}
+
+		if _, ok := challengeIDs[pair.RequiredChallengeID]; !ok {
+			return fmt.Errorf("requirement references unknown required_challenge_id %s", pair.RequiredChallengeID)
+		}
+
+		adj[pair.ChallengeID] = append(adj[pair.ChallengeID], pair.RequiredChallengeID)
+	}
+
+	if backupRequirementsContainCycle(adj) {
+		return fmt.Errorf("requirements contain a cycle")
+	}
+
+	return nil
+}
+
+func backupRequirementsContainCycle(adj map[uuid.UUID][]uuid.UUID) bool {
+	visiting := make(map[uuid.UUID]bool, len(adj))
+	visited := make(map[uuid.UUID]bool, len(adj))
+
+	var dfs func(uuid.UUID) bool
+
+	dfs = func(node uuid.UUID) bool {
+		if visiting[node] {
+			return true
+		}
+
+		if visited[node] {
+			return false
+		}
+
+		visiting[node] = true
+
+		if slices.ContainsFunc(adj[node], dfs) {
+			return true
+		}
+
+		visiting[node] = false
+		visited[node] = true
+
+		return false
+	}
+
+	for node := range adj {
+		if dfs(node) {
+			return true
+		}
+	}
+
+	return false
 }

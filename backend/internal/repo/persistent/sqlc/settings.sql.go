@@ -16,7 +16,7 @@ SELECT id, app_name, verify_emails, frontend_url, cors_origins,
        resend_enabled, resend_from_email, resend_from_name,
        verify_ttl_hours, reset_ttl_hours,
        submit_limit_per_user, submit_limit_duration_min,
-       scoreboard_visible, registration_open,
+       registration_open,
        default_per_page, max_per_page, csv_export_max_rows,
        rate_limit_login_per_minute, rate_limit_register_per_minute,
        rate_limit_forgot_password_per_minute, rate_limit_reset_password_per_minute,
@@ -46,7 +46,6 @@ func (q *Queries) GetAppSettings(ctx context.Context) (AppSettings, error) {
 		&i.ResetTTLHours,
 		&i.SubmitLimitPerUser,
 		&i.SubmitLimitDurationMin,
-		&i.ScoreboardVisible,
 		&i.RegistrationOpen,
 		&i.DefaultPerPage,
 		&i.MaxPerPage,
@@ -78,7 +77,7 @@ SELECT id, app_name, verify_emails, frontend_url, cors_origins,
        resend_enabled, resend_from_email, resend_from_name,
        verify_ttl_hours, reset_ttl_hours,
        submit_limit_per_user, submit_limit_duration_min,
-       scoreboard_visible, registration_open,
+       registration_open,
        default_per_page, max_per_page, csv_export_max_rows,
        rate_limit_login_per_minute, rate_limit_register_per_minute,
        rate_limit_forgot_password_per_minute, rate_limit_reset_password_per_minute,
@@ -109,7 +108,6 @@ func (q *Queries) GetAppSettingsForUpdate(ctx context.Context) (AppSettings, err
 		&i.ResetTTLHours,
 		&i.SubmitLimitPerUser,
 		&i.SubmitLimitDurationMin,
-		&i.ScoreboardVisible,
 		&i.RegistrationOpen,
 		&i.DefaultPerPage,
 		&i.MaxPerPage,
@@ -184,29 +182,28 @@ UPDATE app_settings SET
     reset_ttl_hours = $9,
     submit_limit_per_user = $10,
     submit_limit_duration_min = $11,
-    scoreboard_visible = $12,
-    registration_open = $13,
-    default_per_page = $14,
-    max_per_page = $15,
-    csv_export_max_rows = $16,
-    rate_limit_login_per_minute = $17,
-    rate_limit_register_per_minute = $18,
-    rate_limit_forgot_password_per_minute = $19,
-    rate_limit_reset_password_per_minute = $20,
-    rate_limit_logout_per_minute = $21,
-    rate_limit_refresh_per_minute = $22,
-    rate_limit_scoreboard_per_minute = $23,
-    rate_limit_general_ip_per_minute = $24,
-    rate_limit_verify_email_per_minute = $25,
-    rate_limit_oauth_callback_per_minute = $26,
-    rate_limit_oauth_redirect_per_minute = $27,
-    rate_limit_comment_per_minute = $28,
-    max_users = $29,
-    max_teams = $30,
-    writeup_enabled = $31,
-    oauth_github_enabled = $32,
-    oauth_google_enabled = $33,
-    updated_at = $34
+    registration_open = $12,
+    default_per_page = $13,
+    max_per_page = $14,
+    csv_export_max_rows = $15,
+    rate_limit_login_per_minute = $16,
+    rate_limit_register_per_minute = $17,
+    rate_limit_forgot_password_per_minute = $18,
+    rate_limit_reset_password_per_minute = $19,
+    rate_limit_logout_per_minute = $20,
+    rate_limit_refresh_per_minute = $21,
+    rate_limit_scoreboard_per_minute = $22,
+    rate_limit_general_ip_per_minute = $23,
+    rate_limit_verify_email_per_minute = $24,
+    rate_limit_oauth_callback_per_minute = $25,
+    rate_limit_oauth_redirect_per_minute = $26,
+    rate_limit_comment_per_minute = $27,
+    max_users = $28,
+    max_teams = $29,
+    writeup_enabled = $30,
+    oauth_github_enabled = $31,
+    oauth_google_enabled = $32,
+    updated_at = $33
 WHERE id = 1
 `
 
@@ -222,7 +219,6 @@ type UpdateAppSettingsParams struct {
 	ResetTTLHours                    int32              `json:"reset_ttl_hours"`
 	SubmitLimitPerUser               int32              `json:"submit_limit_per_user"`
 	SubmitLimitDurationMin           int32              `json:"submit_limit_duration_min"`
-	ScoreboardVisible                string             `json:"scoreboard_visible"`
 	RegistrationOpen                 bool               `json:"registration_open"`
 	DefaultPerPage                   int32              `json:"default_per_page"`
 	MaxPerPage                       int32              `json:"max_per_page"`
@@ -260,7 +256,6 @@ func (q *Queries) UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsPa
 		arg.ResetTTLHours,
 		arg.SubmitLimitPerUser,
 		arg.SubmitLimitDurationMin,
-		arg.ScoreboardVisible,
 		arg.RegistrationOpen,
 		arg.DefaultPerPage,
 		arg.MaxPerPage,
@@ -300,30 +295,29 @@ UPDATE app_settings SET
     reset_ttl_hours = $9,
     submit_limit_per_user = $10,
     submit_limit_duration_min = $11,
-    scoreboard_visible = $12,
-    registration_open = $13,
-    default_per_page = $14,
-    max_per_page = $15,
-    csv_export_max_rows = $16,
-    rate_limit_login_per_minute = $17,
-    rate_limit_register_per_minute = $18,
-    rate_limit_forgot_password_per_minute = $19,
-    rate_limit_reset_password_per_minute = $20,
-    rate_limit_logout_per_minute = $21,
-    rate_limit_refresh_per_minute = $22,
-    rate_limit_scoreboard_per_minute = $23,
-    rate_limit_general_ip_per_minute = $24,
-    rate_limit_verify_email_per_minute = $25,
-    rate_limit_oauth_callback_per_minute = $26,
-    rate_limit_oauth_redirect_per_minute = $27,
-    rate_limit_comment_per_minute = $28,
-    max_users = $29,
-    max_teams = $30,
-    writeup_enabled = $31,
-    oauth_github_enabled = $32,
-    oauth_google_enabled = $33,
-    updated_at = $34
-WHERE id = 1 AND updated_at = $35
+    registration_open = $12,
+    default_per_page = $13,
+    max_per_page = $14,
+    csv_export_max_rows = $15,
+    rate_limit_login_per_minute = $16,
+    rate_limit_register_per_minute = $17,
+    rate_limit_forgot_password_per_minute = $18,
+    rate_limit_reset_password_per_minute = $19,
+    rate_limit_logout_per_minute = $20,
+    rate_limit_refresh_per_minute = $21,
+    rate_limit_scoreboard_per_minute = $22,
+    rate_limit_general_ip_per_minute = $23,
+    rate_limit_verify_email_per_minute = $24,
+    rate_limit_oauth_callback_per_minute = $25,
+    rate_limit_oauth_redirect_per_minute = $26,
+    rate_limit_comment_per_minute = $27,
+    max_users = $28,
+    max_teams = $29,
+    writeup_enabled = $30,
+    oauth_github_enabled = $31,
+    oauth_google_enabled = $32,
+    updated_at = $33
+WHERE id = 1 AND updated_at = $34
 RETURNING id
 `
 
@@ -339,7 +333,6 @@ type UpdateAppSettingsIfCurrentParams struct {
 	ResetTTLHours                    int32              `json:"reset_ttl_hours"`
 	SubmitLimitPerUser               int32              `json:"submit_limit_per_user"`
 	SubmitLimitDurationMin           int32              `json:"submit_limit_duration_min"`
-	ScoreboardVisible                string             `json:"scoreboard_visible"`
 	RegistrationOpen                 bool               `json:"registration_open"`
 	DefaultPerPage                   int32              `json:"default_per_page"`
 	MaxPerPage                       int32              `json:"max_per_page"`
@@ -378,7 +371,6 @@ func (q *Queries) UpdateAppSettingsIfCurrent(ctx context.Context, arg UpdateAppS
 		arg.ResetTTLHours,
 		arg.SubmitLimitPerUser,
 		arg.SubmitLimitDurationMin,
-		arg.ScoreboardVisible,
 		arg.RegistrationOpen,
 		arg.DefaultPerPage,
 		arg.MaxPerPage,

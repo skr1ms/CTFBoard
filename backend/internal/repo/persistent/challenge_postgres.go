@@ -207,15 +207,15 @@ func (r *ChallengeRepo) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid
 	return out, nil
 }
 
-func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid.UUID) ([]*domain.ChallengeWithSolved, error) {
 	rows, err := r.Q(ctx).GetChallengesForTeamByTag(ctx, sqlc.GetChallengesForTeamByTagParams{TagID: tagID, TeamID: teamID})
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listForTeamByTag: %w", err)
 	}
 
-	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	out := make([]*domain.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &repo.ChallengeWithSolved{
+		out = append(out, &domain.ChallengeWithSolved{
 			Challenge: toDomainChallenge(fieldsFromGetForTeamByTag(row).toChallengeRow()),
 			Solved:    row.Solved == 1,
 		})
@@ -224,15 +224,15 @@ func (r *ChallengeRepo) listForTeamByTag(ctx context.Context, teamID, tagID uuid
 	return out, nil
 }
 
-func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*domain.ChallengeWithSolved, error) {
 	rows, err := r.Q(ctx).GetChallengesByTag(ctx, tagID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listByTag: %w", err)
 	}
 
-	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	out := make([]*domain.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &repo.ChallengeWithSolved{
+		out = append(out, &domain.ChallengeWithSolved{
 			Challenge: toDomainChallenge(fieldsFromGetByTag(row).toChallengeRow()),
 		})
 	}
@@ -240,15 +240,15 @@ func (r *ChallengeRepo) listByTag(ctx context.Context, tagID uuid.UUID) ([]*repo
 	return out, nil
 }
 
-func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*domain.ChallengeWithSolved, error) {
 	rows, err := r.Q(ctx).GetChallengesForTeam(ctx, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listForTeam: %w", err)
 	}
 
-	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	out := make([]*domain.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &repo.ChallengeWithSolved{
+		out = append(out, &domain.ChallengeWithSolved{
 			Challenge: toDomainChallenge(fieldsFromGetForTeam(row).toChallengeRow()),
 			Solved:    row.Solved == 1,
 		})
@@ -257,15 +257,15 @@ func (r *ChallengeRepo) listForTeam(ctx context.Context, teamID uuid.UUID) ([]*r
 	return out, nil
 }
 
-func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*domain.ChallengeWithSolved, error) {
 	rows, err := r.Q(ctx).GetChallenges(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listAllChallenges: %w", err)
 	}
 
-	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	out := make([]*domain.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &repo.ChallengeWithSolved{
+		out = append(out, &domain.ChallengeWithSolved{
 			Challenge: toDomainChallenge(fieldsFromGetAll(row).toChallengeRow()),
 		})
 	}
@@ -273,15 +273,15 @@ func (r *ChallengeRepo) listAllChallenges(ctx context.Context) ([]*repo.Challeng
 	return out, nil
 }
 
-func (r *ChallengeRepo) listAllChallengesForBackup(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) listAllChallengesForBackup(ctx context.Context) ([]*domain.ChallengeWithSolved, error) {
 	rows, err := r.Q(ctx).GetChallengesAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - listAllChallengesForBackup: %w", err)
 	}
 
-	out := make([]*repo.ChallengeWithSolved, 0, len(rows))
+	out := make([]*domain.ChallengeWithSolved, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &repo.ChallengeWithSolved{
+		out = append(out, &domain.ChallengeWithSolved{
 			Challenge: toDomainChallenge(fieldsFromGetAllForBackup(row).toChallengeRow()),
 		})
 	}
@@ -292,7 +292,7 @@ func (r *ChallengeRepo) listAllChallengesForBackup(ctx context.Context) ([]*repo
 // GetAll dispatches to one of four query paths depending on which of teamID and
 // tagID are provided: team+tag, tag-only, team-only, or all challenges. When a
 // teamID is given the query joins solves to populate the Solved flag per entry.
-func (r *ChallengeRepo) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*domain.ChallengeWithSolved, error) {
 	if tagID != nil && teamID != nil {
 		return r.listForTeamByTag(ctx, *teamID, *tagID)
 	}
@@ -308,7 +308,7 @@ func (r *ChallengeRepo) GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([
 	return r.listAllChallenges(ctx)
 }
 
-func (r *ChallengeRepo) GetAllForBackup(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
+func (r *ChallengeRepo) GetAllForBackup(ctx context.Context) ([]*domain.ChallengeWithSolved, error) {
 	return r.listAllChallengesForBackup(ctx)
 }
 
@@ -343,14 +343,14 @@ func (r *ChallengeRepo) UpdatePoints(ctx context.Context, ID uuid.UUID, points i
 	return err
 }
 
-func (r *ChallengeRepo) GetFlags(ctx context.Context, ID uuid.UUID) (*repo.ChallengeFlags, error) {
+func (r *ChallengeRepo) GetFlags(ctx context.Context, ID uuid.UUID) (*domain.ChallengeFlags, error) {
 	row, err := GetOrNotFound(func() (sqlc.GetChallengeFlagsRow, error) { return r.Q(ctx).GetChallengeFlags(ctx, ID) },
 		apperr.ErrChallengeNotFound, "ChallengeRepo - GetFlags")
 	if err != nil {
 		return nil, err
 	}
 
-	return &repo.ChallengeFlags{
+	return &domain.ChallengeFlags{
 		FlagHash:          row.FlagHash,
 		IsRegex:           row.IsRegex,
 		IsCaseInsensitive: row.IsCaseInsensitive,

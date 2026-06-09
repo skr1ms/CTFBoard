@@ -14,6 +14,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
+	"github.com/TakuyaYagam1/AstroCTFb/pkg/storagepath"
 )
 
 const buildDownloadURLsConcurrency = 10
@@ -47,9 +48,22 @@ func (uc *FileUseCase) GetDownloadURLWithAccess(ctx context.Context, fileID uuid
 		return "", fmt.Errorf("FileUseCase - GetDownloadURLWithAccess - FileRepo.GetByID: %w", err)
 	}
 
-	if !isAdmin && file.ChallengeID != nil {
-		if err := uc.ensureChallengeFileAccess(ctx, *file.ChallengeID, file.Type, teamID, isAdmin); err != nil {
-			return "", fmt.Errorf("FileUseCase - GetDownloadURLWithAccess - ensureChallengeFileAccess: %w", err)
+	if !storagepath.ValidateDownloadPath(file.Location) {
+		return "", apperr.ErrFileNotFound
+	}
+
+	if !isAdmin {
+		switch {
+		case file.ChallengeID != nil:
+			if err := uc.ensureChallengeFileAccess(ctx, *file.ChallengeID, file.Type, teamID, isAdmin); err != nil {
+				return "", fmt.Errorf("FileUseCase - GetDownloadURLWithAccess - ensureChallengeFileAccess: %w", err)
+			}
+		case file.PageID != nil || file.Type == domain.FileTypePage:
+			if err := uc.ensurePageFileAccess(ctx, file); err != nil {
+				return "", fmt.Errorf("FileUseCase - GetDownloadURLWithAccess - ensurePageFileAccess: %w", err)
+			}
+		default:
+			return "", apperr.ErrFileNotFound
 		}
 	}
 
@@ -82,9 +96,9 @@ func (uc *FileUseCase) ensureChallengeFileAccess(ctx context.Context, challengeI
 }
 
 func (uc *FileUseCase) ensureRequirementsMet(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) error {
-	reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
+	reqs, err := uc.deps.ChallengeRepo.GetRequirementsForEnforcement(ctx, challengeID)
 	if err != nil {
-		return fmt.Errorf("GetRequirements: %w", err)
+		return fmt.Errorf("GetRequirementsForEnforcement: %w", err)
 	}
 
 	if len(reqs) == 0 {
@@ -95,13 +109,34 @@ func (uc *FileUseCase) ensureRequirementsMet(ctx context.Context, challengeID uu
 		return apperr.ErrChallengeNotFound
 	}
 
-	met, err := requirementsMet(ctx, challengeID, *teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+	met, err := requirementsSatisfied(ctx, reqs, *teamID, uc.deps.SolveRepo)
 	if err != nil {
-		return fmt.Errorf("requirementsMet: %w", err)
+		return fmt.Errorf("requirementsSatisfied: %w", err)
 	}
 
 	if !met {
 		return apperr.ErrChallengeNotFound
+	}
+
+	return nil
+}
+
+func (uc *FileUseCase) ensurePageFileAccess(ctx context.Context, file *domain.File) error {
+	if file == nil || file.PageID == nil || uc.deps.PageRepo == nil {
+		return apperr.ErrFileNotFound
+	}
+
+	page, err := uc.deps.PageRepo.GetByID(ctx, *file.PageID)
+	if err != nil {
+		if errors.Is(err, apperr.ErrPageNotFound) {
+			return apperr.ErrFileNotFound
+		}
+
+		return fmt.Errorf("PageRepo.GetByID: %w", err)
+	}
+
+	if page.IsDraft {
+		return apperr.ErrFileNotFound
 	}
 
 	return nil

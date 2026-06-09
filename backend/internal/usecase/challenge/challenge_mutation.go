@@ -14,6 +14,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/crypto"
 )
@@ -201,8 +202,10 @@ func (uc *ChallengeUseCase) challengeCreatePersistTx(ctx context.Context, challe
 }
 
 func (uc *ChallengeUseCase) Update(ctx context.Context, ID uuid.UUID, params usecase.ChallengeUpdateParams) (*domain.Challenge, error) {
-	if err := validateFlagFormatRegex(params.FlagFormatRegex); err != nil {
-		return nil, fmt.Errorf("ChallengeUseCase - Update - validateFlagFormatRegex: %w", err)
+	if params.FlagFormatRegexSet {
+		if err := validateFlagFormatRegex(params.FlagFormatRegex); err != nil {
+			return nil, fmt.Errorf("ChallengeUseCase - Update - validateFlagFormatRegex: %w", err)
+		}
 	}
 
 	challenge, err := uc.challengeUpdatePersist(ctx, ID, params)
@@ -346,7 +349,9 @@ func (uc *ChallengeUseCase) challengeUpdateApplyBasic(c *domain.Challenge, param
 		c.IsCaseInsensitive = *params.IsCaseInsensitive
 	}
 
-	c.FlagFormatRegex = params.FlagFormatRegex
+	if params.FlagFormatRegexSet {
+		c.FlagFormatRegex = params.FlagFormatRegex
+	}
 }
 
 // challengeUpdateApplyFlag applies a flag change during challenge update.
@@ -437,10 +442,12 @@ func (uc *ChallengeUseCase) Delete(ctx context.Context, ID, actorID uuid.UUID, c
 		return fmt.Errorf("ChallengeUseCase - Delete - TM.Run: %w", err)
 	}
 
-	cleanupCtx, cleanupCancel := storageCleanupContext(ctx)
-	defer cleanupCancel()
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		cleanupCtx, cleanupCancel := storageCleanupContext(ctx)
+		defer cleanupCancel()
 
-	uc.deleteStorageFiles(cleanupCtx, fileLocations)
+		uc.deleteStorageFiles(cleanupCtx, fileLocations)
+	})
 
 	if uc.deps.ScoreboardCache != nil {
 		uc.deps.ScoreboardCache.InvalidateAll(ctx)

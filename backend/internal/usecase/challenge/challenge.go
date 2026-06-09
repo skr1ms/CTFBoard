@@ -29,14 +29,13 @@ type StatisticsCacheInvalidator interface {
 }
 
 const (
-	// challengeListCachePrefix is kept only for backward-compatible invalidation of old keys.
-	challengeListCachePrefix = "challenges:list:"
-
 	// Two-layer cache: shared base (challenges without per-team solve status) + lightweight per-team solved-ID set.
 	challengeBaseCachePrefix   = "challenges:base:"
 	challengeBaseTTL           = 30 * time.Second
 	challengeSolvedCachePrefix = "challenges:solved:"
 	challengeSolvedTTL         = 10 * time.Second
+	requirementPairsCacheKey   = "challenges:requirements:pairs"
+	requirementPairsTTL        = 10 * time.Second
 
 	// Frozen solve counts are immutable for the duration of the freeze; cache with a long TTL.
 	frozenSolveCountsCachePrefix = "challenges:frozen_counts:"
@@ -44,14 +43,15 @@ const (
 )
 
 type ChallengeUseCase struct {
-	deps              ChallengeDeps
-	regexCache        *cachekit.LRFUCache[string, *regexp.Regexp]
-	regexSem          *semaphore.Weighted
-	regexSf           singleflight.Group
-	listBaseSF        singleflight.Group // deduplicates concurrent base-cache loader calls on cache miss
-	challengeDetailSf singleflight.Group // for GetDetail (returns *usecase.ChallengeDetail)
-	challengeFetchSf  singleflight.Group // for submitGetChallenge (returns *domain.Challenge)
-	requirementsSf    singleflight.Group
+	deps               ChallengeDeps
+	regexCache         *cachekit.LRFUCache[string, *regexp.Regexp]
+	regexSem           *semaphore.Weighted
+	regexSf            singleflight.Group
+	listBaseSF         singleflight.Group // deduplicates concurrent base-cache loader calls on cache miss
+	challengeDetailSf  singleflight.Group // for GetDetail (returns *usecase.ChallengeDetail)
+	challengeFetchSf   singleflight.Group // for submitGetChallenge (returns *domain.Challenge)
+	requirementsSf     singleflight.Group
+	requirementPairsSF singleflight.Group
 }
 
 type ChallengeDeps struct {
@@ -84,7 +84,6 @@ var (
 	_ usecase.ChallengeReadUseCase   = (*ChallengeUseCase)(nil)
 	_ usecase.ChallengeSubmitUseCase = (*ChallengeUseCase)(nil)
 	_ usecase.ChallengeAdminUseCase  = (*ChallengeUseCase)(nil)
-	_ usecase.ChallengeUseCase       = (*ChallengeUseCase)(nil)
 )
 
 type solveBroadcaster interface {

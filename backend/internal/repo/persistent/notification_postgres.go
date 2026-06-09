@@ -120,9 +120,13 @@ func (r *NotificationRepo) Update(ctx context.Context, notif *domain.Notificatio
 }
 
 func (r *NotificationRepo) Delete(ctx context.Context, ID uuid.UUID) error {
-	err := r.Q(ctx).DeleteNotification(ctx, ID)
+	rows, err := r.Q(ctx).DeleteNotification(ctx, ID)
 	if err != nil {
 		return fmt.Errorf("NotificationRepo - Delete: %w", err)
+	}
+
+	if rows == 0 {
+		return apperr.ErrNotificationNotFound
 	}
 
 	return nil

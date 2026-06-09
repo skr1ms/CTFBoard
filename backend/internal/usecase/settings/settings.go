@@ -13,6 +13,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
@@ -121,8 +122,8 @@ func (uc *SettingsUseCase) Get(ctx context.Context) (*domain.Settings, error) {
 
 // Update validates and persists new application settings inside a transaction.
 // GetForUpdate acquires a pessimistic lock on the settings row. When a
-// competition is active/frozen/paused, changes to ScoreboardVisible or
-// RegistrationOpen are rejected to preserve competition integrity. UpdateIfCurrent
+// competition is active/frozen/paused, changes to RegistrationOpen are rejected
+// to preserve competition integrity. UpdateIfCurrent
 // provides optimistic concurrency: it errors with ErrSettingsConflict if the row
 // was modified between the lock and the update. After commit, invalidateCache
 // evicts the singleflight entry, deletes the Redis key, broadcasts a PubSub
@@ -144,7 +145,7 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *domain.Settings, actor
 			if err == nil {
 				status := comp.GetStatus()
 				if status == domain.CompetitionStatusActive || status == domain.CompetitionStatusFrozen || status == domain.CompetitionStatusPaused {
-					if s.ScoreboardVisible != current.ScoreboardVisible || s.RegistrationOpen != current.RegistrationOpen {
+					if s.RegistrationOpen != current.RegistrationOpen {
 						return apperr.ErrSettingsCannotChangeDuringCompetition
 					}
 				}
@@ -178,27 +179,31 @@ func (uc *SettingsUseCase) Update(ctx context.Context, s *domain.Settings, actor
 	uc.invalidateCache(ctx)
 
 	if uc.deps.RuntimeInvalidator != nil {
-		uc.deps.RuntimeInvalidator.InvalidateRuntimeSettingsCaches()
+		txctx.AfterCommitOrNow(ctx, func(context.Context) {
+			uc.deps.RuntimeInvalidator.InvalidateRuntimeSettingsCaches()
+		})
 	}
 
 	return nil
 }
 
 func (uc *SettingsUseCase) invalidateCache(ctx context.Context) {
-	uc.sf.Forget(cacheutil.KeyAppSettings)
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		uc.sf.Forget(cacheutil.KeyAppSettings)
 
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), invTimeout)
-	defer cancel()
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), invTimeout)
+		defer cancel()
 
-	if uc.deps.Redis != nil {
-		_ = uc.deps.Redis.Del(ctx, cacheutil.KeyAppSettings)
-	}
-
-	if uc.deps.PubSub != nil {
-		if err := uc.deps.PubSub.Publish(ctx, settingsInvChannel, "1"); err != nil {
-			uc.deps.Logger.WithError(err).Warn("settings: pubsub invalidation broadcast failed")
+		if uc.deps.Redis != nil {
+			_ = uc.deps.Redis.Del(ctx, cacheutil.KeyAppSettings)
 		}
-	}
+
+		if uc.deps.PubSub != nil {
+			if err := uc.deps.PubSub.Publish(ctx, settingsInvChannel, "1"); err != nil {
+				uc.deps.Logger.WithError(err).Warn("settings: pubsub invalidation broadcast failed")
+			}
+		}
+	})
 }
 
 func (uc *SettingsUseCase) validate(s *domain.Settings) error {
@@ -223,12 +228,6 @@ func (uc *SettingsUseCase) validate(s *domain.Settings) error {
 
 	if s.MaxTeams < 0 {
 		return apperr.NewValidationErrorf("max_teams must be >= 0")
-	}
-
-	switch s.ScoreboardVisible {
-	case domain.ScoreboardVisiblePublic, domain.ScoreboardVisibleHidden, domain.ScoreboardVisibleAdminsOnly:
-	default:
-		return apperr.NewValidationErrorf("scoreboard_visible must be public, hidden, or admins_only")
 	}
 
 	return nil

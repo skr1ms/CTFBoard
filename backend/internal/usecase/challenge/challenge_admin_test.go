@@ -171,6 +171,92 @@ func TestChallengeUseCase_Update(t *testing.T) {
 	assert.Equal(t, 150, challenge.Points)
 }
 
+func TestChallengeUseCase_Update_FlagFormatRegexPatchSemantics(t *testing.T) {
+	t.Parallel()
+
+	oldPattern := `^CTF\{old\}$`
+	newPattern := `^CTF\{new\}$`
+
+	tests := []struct {
+		name      string
+		set       bool
+		value     *string
+		wantValue *string
+	}{
+		{
+			name:      "absent preserves existing",
+			wantValue: &oldPattern,
+		},
+		{
+			name:      "value updates existing",
+			set:       true,
+			value:     &newPattern,
+			wantValue: &newPattern,
+		},
+		{
+			name: "null clears existing",
+			set:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := newChallengeTestDeps(t)
+			uc, _ := d.createChallengeUseCase()
+
+			challengeID := uuid.New()
+			existingPattern := `^CTF\{old\}$`
+			existingChallenge := newTestChallenge(challengeID, "Old Title", "Web", 100, "old_hash")
+			existingChallenge.InitialValue = 100
+			existingChallenge.MinValue = 100
+			existingChallenge.FlagFormatRegex = &existingPattern
+
+			d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(existingChallenge, nil)
+			d.tm.On("Run", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+				fn, ok := args.Get(1).(func(context.Context) error)
+				if !ok {
+					return
+				}
+
+				ctx, ok := args.Get(0).(context.Context)
+				if !ok {
+					return
+				}
+
+				_ = fn(ctx)
+			})
+			d.challengeRepo.On("Update", mock.Anything, mock.MatchedBy(func(c *domain.Challenge) bool {
+				if tt.wantValue == nil {
+					return c.FlagFormatRegex == nil
+				}
+
+				return c.FlagFormatRegex != nil && *c.FlagFormatRegex == *tt.wantValue
+			})).Return(nil)
+			d.challengeRepo.On("SetTags", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+			iv, mv := 100, 100
+			ir, ic := false, false
+			params := challengeUpdateParams("Updated Title", "Updated Description", "Crypto", 150, &iv, &mv, nil, "", nil, nil, nil, nil, "visible", &ir, &ic)
+			params.FlagFormatRegexSet = tt.set
+			params.FlagFormatRegex = tt.value
+
+			challenge, err := uc.Update(context.Background(), challengeID, params)
+			require.NoError(t, err)
+
+			if tt.wantValue == nil {
+				assert.Nil(t, challenge.FlagFormatRegex)
+
+				return
+			}
+
+			require.NotNil(t, challenge.FlagFormatRegex)
+			assert.Equal(t, *tt.wantValue, *challenge.FlagFormatRegex)
+		})
+	}
+}
+
 func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	t.Parallel()
 	d := newChallengeTestDeps(t)
@@ -209,6 +295,38 @@ func TestChallengeUseCase_Update_WithNewFlag(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, challenge)
 	assert.NotEqual(t, "old_hash", challenge.FlagHash)
+}
+
+func TestChallengeUseCase_AdminCreateSolve_UserWasInBannedTeamRejected(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	ctx := context.Background()
+	userID, teamID, challengeID := uuid.New(), uuid.New(), uuid.New()
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).
+		RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error { return fn(ctx) }).
+		Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(&domain.Team{ID: teamID}, nil).Once()
+	d.challengeRepo.EXPECT().GetByIDForUpdate(mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, Points: 100}, nil).Once()
+	d.userRepo.EXPECT().
+		GetByID(mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &teamID, WasInBannedTeam: true, Role: domain.RoleUser}, nil).
+		Once()
+
+	uc := NewChallengeUseCase(ChallengeDeps{
+		ChallengeRepo: d.challengeRepo,
+		SolveRepo:     d.solveRepo,
+		TM:            d.tm,
+		TeamRepo:      d.teamRepo,
+		UserRepo:      d.userRepo,
+		SolveRecord:   stubSolveRecord,
+	})
+
+	err := uc.AdminCreateSolve(ctx, userID, teamID, challengeID, true)
+
+	assert.ErrorIs(t, err, apperr.ErrUserWasInBannedTeam)
 }
 
 func TestChallengeUseCase_Update_NextIDValidation(t *testing.T) {

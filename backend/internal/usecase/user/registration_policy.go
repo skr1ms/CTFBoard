@@ -31,6 +31,48 @@ type registrationPolicyDeps struct {
 }
 
 func enforceRegistrationPolicy(ctx context.Context, deps registrationPolicyDeps, settings *domain.Settings, mode registrationPolicyMode, registrationCode string) error {
+	if err := checkRegistrationAccess(ctx, deps, settings, mode, registrationCode); err != nil {
+		return err
+	}
+
+	if settings != nil && settings.MaxUsers > 0 {
+		if err := deps.UserRepo.AcquireAdvisoryLock(ctx, maxUsersLockKey); err != nil {
+			return fmt.Errorf("UserUseCase - enforceRegistrationPolicy - AcquireAdvisoryLock: %w", err)
+		}
+
+		currentCount, err := deps.UserRepo.CountActiveUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("UserUseCase - enforceRegistrationPolicy - CountActiveUsers: %w", err)
+		}
+
+		if currentCount >= int64(settings.MaxUsers) {
+			return apperr.ErrMaxUsersReached
+		}
+	}
+
+	return nil
+}
+
+func preflightRegistrationPolicy(ctx context.Context, deps registrationPolicyDeps, settings *domain.Settings, mode registrationPolicyMode, registrationCode string) error {
+	if err := checkRegistrationAccess(ctx, deps, settings, mode, registrationCode); err != nil {
+		return err
+	}
+
+	if settings != nil && settings.MaxUsers > 0 {
+		currentCount, err := deps.UserRepo.CountActiveUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("UserUseCase - preflightRegistrationPolicy - CountActiveUsers: %w", err)
+		}
+
+		if currentCount >= int64(settings.MaxUsers) {
+			return apperr.ErrMaxUsersReached
+		}
+	}
+
+	return nil
+}
+
+func checkRegistrationAccess(ctx context.Context, deps registrationPolicyDeps, settings *domain.Settings, mode registrationPolicyMode, registrationCode string) error {
 	if settings != nil && !settings.RegistrationOpen {
 		return apperr.ErrRegistrationClosed
 	}
@@ -67,21 +109,6 @@ func enforceRegistrationPolicy(ctx context.Context, deps registrationPolicyDeps,
 
 		if !strings.EqualFold(code, configuredCode) {
 			return apperr.ErrInvalidRegistrationCode
-		}
-	}
-
-	if settings != nil && settings.MaxUsers > 0 {
-		if err := deps.UserRepo.AcquireAdvisoryLock(ctx, maxUsersLockKey); err != nil {
-			return fmt.Errorf("UserUseCase - enforceRegistrationPolicy - AcquireAdvisoryLock: %w", err)
-		}
-
-		currentCount, err := deps.UserRepo.CountActiveUsers(ctx)
-		if err != nil {
-			return fmt.Errorf("UserUseCase - enforceRegistrationPolicy - CountActiveUsers: %w", err)
-		}
-
-		if currentCount >= int64(settings.MaxUsers) {
-			return apperr.ErrMaxUsersReached
 		}
 	}
 

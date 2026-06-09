@@ -78,12 +78,14 @@ func TestRatingUseCase_PutRating_Success(t *testing.T) {
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
 		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
 	d.userRepo.On("GetByID", mock.Anything, userID).
-		Return(&domain.User{ID: userID, IsBanned: false}, nil).Once()
+		Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil).Twice()
 	d.teamRepo.On("GetByID", mock.Anything, teamID).
-		Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Once()
+		Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Twice()
 
 	d.expectTxRun(nil)
 
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil).Once()
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil).Once()
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).
 		Return(&domain.Solve{}, nil).Once()
 	d.ratingRepo.On("Upsert", mock.Anything, mock.MatchedBy(func(r *domain.Rating) bool {
@@ -99,6 +101,96 @@ func TestRatingUseCase_PutRating_Success(t *testing.T) {
 	assert.Equal(t, 4, rating.Value)
 }
 
+func TestRatingUseCase_PutRating_RejectsStaleTeamMembership(t *testing.T) {
+	t.Parallel()
+	d := newRatingTestDeps(t)
+	uc := d.newUseCase()
+
+	challengeID := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
+	otherTeamID := uuid.New()
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
+		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
+	d.userRepo.On("GetByID", mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil).Once()
+	d.teamRepo.On("GetByID", mock.Anything, teamID).
+		Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Once()
+
+	d.tm.On("Run", mock.Anything, mock.Anything).
+		Return(func(ctx context.Context, fn func(context.Context) error) error {
+			return fn(ctx)
+		}).Once()
+
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil).Once()
+	d.userRepo.On("GetByID", mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &otherTeamID, IsBanned: false}, nil).Once()
+
+	rating, err := uc.PutRating(context.Background(), challengeID, userID, teamID, 4, "stale")
+
+	assert.ErrorIs(t, err, apperr.ErrUserNotInTeam)
+	assert.Nil(t, rating)
+	d.solveRepo.AssertNotCalled(t, "GetByTeamAndChallengeForUpdate", mock.Anything, mock.Anything, mock.Anything)
+	d.ratingRepo.AssertNotCalled(t, "Upsert", mock.Anything, mock.Anything)
+}
+
+func TestRatingUseCase_PutRating_WasInBannedTeamRejected(t *testing.T) {
+	t.Parallel()
+	d := newRatingTestDeps(t)
+	uc := d.newUseCase()
+
+	challengeID := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
+		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
+	d.userRepo.On("GetByID", mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &teamID, WasInBannedTeam: true, Role: domain.RoleUser}, nil).Once()
+
+	rating, err := uc.PutRating(context.Background(), challengeID, userID, teamID, 4, "blocked")
+
+	assert.ErrorIs(t, err, apperr.ErrUserWasInBannedTeam)
+	assert.Nil(t, rating)
+	d.teamRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
+	d.tm.AssertNotCalled(t, "Run", mock.Anything, mock.Anything)
+}
+
+func TestRatingUseCase_PutRating_FreshTeamBanRejectedInTx(t *testing.T) {
+	t.Parallel()
+	d := newRatingTestDeps(t)
+	uc := d.newUseCase()
+
+	challengeID := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
+		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
+	d.userRepo.On("GetByID", mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil).Twice()
+	d.teamRepo.On("GetByID", mock.Anything, teamID).
+		Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Once()
+
+	d.tm.On("Run", mock.Anything, mock.Anything).
+		Return(func(ctx context.Context, fn func(context.Context) error) error {
+			return fn(ctx)
+		}).Once()
+
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil).Once()
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil).Once()
+	d.teamRepo.On("GetByID", mock.Anything, teamID).
+		Return(&domain.Team{ID: teamID, IsBanned: true}, nil).Once()
+
+	rating, err := uc.PutRating(context.Background(), challengeID, userID, teamID, 4, "blocked")
+
+	assert.ErrorIs(t, err, apperr.ErrTeamBanned)
+	assert.Nil(t, rating)
+	d.solveRepo.AssertNotCalled(t, "GetByTeamAndChallengeForUpdate", mock.Anything, mock.Anything, mock.Anything)
+	d.ratingRepo.AssertNotCalled(t, "Upsert", mock.Anything, mock.Anything)
+}
+
 func TestRatingUseCase_PutRating_ChallengeNotFound(t *testing.T) {
 	t.Parallel()
 	d := newRatingTestDeps(t)
@@ -111,6 +203,44 @@ func TestRatingUseCase_PutRating_ChallengeNotFound(t *testing.T) {
 
 	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, rating)
+}
+
+func TestRatingUseCase_PutRating_RequiresUserRepo(t *testing.T) {
+	t.Parallel()
+	d := newRatingTestDeps(t)
+	uc := NewRatingUseCase(RatingDeps{
+		ChallengeRepo: d.challengeRepo,
+		SolveRepo:     d.solveRepo,
+		RatingRepo:    d.ratingRepo,
+		TeamRepo:      d.teamRepo,
+		TM:            d.tm,
+	})
+
+	rating, err := uc.PutRating(context.Background(), uuid.New(), uuid.New(), uuid.New(), 3, "")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "UserRepo not configured")
+	assert.Nil(t, rating)
+	d.challengeRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
+}
+
+func TestRatingUseCase_PutRating_RequiresTeamRepo(t *testing.T) {
+	t.Parallel()
+	d := newRatingTestDeps(t)
+	uc := NewRatingUseCase(RatingDeps{
+		ChallengeRepo: d.challengeRepo,
+		SolveRepo:     d.solveRepo,
+		RatingRepo:    d.ratingRepo,
+		UserRepo:      d.userRepo,
+		TM:            d.tm,
+	})
+
+	rating, err := uc.PutRating(context.Background(), uuid.New(), uuid.New(), uuid.New(), 3, "")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TeamRepo not configured")
+	assert.Nil(t, rating)
+	d.challengeRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 }
 
 func TestRatingUseCase_PutRating_ChallengeRepoUnexpectedError(t *testing.T) {
@@ -215,14 +345,15 @@ func TestRatingUseCase_PutRating_SolveRequired(t *testing.T) {
 	uc := d.newUseCase()
 
 	challengeID := uuid.New()
+	userID := uuid.New()
 	teamID := uuid.New()
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
 		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
-	d.userRepo.On("GetByID", mock.Anything, mock.Anything).
-		Return(&domain.User{IsBanned: false}, nil).Once()
+	d.userRepo.On("GetByID", mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil).Twice()
 	d.teamRepo.On("GetByID", mock.Anything, teamID).
-		Return(&domain.Team{IsBanned: false}, nil).Once()
+		Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Twice()
 
 	// TM.Run executes fn; fn returns ErrSolveRequiredForRating; TM.Run propagates it.
 	d.tm.On("Run", mock.Anything, mock.Anything).
@@ -230,10 +361,12 @@ func TestRatingUseCase_PutRating_SolveRequired(t *testing.T) {
 			return fn(ctx)
 		}).Once()
 
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil).Once()
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil).Once()
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).
 		Return(nil, apperr.ErrSolveNotFound).Once()
 
-	rating, err := uc.PutRating(context.Background(), challengeID, uuid.New(), teamID, 3, "")
+	rating, err := uc.PutRating(context.Background(), challengeID, userID, teamID, 3, "")
 
 	assert.ErrorIs(t, err, apperr.ErrSolveRequiredForRating)
 	assert.Nil(t, rating)
@@ -265,14 +398,15 @@ func TestRatingUseCase_PutRating_RatingRepoUpsertError(t *testing.T) {
 	uc := d.newUseCase()
 
 	challengeID := uuid.New()
+	userID := uuid.New()
 	teamID := uuid.New()
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
 		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
-	d.userRepo.On("GetByID", mock.Anything, mock.Anything).
-		Return(&domain.User{IsBanned: false}, nil).Once()
+	d.userRepo.On("GetByID", mock.Anything, userID).
+		Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil).Twice()
 	d.teamRepo.On("GetByID", mock.Anything, teamID).
-		Return(&domain.Team{IsBanned: false}, nil).Once()
+		Return(&domain.Team{ID: teamID, IsBanned: false}, nil).Twice()
 
 	upsertErr := errors.New("upsert failed")
 	d.tm.On("Run", mock.Anything, mock.Anything).
@@ -286,11 +420,13 @@ func TestRatingUseCase_PutRating_RatingRepoUpsertError(t *testing.T) {
 			_ = fn(args.Get(0).(context.Context))
 		}).Once()
 
+	d.userRepo.On("Lock", mock.Anything, userID).Return(nil).Once()
+	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil).Once()
 	d.solveRepo.On("GetByTeamAndChallengeForUpdate", mock.Anything, teamID, challengeID).
 		Return(&domain.Solve{}, nil).Once()
 	d.ratingRepo.On("Upsert", mock.Anything, mock.Anything).Return(upsertErr).Once()
 
-	rating, err := uc.PutRating(context.Background(), challengeID, uuid.New(), teamID, 3, "")
+	rating, err := uc.PutRating(context.Background(), challengeID, userID, teamID, 3, "")
 
 	assert.Error(t, err)
 	assert.Nil(t, rating)
@@ -309,10 +445,12 @@ func TestRatingUseCase_GetRatingsByChallengeID_Success(t *testing.T) {
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
 		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).
+		Return(nil, nil).Once()
 	d.ratingRepo.On("GetByChallengeID", mock.Anything, challengeID).
 		Return(expected, nil).Once()
 
-	ratings, err := uc.GetRatingsByChallengeID(context.Background(), challengeID)
+	ratings, err := uc.GetRatingsByChallengeID(context.Background(), challengeID, nil)
 
 	assert.NoError(t, err)
 	assert.Len(t, ratings, 2)
@@ -328,10 +466,12 @@ func TestRatingUseCase_GetRatingsByChallengeID_EmptyList(t *testing.T) {
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
 		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).
+		Return(nil, nil).Once()
 	d.ratingRepo.On("GetByChallengeID", mock.Anything, challengeID).
 		Return([]*domain.Rating{}, nil).Once()
 
-	ratings, err := uc.GetRatingsByChallengeID(context.Background(), challengeID)
+	ratings, err := uc.GetRatingsByChallengeID(context.Background(), challengeID, nil)
 
 	assert.NoError(t, err)
 	assert.Empty(t, ratings)
@@ -345,7 +485,7 @@ func TestRatingUseCase_GetRatingsByChallengeID_ChallengeNotFound(t *testing.T) {
 	d.challengeRepo.On("GetByID", mock.Anything, mock.Anything).
 		Return(nil, apperr.ErrChallengeNotFound).Once()
 
-	ratings, err := uc.GetRatingsByChallengeID(context.Background(), uuid.New())
+	ratings, err := uc.GetRatingsByChallengeID(context.Background(), uuid.New(), nil)
 
 	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, ratings)
@@ -359,7 +499,7 @@ func TestRatingUseCase_GetRatingsByChallengeID_HiddenChallenge(t *testing.T) {
 	d.challengeRepo.On("GetByID", mock.Anything, mock.Anything).
 		Return(&domain.Challenge{State: domain.ChallengeStateHidden}, nil).Once()
 
-	ratings, err := uc.GetRatingsByChallengeID(context.Background(), uuid.New())
+	ratings, err := uc.GetRatingsByChallengeID(context.Background(), uuid.New(), nil)
 
 	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, ratings)
@@ -373,7 +513,7 @@ func TestRatingUseCase_GetRatingsByChallengeID_ChallengeRepoUnexpectedError(t *t
 	d.challengeRepo.On("GetByID", mock.Anything, mock.Anything).
 		Return(nil, errors.New("db error")).Once()
 
-	ratings, err := uc.GetRatingsByChallengeID(context.Background(), uuid.New())
+	ratings, err := uc.GetRatingsByChallengeID(context.Background(), uuid.New(), nil)
 
 	assert.Error(t, err)
 	assert.Nil(t, ratings)
@@ -388,11 +528,36 @@ func TestRatingUseCase_GetRatingsByChallengeID_RatingRepoError(t *testing.T) {
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
 		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).
+		Return(nil, nil).Once()
 	d.ratingRepo.On("GetByChallengeID", mock.Anything, challengeID).
 		Return(nil, errors.New("rating repo error")).Once()
 
-	ratings, err := uc.GetRatingsByChallengeID(context.Background(), challengeID)
+	ratings, err := uc.GetRatingsByChallengeID(context.Background(), challengeID, nil)
 
 	assert.Error(t, err)
+	assert.Nil(t, ratings)
+}
+
+func TestRatingUseCase_GetRatingsByChallengeID_RequirementsNotMet(t *testing.T) {
+	t.Parallel()
+	d := newRatingTestDeps(t)
+	uc := d.newUseCase()
+
+	challengeID := uuid.New()
+	teamID := uuid.New()
+	prereqID := uuid.New()
+	requirements := []*domain.ChallengeRequirement{{ChallengeID: prereqID, ChallengeTitle: "Prereq"}}
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).
+		Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil).Once()
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).
+		Return(requirements, nil).Once()
+	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, mock.Anything).
+		Return([]uuid.UUID{}, nil).Once()
+
+	ratings, err := uc.GetRatingsByChallengeID(context.Background(), challengeID, &teamID)
+
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, ratings)
 }

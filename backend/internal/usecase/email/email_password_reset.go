@@ -8,11 +8,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/ctxutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/pkg/emailtemplate"
 )
 
@@ -110,12 +109,9 @@ func (uc *EmailUseCase) SendPasswordResetEmail(ctx context.Context, email string
 
 // ResetPassword validates the password-reset token and updates the user's
 // password. The raw token is SHA-256 hashed before the repository lookup. The
-// password hash is computed with bcrypt before the serializable transaction
-// begins so that the slow hash does not hold the database transaction open.
-// Inside the transaction it verifies the token type, expiry, and used status,
-// updates the password, and deletes the consumed token. After the transaction
-// all existing JWTs for the user are revoked so that any active sessions are
-// invalidated.
+// token is checked before bcrypt so invalid public requests cannot force
+// expensive password hashing. The token is checked again inside the
+// serializable transaction before the password is updated and consumed.
 func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword string) error {
 	if tokenStr == "" {
 		return apperr.ErrTokenRequired
@@ -130,42 +126,31 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 
 	hashedToken := hashToken(tokenStr)
 
-	bcryptCost := uc.deps.BcryptCost
-	if bcryptCost == 0 {
-		bcryptCost = bcrypt.DefaultCost
+	if _, err := uc.getUsablePasswordResetToken(ctx, hashedToken); err != nil {
+		return fmt.Errorf("EmailUseCase - ResetPassword - getUsablePasswordResetToken: %w", err)
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcryptCost)
+	passwordHash, err := uc.hashPassword(ctx, newPassword)
 	if err != nil {
-		return fmt.Errorf("EmailUseCase - ResetPassword - GenerateFromPassword: %w", err)
+		return fmt.Errorf("EmailUseCase - ResetPassword - hashPassword: %w", err)
 	}
 
 	var userID uuid.UUID
 
 	if err := uc.deps.TM.RunSerializable(ctx, func(ctx context.Context) error {
-		token, err := uc.deps.TokenRepo.GetByToken(ctx, hashedToken)
+		token, err := uc.getUsablePasswordResetToken(ctx, hashedToken)
 		if err != nil {
-			if errors.Is(err, apperr.ErrTokenNotFound) {
-				return apperr.ErrTokenNotFound
-			}
-
-			return fmt.Errorf("EmailUseCase - ResetPassword - TokenRepo.GetByToken: %w", err)
+			return fmt.Errorf("EmailUseCase - ResetPassword - getUsablePasswordResetToken (tx): %w", err)
 		}
 
-		if token.Type != domain.TokenTypePasswordReset {
-			return apperr.ErrTokenNotFound
-		}
-
-		if token.IsExpired() {
-			return apperr.ErrTokenExpired
-		}
-
-		if token.IsUsed() {
-			return apperr.ErrTokenAlreadyUsed
-		}
-
-		if err := uc.deps.UserRepo.UpdatePassword(ctx, token.UserID, string(passwordHash)); err != nil {
+		if err := uc.deps.UserRepo.UpdatePassword(ctx, token.UserID, passwordHash); err != nil {
 			return fmt.Errorf("EmailUseCase - ResetPassword - UserRepo.UpdatePassword: %w", err)
+		}
+
+		if uc.deps.APITokenRevoker != nil {
+			if err := uc.deps.APITokenRevoker.RevokeAllForUser(ctx, token.UserID); err != nil {
+				return fmt.Errorf("EmailUseCase - ResetPassword - APITokenRevoker.RevokeAllForUser: %w", err)
+			}
 		}
 
 		if err := uc.deps.TokenRepo.DeleteByUserAndType(ctx, token.UserID, domain.TokenTypePasswordReset); err != nil {
@@ -182,15 +167,39 @@ func (uc *EmailUseCase) ResetPassword(ctx context.Context, tokenStr, newPassword
 	// Revoke all active JWTs so stolen tokens cannot be used after a password reset.
 	// The post-commit context survives request cancellation but stays deadline-bound.
 	if uc.deps.JWTRevoker != nil {
-		postCtx, postCancel := ctxutil.PostCommitContext(ctx)
-		defer postCancel()
-
-		if err := uc.deps.JWTRevoker.RevokeAllForUser(postCtx, userID); err != nil {
-			uc.deps.Logger.WithError(err).Error("EmailUseCase - ResetPassword - RevokeAllForUser")
-		}
+		txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+			if err := uc.deps.JWTRevoker.RevokeAllForUser(ctx, userID); err != nil {
+				uc.deps.Logger.WithError(err).Error("EmailUseCase - ResetPassword - RevokeAllForUser")
+			}
+		})
 	}
 
 	return nil
+}
+
+func (uc *EmailUseCase) getUsablePasswordResetToken(ctx context.Context, hashedToken string) (*domain.VerificationToken, error) {
+	token, err := uc.deps.TokenRepo.GetByToken(ctx, hashedToken)
+	if err != nil {
+		if errors.Is(err, apperr.ErrTokenNotFound) {
+			return nil, apperr.ErrTokenNotFound
+		}
+
+		return nil, fmt.Errorf("EmailUseCase - getUsablePasswordResetToken - TokenRepo.GetByToken: %w", err)
+	}
+
+	if token.Type != domain.TokenTypePasswordReset {
+		return nil, apperr.ErrTokenNotFound
+	}
+
+	if token.IsExpired() {
+		return nil, apperr.ErrTokenExpired
+	}
+
+	if token.IsUsed() {
+		return nil, apperr.ErrTokenAlreadyUsed
+	}
+
+	return token, nil
 }
 
 // ResetPasswordRateLimitKey returns the non-reversible key used by the transport

@@ -44,9 +44,9 @@ func (uc *TeamUseCase) Leave(ctx context.Context, userID uuid.UUID) error {
 // leaveTx orchestrates the leave flow inside a transaction:
 // prepare (validate + lock) -> determine outcome (transfer captain or disband) -> execute.
 func (uc *TeamUseCase) leaveTx(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
-	comp, err := uc.deps.CompRepo.Get(ctx)
+	comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("TeamUseCase - leaveTx - CompetitionRepo.Get: %w", err)
+		return uuid.Nil, fmt.Errorf("TeamUseCase - leaveTx - CompetitionRepo.GetForUpdate: %w", err)
 	}
 
 	if err := guard.ValidateTeamSwitchState(comp); err != nil {

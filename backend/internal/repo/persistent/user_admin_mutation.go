@@ -22,6 +22,10 @@ func (r *UserRepo) UpdateAdmin(ctx context.Context, userID uuid.UUID, username, 
 		PasswordHash: passwordHash,
 	})
 	if err != nil {
+		if pgutil.IsPgUniqueViolation(err) {
+			return apperr.ErrUserAlreadyExists
+		}
+
 		return fmt.Errorf("UserRepo - UpdateAdmin: %w", err)
 	}
 

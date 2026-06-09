@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 )
 
@@ -50,18 +51,20 @@ func (r *TeamRepo) CountSearch(ctx context.Context, search *string) (int64, erro
 	return count, nil
 }
 
-func (r *TeamRepo) SearchAdmin(ctx context.Context, search *string, limit, offset int) ([]*domain.Team, error) {
+func (r *TeamRepo) SearchAdmin(ctx context.Context, filter repo.TeamAdminSearchFilter, limit, offset int) ([]*domain.Team, error) {
 	limit32, offset32, err := toLimitOffset(limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("TeamRepo - SearchAdmin: %w", err)
 	}
 
-	escapedSearch := EscapeSearchPtr(search)
+	escapedSearch := EscapeSearchPtr(filter.Search)
 
 	rows, err := r.Q(ctx).SearchTeamsAdmin(ctx, sqlc.SearchTeamsAdminParams{
-		Limit:  limit32,
-		Offset: offset32,
-		Search: escapedSearch,
+		Limit:      limit32,
+		Offset:     offset32,
+		Search:     escapedSearch,
+		BanStatus:  string(filter.BanStatus),
+		Visibility: string(filter.Visibility),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("TeamRepo - SearchAdmin - scan: %w", err)
@@ -81,10 +84,14 @@ func (r *TeamRepo) SearchAdmin(ctx context.Context, search *string, limit, offse
 	return out, nil
 }
 
-func (r *TeamRepo) CountSearchAdmin(ctx context.Context, search *string) (int64, error) {
-	escapedSearch := EscapeSearchPtr(search)
+func (r *TeamRepo) CountSearchAdmin(ctx context.Context, filter repo.TeamAdminSearchFilter) (int64, error) {
+	escapedSearch := EscapeSearchPtr(filter.Search)
 
-	count, err := r.Q(ctx).CountSearchTeamsAdmin(ctx, escapedSearch)
+	count, err := r.Q(ctx).CountSearchTeamsAdmin(ctx, sqlc.CountSearchTeamsAdminParams{
+		Search:     escapedSearch,
+		BanStatus:  string(filter.BanStatus),
+		Visibility: string(filter.Visibility),
+	})
 	if err != nil {
 		return 0, fmt.Errorf("TeamRepo - CountSearchAdmin: %w", err)
 	}

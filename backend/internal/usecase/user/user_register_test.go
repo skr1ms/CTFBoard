@@ -29,9 +29,6 @@ func TestUserUseCase_Register_RegistrationClosed(t *testing.T) {
 	d := newUserTestDeps(t)
 	settingsRepo := userMock.NewMockSettingsRepository(t)
 
-	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
-		return fn(ctx)
-	}).Once()
 	settingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: false}, nil).Once()
 	uc := NewUserUseCase(UserDeps{
 		UserRepo: d.userRepo, TeamRepo: d.teamRepo, SolveRepo: d.solveRepo,
@@ -39,9 +36,10 @@ func TestUserUseCase_Register_RegistrationClosed(t *testing.T) {
 		SettingsRepo: settingsRepo,
 	})
 	user, err := uc.Register(context.Background(), usecase.UserRegisterParams{
-		Username: "testuser",
-		Email:    "test@example.com",
-		Password: "password123",
+		Username:     "testuser",
+		Email:        "test@example.com",
+		Password:     "password123",
+		CustomFields: map[string]any{"not-a-uuid": "must not be validated after closed registration"},
 	})
 	assert.Error(t, err)
 	assert.Nil(t, user)

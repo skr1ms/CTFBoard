@@ -10,6 +10,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -36,7 +37,8 @@ type TeamReader interface {
 	GetByID(ctx context.Context, ID uuid.UUID) (*domain.Team, error)
 }
 
-type TeamMemberReader interface {
+type NotificationUserReader interface {
+	GetByID(ctx context.Context, ID uuid.UUID) (*domain.User, error)
 	GetByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.User, error)
 }
 
@@ -51,7 +53,7 @@ type NotificationUseCase struct {
 type NotificationDeps struct {
 	NotifRepo   NotificationRepository
 	TeamRepo    TeamReader
-	UserRepo    TeamMemberReader
+	UserRepo    NotificationUserReader
 	TM          TransactionManager
 	Broadcaster NotificationBroadcaster
 	Logger      logkit.Logger
@@ -88,7 +90,9 @@ func (uc *NotificationUseCase) CreateGlobal(ctx context.Context, params usecase.
 	}
 
 	if uc.deps.Broadcaster != nil {
-		uc.deps.Broadcaster.NotifyNotification(notif.Title, string(notif.Type))
+		txctx.AfterCommitOrNow(ctx, func(context.Context) {
+			uc.deps.Broadcaster.NotifyNotification(notif.Title, string(notif.Type))
+		})
 	}
 
 	return notif, nil
@@ -99,9 +103,22 @@ func (uc *NotificationUseCase) CreatePersonal(ctx context.Context, params usecas
 		return nil, err
 	}
 
+	if uc.deps.UserRepo == nil {
+		return nil, fmt.Errorf("NotificationUseCase - CreatePersonal: dependencies not configured")
+	}
+
+	recipient, err := uc.deps.UserRepo.GetByID(ctx, params.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("NotificationUseCase - CreatePersonal - UserRepo.GetByID: %w", err)
+	}
+
+	if recipient == nil {
+		return nil, fmt.Errorf("NotificationUseCase - CreatePersonal - UserRepo.GetByID: %w", apperr.ErrUserNotFound)
+	}
+
 	userNotif := newUserNotification(params.UserID, params.Title, params.Content, params.Type)
 
-	err := uc.deps.NotifRepo.CreateUserNotification(ctx, userNotif)
+	err = uc.deps.NotifRepo.CreateUserNotification(ctx, userNotif)
 	if err != nil {
 		return nil, fmt.Errorf("NotificationUseCase - CreatePersonal - NotificationRepo.CreateUserNotification: %w", err)
 	}

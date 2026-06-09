@@ -64,6 +64,7 @@ type setupFakeCompetitionParamUC struct {
 	setBatchCalls int
 	setCalls      int
 	getBoolCalls  int
+	lockCalls     int
 	batchParams   []*domain.CompetitionParam
 	setParam      usecase.CompetitionParamSetParams
 	actorID       uuid.UUID
@@ -81,6 +82,30 @@ func (c *setupFakeCompetitionParamUC) GetBool(_ context.Context, key string, def
 	}
 
 	return defaultVal
+}
+
+func (c *setupFakeCompetitionParamUC) GetForUpdate(_ context.Context, key string) (*domain.CompetitionParam, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.lockCalls++
+
+	if key == "setup_complete" {
+		value := "false"
+
+		if c.setupComplete {
+			value = "true"
+		}
+
+		return &domain.CompetitionParam{
+			Key:       key,
+			Value:     value,
+			ValueType: domain.CompetitionParamTypeBool,
+			Category:  domain.ConfigCategoryGeneral,
+		}, nil
+	}
+
+	return &domain.CompetitionParam{Key: key}, nil
 }
 
 func (c *setupFakeCompetitionParamUC) SetBatch(_ context.Context, params []*domain.CompetitionParam, actorID uuid.UUID, clientIP string) error {
@@ -151,11 +176,28 @@ func (j *setupFakeJWTService) GenerateTokenPair(context.Context, uuid.UUID, stri
 	return j.pair, j.err
 }
 
+type setupFakeTM struct {
+	calls    int
+	rollback func()
+}
+
+func (tm *setupFakeTM) Run(ctx context.Context, fn func(context.Context) error) error {
+	tm.calls++
+
+	err := fn(ctx)
+	if err != nil && tm.rollback != nil {
+		tm.rollback()
+	}
+
+	return err
+}
+
 type setupTestDeps struct {
 	user      *setupFakeUserUC
 	comp      *setupFakeCompetitionUC
 	compParam *setupFakeCompetitionParamUC
 	settings  *setupFakeSettingsUC
+	tm        *setupFakeTM
 	jwt       *setupFakeJWTService
 }
 
@@ -174,6 +216,7 @@ func newSetupTestDeps() *setupTestDeps {
 		comp:      &setupFakeCompetitionUC{comp: &domain.Competition{Mode: domain.ModeTeamsOnly, MaxTeamSize: 3}},
 		compParam: &setupFakeCompetitionParamUC{},
 		settings:  &setupFakeSettingsUC{settings: &domain.Settings{AppName: "old"}},
+		tm:        &setupFakeTM{},
 		jwt: &setupFakeJWTService{pair: &jwtkit.TokenPair{
 			AccessToken:      "access",
 			RefreshToken:     "refresh",
@@ -189,6 +232,7 @@ func (d *setupTestDeps) useCase() *SetupUseCase {
 		CompUC:      d.comp,
 		CompParamUC: d.compParam,
 		SettingsUC:  d.settings,
+		TM:          d.tm,
 		JWTService:  d.jwt,
 	})
 }
@@ -204,7 +248,7 @@ func validSetupUseCaseRequest() *usecase.SetupRequest {
 		Mode:                      string(domain.ModeTeamsOnly),
 		MaxTeamSize:               5,
 		ChallengeVisibility:       "private",
-		ScoreVisibility:           domain.ScoreboardVisibleAdminsOnly,
+		ScoreVisibility:           "admins_only",
 		AccountVisibility:         "public",
 		RegistrationVisibility:    "public",
 		EmailVerificationRequired: true,

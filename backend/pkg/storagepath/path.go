@@ -13,19 +13,14 @@ import (
 
 const (
 	filePathHashLen       = 16
-	legacyPathParts       = 2
 	taskPathParts         = 3
 	defaultDownloadName   = "download"
-	taskPathPrefix        = "tasks/"
 	taskPathPrefixNoSlash = "tasks"
 )
 
 var ErrInvalidFilename = errors.New("invalid storage filename")
 
-var (
-	validLegacyDownloadPathPattern = regexp.MustCompile(fmt.Sprintf(`^[a-f0-9]{%d}/.+$`, filePathHashLen))
-	validTasksDownloadPathPattern  = regexp.MustCompile(fmt.Sprintf(`^%s/[a-f0-9]{%d}/.+$`, taskPathPrefixNoSlash, filePathHashLen))
-)
+var validTasksDownloadPathPattern = regexp.MustCompile(fmt.Sprintf(`^%s/[a-f0-9]{%d}/[^/]+$`, taskPathPrefixNoSlash, filePathHashLen))
 
 func Generate(filename string) (string, error) {
 	safeName := filepath.Base(filename)
@@ -48,20 +43,17 @@ func ValidateDownloadPath(storagePath string) bool {
 		return false
 	}
 
-	return validLegacyDownloadPathPattern.MatchString(storagePath) || validTasksDownloadPathPattern.MatchString(storagePath)
+	return validTasksDownloadPathPattern.MatchString(storagePath)
 }
 
 func DownloadFilename(storagePath string) string {
-	if strings.HasPrefix(storagePath, taskPathPrefix) {
-		parts := strings.SplitN(storagePath, "/", taskPathParts)
-		if len(parts) == taskPathParts {
-			return filepath.Base(parts[2])
-		}
-	} else {
-		parts := strings.SplitN(storagePath, "/", legacyPathParts)
-		if len(parts) == legacyPathParts {
-			return filepath.Base(parts[1])
-		}
+	if !ValidateDownloadPath(storagePath) {
+		return defaultDownloadName
+	}
+
+	parts := strings.Split(storagePath, "/")
+	if len(parts) == taskPathParts {
+		return filepath.Base(parts[2])
 	}
 
 	return defaultDownloadName

@@ -32,7 +32,6 @@ type AppSettings struct {
 	ResetTTLHours                    int32              `json:"reset_ttl_hours"`
 	SubmitLimitPerUser               int32              `json:"submit_limit_per_user"`
 	SubmitLimitDurationMin           int32              `json:"submit_limit_duration_min"`
-	ScoreboardVisible                string             `json:"scoreboard_visible"`
 	RegistrationOpen                 bool               `json:"registration_open"`
 	DefaultPerPage                   int32              `json:"default_per_page"`
 	MaxPerPage                       int32              `json:"max_per_page"`
@@ -285,14 +284,15 @@ type Page struct {
 }
 
 type Rating struct {
-	ID          uuid.UUID          `json:"id"`
-	ChallengeID uuid.UUID          `json:"challenge_id"`
-	UserID      uuid.UUID          `json:"user_id"`
-	TeamID      uuid.UUID          `json:"team_id"`
-	Value       int32              `json:"value"`
-	Review      string             `json:"review"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ID           uuid.UUID          `json:"id"`
+	ChallengeID  uuid.UUID          `json:"challenge_id"`
+	UserID       uuid.UUID          `json:"user_id"`
+	TeamID       uuid.UUID          `json:"team_id"`
+	BannedTeamID *uuid.UUID         `json:"banned_team_id"`
+	Value        int32              `json:"value"`
+	Review       string             `json:"review"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Solution struct {

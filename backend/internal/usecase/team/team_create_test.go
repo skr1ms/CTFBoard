@@ -22,7 +22,7 @@ func TestTeamUseCase_Create_Success(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{}, nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, captainID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByName(mock.Anything, "TestTeam").Return(nil, apperr.ErrTeamNotFound).Once()
@@ -58,7 +58,7 @@ func TestTeamUseCase_Create_WithSoloTeam_Success(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{}, nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, captainID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByName(mock.Anything, "NewTeam").Return(nil, apperr.ErrTeamNotFound).Once()
@@ -106,7 +106,7 @@ func TestTeamUseCase_Create_TeamNameExists_Error(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{}, nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, captainID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByName(mock.Anything, "TestTeam").Return(existingTeam, nil).Once()
@@ -138,7 +138,7 @@ func TestTeamUseCase_Create_UserAlreadyInMultiMemberTeam_Error(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{}, nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, captainID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByName(mock.Anything, "TestTeam").Return(nil, apperr.ErrTeamNotFound).Once()
@@ -165,7 +165,7 @@ func TestTeamUseCase_Create_MaxTeamsReached_Error(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{MaxTeams: 1}, nil).Once()
 	d.teamRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Once()
 	d.teamRepo.EXPECT().CountActiveTeams(mock.Anything).Return(1, nil).Once()

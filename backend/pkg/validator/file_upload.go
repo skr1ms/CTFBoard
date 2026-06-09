@@ -32,6 +32,21 @@ func ValidateUploadFilename(filename string) bool {
 	return true
 }
 
+func ValidateChallengeUploadFilename(filename string) bool {
+	filename = strings.TrimSpace(filename)
+	if filename == "" || strings.Contains(filename, "..") || strings.ContainsAny(filename, `/\`) {
+		return false
+	}
+
+	for _, r := range filename {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+
+	return true
+}
+
 var dangerousMagicBytes = [][]byte{
 	[]byte("MZ"),
 	[]byte("\x7fELF"),

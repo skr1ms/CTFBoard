@@ -12,7 +12,6 @@ import (
 	logMock "github.com/wahrwelt-kit/go-logkit/mock"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	challengeMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/challenge/mock"
 	compMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/competition/mock"
@@ -157,8 +156,8 @@ func newTestUser(id uuid.UUID, teamID *uuid.UUID) *domain.User {
 	return &domain.User{ID: id, TeamID: teamID}
 }
 
-func newTestScoreboardEntry(teamID uuid.UUID, teamName string, points int) *repo.ScoreboardEntry {
-	return &repo.ScoreboardEntry{TeamID: teamID, TeamName: teamName, Points: points, SolvedAt: time.Now()}
+func newTestScoreboardEntry(teamID uuid.UUID, teamName string, points int) *domain.ScoreboardEntry {
+	return &domain.ScoreboardEntry{TeamID: teamID, TeamName: teamName, Points: points, SolvedAt: time.Now()}
 }
 
 func newTestSubmission(userID uuid.UUID, teamID *uuid.UUID, challengeID uuid.UUID, flag string, isCorrect bool) *domain.Submission {

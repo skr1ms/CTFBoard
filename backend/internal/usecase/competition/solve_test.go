@@ -13,7 +13,6 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/cache"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 )
 
 func TestSolveUseCase_Create(t *testing.T) {
@@ -35,7 +34,7 @@ func TestSolveUseCase_Create(t *testing.T) {
 	d.competitionRepo.On("GetForUpdate", mock.Anything).Return(nil, apperr.ErrCompetitionNotFound).Once()
 
 	challenge := newTestChallenge(challengeID, "Challenge", 100)
-	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.EXPECT().GetByIDForUpdate(mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.EXPECT().GetByTeamAndChallengeForUpdate(mock.Anything, teamID, challengeID).Return(nil, apperr.ErrSolveNotFound)
 	d.solveRepo.EXPECT().Create(mock.Anything, solve).Return(nil)
 	d.challengeRepo.EXPECT().IncrementSolveCount(mock.Anything, challengeID).Return(1, nil)
@@ -76,7 +75,7 @@ func TestSolveUseCase_Create_AlreadySolved(t *testing.T) {
 		ChallengeID: challengeID,
 		SolvedAt:    time.Now(),
 	}
-	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.EXPECT().GetByIDForUpdate(mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.EXPECT().GetByTeamAndChallengeForUpdate(mock.Anything, teamID, challengeID).Return(existingSolve, nil)
 
 	err := uc.Create(context.Background(), solve)
@@ -105,7 +104,7 @@ func TestSolveUseCase_Create_CreateError(t *testing.T) {
 	d.competitionRepo.On("GetForUpdate", mock.Anything).Return(nil, apperr.ErrCompetitionNotFound).Once()
 
 	challenge := newTestChallenge(challengeID, "Challenge", 100)
-	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.EXPECT().GetByIDForUpdate(mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.EXPECT().GetByTeamAndChallengeForUpdate(mock.Anything, teamID, challengeID).Return(nil, apperr.ErrSolveNotFound)
 	d.challengeRepo.EXPECT().IncrementSolveCount(mock.Anything, challengeID).Return(1, nil)
 	d.solveRepo.EXPECT().Create(mock.Anything, solve).Return(expectedError)
@@ -139,7 +138,7 @@ func TestSolveUseCase_Create_AutoDetectTeam(t *testing.T) {
 	d.competitionRepo.On("GetForUpdate", mock.Anything).Return(nil, apperr.ErrCompetitionNotFound).Once()
 
 	challenge := newTestChallenge(challengeID, "Challenge", 100)
-	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.EXPECT().GetByIDForUpdate(mock.Anything, challengeID).Return(challenge, nil)
 	d.solveRepo.EXPECT().GetByTeamAndChallengeForUpdate(mock.Anything, teamID, challengeID).Return(nil, apperr.ErrSolveNotFound)
 	d.solveRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s *domain.Solve) bool {
 		return s.TeamID == teamID
@@ -217,7 +216,7 @@ func TestSolveUseCase_GetScoreboard_Success(t *testing.T) {
 	d := newCompetitionTestDeps(t)
 	uc, redisClient := d.createSolveUseCase()
 
-	entries := []*repo.ScoreboardEntry{
+	entries := []*domain.ScoreboardEntry{
 		newTestScoreboardEntry(uuid.New(), "Team1", 500),
 		newTestScoreboardEntry(uuid.New(), "Team2", 300),
 	}
@@ -250,7 +249,7 @@ func TestSolveUseCase_GetScoreboard_Frozen(t *testing.T) {
 	comp := newTestCompetition("Test", "teams_only", true)
 	comp.StartTime = &startTime
 	comp.FreezeTime = &freezeTime
-	entries := []*repo.ScoreboardEntry{newTestScoreboardEntry(uuid.New(), "Team1", 500)}
+	entries := []*domain.ScoreboardEntry{newTestScoreboardEntry(uuid.New(), "Team1", 500)}
 
 	frozenKey := cache.KeyScoreboardFrozenAt(freezeTime.Unix())
 	redisClient.ExpectGet(frozenKey).SetErr(redis.Nil)
@@ -296,7 +295,7 @@ func TestSolveUseCase_GetFirstBlood_Success(t *testing.T) {
 	uc, _ := d.createSolveUseCase()
 
 	challengeID := uuid.New()
-	entry := &repo.FirstBloodEntry{
+	entry := &domain.FirstBloodEntry{
 		UserID:   uuid.New(),
 		Username: "firstsolver",
 		TeamID:   uuid.New(),
@@ -309,9 +308,10 @@ func TestSolveUseCase_GetFirstBlood_Success(t *testing.T) {
 
 	challenge := newTestChallenge(challengeID, "Test", 100)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return(nil, nil)
 	d.solveRepo.On("GetFirstBlood", mock.Anything, challengeID, (*time.Time)(nil)).Return(entry, nil)
 
-	result, err := uc.GetFirstBlood(context.Background(), challengeID, false)
+	result, err := uc.GetFirstBlood(context.Background(), challengeID, nil, false)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -330,10 +330,32 @@ func TestSolveUseCase_GetFirstBlood_Error(t *testing.T) {
 	challengeID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Test", 100)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return(nil, nil)
 	d.solveRepo.On("GetFirstBlood", mock.Anything, challengeID, (*time.Time)(nil)).Return(nil, apperr.ErrSolveNotFound)
 
-	result, err := uc.GetFirstBlood(context.Background(), challengeID, false)
+	result, err := uc.GetFirstBlood(context.Background(), challengeID, nil, false)
 
 	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestSolveUseCase_GetFirstBlood_RequirementsNotMet(t *testing.T) {
+	t.Parallel()
+	d := newCompetitionTestDeps(t)
+	uc, _ := d.createSolveUseCase()
+
+	challengeID := uuid.New()
+	teamID := uuid.New()
+	prereqID := uuid.New()
+	challenge := newTestChallenge(challengeID, "Test", 100)
+	requirements := []*domain.ChallengeRequirement{{ChallengeID: prereqID, ChallengeTitle: "Prereq"}}
+
+	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return(requirements, nil)
+	d.solveRepo.On("GetSolvedChallengeIDsByTeam", mock.Anything, teamID, mock.Anything).Return([]uuid.UUID{}, nil)
+
+	result, err := uc.GetFirstBlood(context.Background(), challengeID, &teamID, false)
+
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, result)
 }

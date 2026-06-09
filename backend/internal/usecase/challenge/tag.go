@@ -18,6 +18,7 @@ const defaultTagColor = "#6b7280"
 type TagDeps struct {
 	TagRepo       repo.TagRepository
 	ChallengeRepo repo.ChallengeRepository
+	SolveRepo     repo.SolveRepository
 }
 
 type TagUseCase struct {
@@ -104,13 +105,17 @@ func (uc *TagUseCase) Delete(ctx context.Context, ID uuid.UUID) error {
 	return nil
 }
 
-func (uc *TagUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error) {
+func (uc *TagUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Tag, error) {
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("TagUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
 
 	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRequirementsSatisfiedForRead(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo, "TagUseCase - GetByChallengeID"); err != nil {
 		return nil, err
 	}
 

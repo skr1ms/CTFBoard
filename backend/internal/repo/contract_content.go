@@ -95,6 +95,7 @@ type (
 		GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.APIToken, error)
 		GetByTokenHash(ctx context.Context, tokenHash string) (*domain.APIToken, error)
 		Delete(ctx context.Context, ID, userID uuid.UUID) error
+		DeleteAllByUserID(ctx context.Context, userID uuid.UUID) error
 		UpdateLastUsedAt(ctx context.Context, ID uuid.UUID, at time.Time) error
 	}
 )

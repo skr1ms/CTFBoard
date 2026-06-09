@@ -155,9 +155,9 @@ func (uc *OAuthUseCase) HandleCallback(ctx context.Context, provider, code strin
 	}
 
 	if existingUser != nil {
-		// Local account exists but email is not yet verified - treat as a new registration
-		// to avoid account takeover. The user should verify their email first
-		return uc.registerNewOAuthUser(ctx, profile, token, provider)
+		// Local account exists but email is not yet verified. Do not auto-link, and
+		// return a precise error instead of falling through to a registration conflict.
+		return nil, apperr.ErrEmailNotVerified
 	}
 
 	return uc.registerNewOAuthUser(ctx, profile, token, provider)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -81,9 +82,11 @@ func (uc *TrackingUseCase) TrackChallengeOpen(ctx context.Context, userID uuid.U
 	}
 
 	if uc.deps.StatsCacheInvalidator != nil {
-		if err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx); err != nil {
-			uc.deps.Logger.WithError(err).Warn("TrackingUseCase - TrackChallengeOpen: failed to invalidate statistics cache")
-		}
+		txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+			if err := uc.deps.StatsCacheInvalidator.InvalidateStatistics(ctx); err != nil {
+				uc.deps.Logger.WithError(err).Warn("TrackingUseCase - TrackChallengeOpen: failed to invalidate statistics cache")
+			}
+		})
 	}
 
 	return nil

@@ -22,7 +22,8 @@ func TestTeamUseCase_TryCreate_Success(t *testing.T) {
 	user := newTestUser(captainID, nil, "captain", "captain@example.com")
 
 	comp := &domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}
-	d.compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(comp, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(comp, nil).Once()
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{}, nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
@@ -71,7 +72,7 @@ func TestTeamUseCase_ConfirmCreate_Success(t *testing.T) {
 	captainID := uuid.New()
 	user := newTestUser(captainID, nil, "captain", "captain@example.com")
 
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.SettingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{}, nil).Once()
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
@@ -104,7 +105,7 @@ func TestTeamUseCase_ConfirmCreate_Error(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(nil, assert.AnError).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(nil, assert.AnError).Once()
 
 	uc := d.createUseCase()
 

@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 )
 
 // ScoreboardCacheInvalidator is the usecase-owned port for scoreboard cache eviction.
@@ -30,11 +32,13 @@ func InvalidateWithFreezeAwareness(ctx context.Context, cache ScoreboardCacheInv
 		return
 	}
 
-	if frozen {
-		cache.InvalidateLiveOnly(ctx, teamID)
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		if frozen {
+			cache.InvalidateLiveOnly(ctx, teamID)
 
-		return
-	}
+			return
+		}
 
-	cache.InvalidateForTeam(ctx, teamID)
+		cache.InvalidateForTeam(ctx, teamID)
+	})
 }

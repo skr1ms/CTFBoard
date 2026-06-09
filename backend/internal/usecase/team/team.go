@@ -60,7 +60,6 @@ var (
 	_ usecase.TeamReadUseCase  = (*TeamUseCase)(nil)
 	_ usecase.TeamSelfUseCase  = (*TeamUseCase)(nil)
 	_ usecase.TeamAdminUseCase = (*TeamUseCase)(nil)
-	_ usecase.TeamUseCase      = (*TeamUseCase)(nil)
 )
 
 func NewTeamUseCase(deps TeamDeps) *TeamUseCase {

@@ -10,9 +10,9 @@ func TestValidateDownloadPath(t *testing.T) {
 		path string
 		want bool
 	}{
-		{name: "legacy", path: "0123456789abcdef/archive.zip", want: true},
+		{name: "legacy", path: "0123456789abcdef/archive.zip", want: false},
 		{name: "tasks", path: "tasks/0123456789abcdef/archive.zip", want: true},
-		{name: "tasks nested", path: "tasks/0123456789abcdef/nested/archive.zip", want: true},
+		{name: "tasks nested", path: "tasks/0123456789abcdef/nested/archive.zip", want: false},
 		{name: "empty", path: "", want: false},
 		{name: "short hash", path: "0123456789abcde/archive.zip", want: false},
 		{name: "non hex hash", path: "0123456789abcdeg/archive.zip", want: false},
@@ -40,9 +40,9 @@ func TestDownloadFilename(t *testing.T) {
 		path string
 		want string
 	}{
-		{name: "legacy", path: "0123456789abcdef/archive.zip", want: "archive.zip"},
+		{name: "legacy", path: "0123456789abcdef/archive.zip", want: "download"},
 		{name: "tasks", path: "tasks/0123456789abcdef/archive.zip", want: "archive.zip"},
-		{name: "nested tasks", path: "tasks/0123456789abcdef/nested/archive.zip", want: "archive.zip"},
+		{name: "nested tasks", path: "tasks/0123456789abcdef/nested/archive.zip", want: "download"},
 		{name: "invalid", path: "invalid", want: "download"},
 	}
 

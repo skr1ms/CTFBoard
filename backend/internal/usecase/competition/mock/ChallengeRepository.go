@@ -8,7 +8,6 @@ import (
 	"context"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -38,6 +37,57 @@ type MockChallengeRepository_Expecter struct {
 
 func (_m *MockChallengeRepository) EXPECT() *MockChallengeRepository_Expecter {
 	return &MockChallengeRepository_Expecter{mock: &_m.Mock}
+}
+
+// AcquireRequirementsLock provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) AcquireRequirementsLock(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AcquireRequirementsLock")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChallengeRepository_AcquireRequirementsLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcquireRequirementsLock'
+type MockChallengeRepository_AcquireRequirementsLock_Call struct {
+	*mock.Call
+}
+
+// AcquireRequirementsLock is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockChallengeRepository_Expecter) AcquireRequirementsLock(ctx interface{}) *MockChallengeRepository_AcquireRequirementsLock_Call {
+	return &MockChallengeRepository_AcquireRequirementsLock_Call{Call: _e.mock.On("AcquireRequirementsLock", ctx)}
+}
+
+func (_c *MockChallengeRepository_AcquireRequirementsLock_Call) Run(run func(ctx context.Context)) *MockChallengeRepository_AcquireRequirementsLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_AcquireRequirementsLock_Call) Return(err error) *MockChallengeRepository_AcquireRequirementsLock_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_AcquireRequirementsLock_Call) RunAndReturn(run func(ctx context.Context) error) *MockChallengeRepository_AcquireRequirementsLock_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // BatchDecrementSolveCount provides a mock function for the type MockChallengeRepository
@@ -455,23 +505,23 @@ func (_c *MockChallengeRepository_DeleteSolution_Call) RunAndReturn(run func(ctx
 }
 
 // GetAll provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetAll(ctx context.Context, teamID *uuid.UUID, tagID *uuid.UUID) ([]*repo.ChallengeWithSolved, error) {
+func (_mock *MockChallengeRepository) GetAll(ctx context.Context, teamID *uuid.UUID, tagID *uuid.UUID) ([]*domain.ChallengeWithSolved, error) {
 	ret := _mock.Called(ctx, teamID, tagID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAll")
 	}
 
-	var r0 []*repo.ChallengeWithSolved
+	var r0 []*domain.ChallengeWithSolved
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *uuid.UUID) ([]*repo.ChallengeWithSolved, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *uuid.UUID) ([]*domain.ChallengeWithSolved, error)); ok {
 		return returnFunc(ctx, teamID, tagID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *uuid.UUID) []*repo.ChallengeWithSolved); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *uuid.UUID) []*domain.ChallengeWithSolved); ok {
 		r0 = returnFunc(ctx, teamID, tagID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*repo.ChallengeWithSolved)
+			r0 = ret.Get(0).([]*domain.ChallengeWithSolved)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *uuid.UUID, *uuid.UUID) error); ok {
@@ -518,12 +568,12 @@ func (_c *MockChallengeRepository_GetAll_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetAll_Call) Return(vs []*repo.ChallengeWithSolved, err error) *MockChallengeRepository_GetAll_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockChallengeRepository_GetAll_Call) Return(challengeWithSolveds []*domain.ChallengeWithSolved, err error) *MockChallengeRepository_GetAll_Call {
+	_c.Call.Return(challengeWithSolveds, err)
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, teamID *uuid.UUID, tagID *uuid.UUID) ([]*repo.ChallengeWithSolved, error)) *MockChallengeRepository_GetAll_Call {
+func (_c *MockChallengeRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, teamID *uuid.UUID, tagID *uuid.UUID) ([]*domain.ChallengeWithSolved, error)) *MockChallengeRepository_GetAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -591,23 +641,23 @@ func (_c *MockChallengeRepository_GetAllDynamicIDs_Call) RunAndReturn(run func(c
 }
 
 // GetAllForBackup provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetAllForBackup(ctx context.Context) ([]*repo.ChallengeWithSolved, error) {
+func (_mock *MockChallengeRepository) GetAllForBackup(ctx context.Context) ([]*domain.ChallengeWithSolved, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAllForBackup")
 	}
 
-	var r0 []*repo.ChallengeWithSolved
+	var r0 []*domain.ChallengeWithSolved
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*repo.ChallengeWithSolved, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*domain.ChallengeWithSolved, error)); ok {
 		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []*repo.ChallengeWithSolved); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*domain.ChallengeWithSolved); ok {
 		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*repo.ChallengeWithSolved)
+			r0 = ret.Get(0).([]*domain.ChallengeWithSolved)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
@@ -642,12 +692,12 @@ func (_c *MockChallengeRepository_GetAllForBackup_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetAllForBackup_Call) Return(vs []*repo.ChallengeWithSolved, err error) *MockChallengeRepository_GetAllForBackup_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockChallengeRepository_GetAllForBackup_Call) Return(challengeWithSolveds []*domain.ChallengeWithSolved, err error) *MockChallengeRepository_GetAllForBackup_Call {
+	_c.Call.Return(challengeWithSolveds, err)
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetAllForBackup_Call) RunAndReturn(run func(ctx context.Context) ([]*repo.ChallengeWithSolved, error)) *MockChallengeRepository_GetAllForBackup_Call {
+func (_c *MockChallengeRepository_GetAllForBackup_Call) RunAndReturn(run func(ctx context.Context) ([]*domain.ChallengeWithSolved, error)) *MockChallengeRepository_GetAllForBackup_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -981,23 +1031,23 @@ func (_c *MockChallengeRepository_GetByIDs_Call) RunAndReturn(run func(ctx conte
 }
 
 // GetFlags provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetFlags(ctx context.Context, ID uuid.UUID) (*repo.ChallengeFlags, error) {
+func (_mock *MockChallengeRepository) GetFlags(ctx context.Context, ID uuid.UUID) (*domain.ChallengeFlags, error) {
 	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFlags")
 	}
 
-	var r0 *repo.ChallengeFlags
+	var r0 *domain.ChallengeFlags
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*repo.ChallengeFlags, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*domain.ChallengeFlags, error)); ok {
 		return returnFunc(ctx, ID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *repo.ChallengeFlags); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *domain.ChallengeFlags); ok {
 		r0 = returnFunc(ctx, ID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*repo.ChallengeFlags)
+			r0 = ret.Get(0).(*domain.ChallengeFlags)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -1038,12 +1088,12 @@ func (_c *MockChallengeRepository_GetFlags_Call) Run(run func(ctx context.Contex
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetFlags_Call) Return(v *repo.ChallengeFlags, err error) *MockChallengeRepository_GetFlags_Call {
-	_c.Call.Return(v, err)
+func (_c *MockChallengeRepository_GetFlags_Call) Return(challengeFlags *domain.ChallengeFlags, err error) *MockChallengeRepository_GetFlags_Call {
+	_c.Call.Return(challengeFlags, err)
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetFlags_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*repo.ChallengeFlags, error)) *MockChallengeRepository_GetFlags_Call {
+func (_c *MockChallengeRepository_GetFlags_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*domain.ChallengeFlags, error)) *MockChallengeRepository_GetFlags_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1185,23 +1235,23 @@ func (_c *MockChallengeRepository_GetMissingChallengesByUserID_Call) RunAndRetur
 }
 
 // GetRequirements provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*repo.ChallengeRequirement, error) {
+func (_mock *MockChallengeRepository) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error) {
 	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRequirements")
 	}
 
-	var r0 []*repo.ChallengeRequirement
+	var r0 []*domain.ChallengeRequirement
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*repo.ChallengeRequirement, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*domain.ChallengeRequirement, error)); ok {
 		return returnFunc(ctx, ID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*repo.ChallengeRequirement); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*domain.ChallengeRequirement); ok {
 		r0 = returnFunc(ctx, ID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*repo.ChallengeRequirement)
+			r0 = ret.Get(0).([]*domain.ChallengeRequirement)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -1242,34 +1292,102 @@ func (_c *MockChallengeRepository_GetRequirements_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetRequirements_Call) Return(vs []*repo.ChallengeRequirement, err error) *MockChallengeRepository_GetRequirements_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockChallengeRepository_GetRequirements_Call) Return(challengeRequirements []*domain.ChallengeRequirement, err error) *MockChallengeRepository_GetRequirements_Call {
+	_c.Call.Return(challengeRequirements, err)
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetRequirements_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) ([]*repo.ChallengeRequirement, error)) *MockChallengeRepository_GetRequirements_Call {
+func (_c *MockChallengeRepository_GetRequirements_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error)) *MockChallengeRepository_GetRequirements_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetRequirementsForEnforcement provides a mock function for the type MockChallengeRepository
+func (_mock *MockChallengeRepository) GetRequirementsForEnforcement(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error) {
+	ret := _mock.Called(ctx, ID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRequirementsForEnforcement")
+	}
+
+	var r0 []*domain.ChallengeRequirement
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]*domain.ChallengeRequirement, error)); ok {
+		return returnFunc(ctx, ID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []*domain.ChallengeRequirement); ok {
+		r0 = returnFunc(ctx, ID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*domain.ChallengeRequirement)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChallengeRepository_GetRequirementsForEnforcement_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRequirementsForEnforcement'
+type MockChallengeRepository_GetRequirementsForEnforcement_Call struct {
+	*mock.Call
+}
+
+// GetRequirementsForEnforcement is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ID uuid.UUID
+func (_e *MockChallengeRepository_Expecter) GetRequirementsForEnforcement(ctx interface{}, ID interface{}) *MockChallengeRepository_GetRequirementsForEnforcement_Call {
+	return &MockChallengeRepository_GetRequirementsForEnforcement_Call{Call: _e.mock.On("GetRequirementsForEnforcement", ctx, ID)}
+}
+
+func (_c *MockChallengeRepository_GetRequirementsForEnforcement_Call) Run(run func(ctx context.Context, ID uuid.UUID)) *MockChallengeRepository_GetRequirementsForEnforcement_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetRequirementsForEnforcement_Call) Return(challengeRequirements []*domain.ChallengeRequirement, err error) *MockChallengeRepository_GetRequirementsForEnforcement_Call {
+	_c.Call.Return(challengeRequirements, err)
+	return _c
+}
+
+func (_c *MockChallengeRepository_GetRequirementsForEnforcement_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error)) *MockChallengeRepository_GetRequirementsForEnforcement_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetSolution provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.ChallengeSolution, error) {
+func (_mock *MockChallengeRepository) GetSolution(ctx context.Context, ID uuid.UUID) (*domain.ChallengeSolution, error) {
 	ret := _mock.Called(ctx, ID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetSolution")
 	}
 
-	var r0 *repo.ChallengeSolution
+	var r0 *domain.ChallengeSolution
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*repo.ChallengeSolution, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*domain.ChallengeSolution, error)); ok {
 		return returnFunc(ctx, ID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *repo.ChallengeSolution); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *domain.ChallengeSolution); ok {
 		r0 = returnFunc(ctx, ID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*repo.ChallengeSolution)
+			r0 = ret.Get(0).(*domain.ChallengeSolution)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -1310,12 +1428,12 @@ func (_c *MockChallengeRepository_GetSolution_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetSolution_Call) Return(v *repo.ChallengeSolution, err error) *MockChallengeRepository_GetSolution_Call {
-	_c.Call.Return(v, err)
+func (_c *MockChallengeRepository_GetSolution_Call) Return(challengeSolution *domain.ChallengeSolution, err error) *MockChallengeRepository_GetSolution_Call {
+	_c.Call.Return(challengeSolution, err)
 	return _c
 }
 
-func (_c *MockChallengeRepository_GetSolution_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*repo.ChallengeSolution, error)) *MockChallengeRepository_GetSolution_Call {
+func (_c *MockChallengeRepository_GetSolution_Call) RunAndReturn(run func(ctx context.Context, ID uuid.UUID) (*domain.ChallengeSolution, error)) *MockChallengeRepository_GetSolution_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1387,23 +1505,23 @@ func (_c *MockChallengeRepository_IncrementSolveCount_Call) RunAndReturn(run fun
 }
 
 // ListSolutions provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) ListSolutions(ctx context.Context) ([]*repo.ChallengeSolutionEntry, error) {
+func (_mock *MockChallengeRepository) ListSolutions(ctx context.Context) ([]*domain.ChallengeSolutionEntry, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListSolutions")
 	}
 
-	var r0 []*repo.ChallengeSolutionEntry
+	var r0 []*domain.ChallengeSolutionEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*repo.ChallengeSolutionEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*domain.ChallengeSolutionEntry, error)); ok {
 		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []*repo.ChallengeSolutionEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*domain.ChallengeSolutionEntry); ok {
 		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*repo.ChallengeSolutionEntry)
+			r0 = ret.Get(0).([]*domain.ChallengeSolutionEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
@@ -1438,12 +1556,12 @@ func (_c *MockChallengeRepository_ListSolutions_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *MockChallengeRepository_ListSolutions_Call) Return(vs []*repo.ChallengeSolutionEntry, err error) *MockChallengeRepository_ListSolutions_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockChallengeRepository_ListSolutions_Call) Return(challengeSolutionEntrys []*domain.ChallengeSolutionEntry, err error) *MockChallengeRepository_ListSolutions_Call {
+	_c.Call.Return(challengeSolutionEntrys, err)
 	return _c
 }
 
-func (_c *MockChallengeRepository_ListSolutions_Call) RunAndReturn(run func(ctx context.Context) ([]*repo.ChallengeSolutionEntry, error)) *MockChallengeRepository_ListSolutions_Call {
+func (_c *MockChallengeRepository_ListSolutions_Call) RunAndReturn(run func(ctx context.Context) ([]*domain.ChallengeSolutionEntry, error)) *MockChallengeRepository_ListSolutions_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1752,23 +1870,23 @@ func (_c *MockChallengeRepository_UpdatePoints_Call) RunAndReturn(run func(ctx c
 }
 
 // UpsertSolution provides a mock function for the type MockChallengeRepository
-func (_mock *MockChallengeRepository) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string, state string) (*repo.ChallengeSolution, error) {
+func (_mock *MockChallengeRepository) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content string, state string) (*domain.ChallengeSolution, error) {
 	ret := _mock.Called(ctx, challengeID, content, state)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpsertSolution")
 	}
 
-	var r0 *repo.ChallengeSolution
+	var r0 *domain.ChallengeSolution
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) (*repo.ChallengeSolution, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) (*domain.ChallengeSolution, error)); ok {
 		return returnFunc(ctx, challengeID, content, state)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) *repo.ChallengeSolution); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) *domain.ChallengeSolution); ok {
 		r0 = returnFunc(ctx, challengeID, content, state)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*repo.ChallengeSolution)
+			r0 = ret.Get(0).(*domain.ChallengeSolution)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string) error); ok {
@@ -1821,12 +1939,12 @@ func (_c *MockChallengeRepository_UpsertSolution_Call) Run(run func(ctx context.
 	return _c
 }
 
-func (_c *MockChallengeRepository_UpsertSolution_Call) Return(v *repo.ChallengeSolution, err error) *MockChallengeRepository_UpsertSolution_Call {
-	_c.Call.Return(v, err)
+func (_c *MockChallengeRepository_UpsertSolution_Call) Return(challengeSolution *domain.ChallengeSolution, err error) *MockChallengeRepository_UpsertSolution_Call {
+	_c.Call.Return(challengeSolution, err)
 	return _c
 }
 
-func (_c *MockChallengeRepository_UpsertSolution_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, content string, state string) (*repo.ChallengeSolution, error)) *MockChallengeRepository_UpsertSolution_Call {
+func (_c *MockChallengeRepository_UpsertSolution_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, content string, state string) (*domain.ChallengeSolution, error)) *MockChallengeRepository_UpsertSolution_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -107,9 +107,9 @@ func (uc *ChallengeUseCase) getDetailInner(ctx context.Context, challengeID uuid
 		return nil, err
 	}
 
-	reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
+	reqs, err := uc.deps.ChallengeRepo.GetRequirementsForEnforcement(ctx, challengeID)
 	if err != nil {
-		return nil, fmt.Errorf("ChallengeUseCase - GetDetail - GetRequirements: %w", err)
+		return nil, fmt.Errorf("ChallengeUseCase - GetDetail - GetRequirementsForEnforcement: %w", err)
 	}
 
 	if len(reqs) > 0 {
@@ -121,9 +121,9 @@ func (uc *ChallengeUseCase) getDetailInner(ctx context.Context, challengeID uuid
 			return nil, apperr.ErrChallengeNotFound
 		}
 
-		met, err := requirementsMet(ctx, challengeID, *teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+		met, err := requirementsSatisfied(ctx, reqs, *teamID, uc.deps.SolveRepo)
 		if err != nil {
-			return nil, fmt.Errorf("ChallengeUseCase - GetDetail - requirementsMet: %w", err)
+			return nil, fmt.Errorf("ChallengeUseCase - GetDetail - requirementsSatisfied: %w", err)
 		}
 
 		if !met {
@@ -314,13 +314,17 @@ func (uc *ChallengeUseCase) checkChallengeSolved(ctx context.Context, challengeI
 }
 
 // GetSolves returns the solve list for a challenge, applying freeze-time filtering when active.
-func (uc *ChallengeUseCase) GetSolves(ctx context.Context, challengeID uuid.UUID) ([]*domain.SolveWithDetails, error) {
+func (uc *ChallengeUseCase) GetSolves(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.SolveWithDetails, error) {
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - GetSolves - ChallengeRepo.GetByID: %w", err)
 	}
 
 	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRequirementsSatisfiedForRead(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo, "ChallengeUseCase - GetSolves"); err != nil {
 		return nil, err
 	}
 

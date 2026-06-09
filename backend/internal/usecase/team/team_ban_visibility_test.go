@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -46,6 +47,24 @@ func TestTeamUseCase_BanTeam_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestTeamUseCase_AfterTeamBanCommit_RevokesOnlyActuallyBannedUsers(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	adminID := uuid.New()
+	userID := uuid.New()
+	teamID := uuid.New()
+
+	uc := d.createUseCase()
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{}, nil).Once()
+	uc.afterTeamBanCommit(context.Background(), []uuid.UUID{teamID}, teamBanTxResult{
+		memberIDs:     []uuid.UUID{adminID, userID},
+		bannedUserIDs: []uuid.UUID{userID},
+	}, true)
+
+	assert.Equal(t, []uuid.UUID{userID}, d.jwtRevoker.revoked)
+}
+
 func TestTeamUseCase_BanTeam_Error(t *testing.T) {
 	t.Parallel()
 	d := newTeamTestDeps(t)
@@ -70,6 +89,51 @@ func TestTeamUseCase_BanTeam_Error(t *testing.T) {
 	assert.ErrorIs(t, err, apperr.ErrTeamNotFound)
 }
 
+func TestTeamUseCase_BanTeam_BanMembersRecordsOnlyNewNonAdminBans(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	teamID := uuid.New()
+	adminID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	alreadyBannedID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000003")
+	members := []*domain.User{
+		{ID: adminID, Role: domain.RoleAdmin},
+		{ID: alreadyBannedID, Role: domain.RoleUser, IsBanned: true},
+		{ID: userID, Role: domain.RoleUser},
+	}
+	team := &domain.Team{ID: teamID, Name: "Team"}
+
+	d.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return(members, nil).Twice()
+	d.userRepo.EXPECT().Lock(mock.Anything, adminID).Return(nil).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, alreadyBannedID).Return(nil).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+	d.teamRepo.EXPECT().Ban(mock.Anything, teamID, "reason").Return(nil).Once()
+	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return([]*domain.SolveWithDetails{}, nil).Once()
+	d.solveRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
+	d.submissionRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
+	d.awardRepo.EXPECT().SoftBanByTeamID(mock.Anything, teamID).Return(nil).Once()
+	d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
+	d.userRepo.EXPECT().UpdateTeamIDBatch(mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
+		return assert.ElementsMatch(t, []uuid.UUID{adminID, alreadyBannedID, userID}, ids)
+	}), (*uuid.UUID)(nil)).Return(nil).Once()
+	d.teamRepo.EXPECT().CreateAuditLog(mock.Anything, mock.MatchedBy(func(l *domain.TeamAuditLog) bool {
+		bannedIDs := parseUUIDSliceFromDetails(l.Details, "banned_user_ids")
+
+		return l.TeamID == teamID &&
+			l.Action == domain.TeamActionBanned &&
+			assert.ObjectsAreEqual([]uuid.UUID{userID}, bannedIDs)
+	})).Return(nil).Once()
+
+	uc := d.createUseCase()
+	result, err := uc.banTeamTx(context.Background(), teamID, "reason", true, uuid.New())
+
+	require.NoError(t, err)
+	assert.Equal(t, []uuid.UUID{userID}, result.bannedUserIDs)
+}
+
 func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 	t.Parallel()
 	d := newTeamTestDeps(t)
@@ -81,12 +145,16 @@ func TestTeamUseCase_UnbanTeam_Success(t *testing.T) {
 		return fn(ctx)
 	}).Once()
 	d.teamRepo.EXPECT().GetLatestAuditLogByTeamIDAndAction(mock.Anything, teamID, "banned").Return(nil, nil).Once()
-	d.userRepo.EXPECT().FilterIDsByTeamIDNullAndNotBanned(mock.Anything, mock.Anything).Return([]uuid.UUID(nil), nil).Once()
+	d.userRepo.EXPECT().FilterIDsByTeamIDNullAndNotBanned(mock.Anything, mock.Anything).Return([]uuid.UUID(nil), nil).Twice()
 	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{MaxTeamSize: 10}, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	d.teamRepo.EXPECT().Unban(mock.Anything, teamID).Return(nil).Once()
 	d.userRepo.EXPECT().GetByTeamID(mock.Anything, teamID).Return([]*domain.User{}, nil).Once()
+	d.solveRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
+	d.submissionRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
+	d.awardRepo.EXPECT().RestoreByBannedTeamID(mock.Anything, teamID).Return(nil).Once()
+	d.solveRepo.EXPECT().GetByTeamIDWithDetails(mock.Anything, teamID).Return([]*domain.SolveWithDetails{}, nil).Once()
 	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
 
 	actorID := uuid.New()
@@ -176,6 +244,28 @@ func TestTeamUseCase_UnbanTeam_DoesNotUnbanIndependentlyBannedMember(t *testing.
 	assert.NoError(t, err)
 }
 
+func TestTeamUseCase_UnbanTeam_DoesNotUseTimestampFallbackWithoutBannedUserIDs(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	teamID := uuid.New()
+	userID := uuid.New()
+	memberIDs := []uuid.UUID{userID}
+	banLog := &domain.TeamAuditLog{
+		TeamID: teamID,
+		Action: domain.TeamActionBanned,
+		Details: map[string]any{
+			"ban_members": true,
+			"member_ids":  []string{userID.String()},
+		},
+	}
+
+	uc := d.createUseCase()
+	err := uc.unbanTeamMembersByLog(context.Background(), banLog, &memberIDs)
+
+	require.NoError(t, err)
+}
+
 func TestTeamUseCase_SetHidden_Success(t *testing.T) {
 	t.Parallel()
 	d := newTeamTestDeps(t)
@@ -195,6 +285,32 @@ func TestTeamUseCase_SetHidden_Success(t *testing.T) {
 	err := uc.SetHidden(context.Background(), teamID, true)
 
 	assert.NoError(t, err)
+}
+
+func TestTeamUseCase_SetHiddenBulk_DedupesAndReportsAffected(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	firstID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	secondID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+
+	for _, teamID := range []uuid.UUID{firstID, secondID} {
+		team := &domain.Team{ID: teamID}
+		d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
+		d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+		d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, true).Return(nil).Once()
+	}
+
+	uc := d.createUseCase()
+	result, err := uc.SetHiddenBulk(context.Background(), []uuid.UUID{secondID, firstID, secondID}, true)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, 2, result.AffectedCount)
 }
 
 func TestTeamUseCase_SetHidden_Error(t *testing.T) {

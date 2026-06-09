@@ -9,13 +9,23 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
-func (uc *ChallengeUseCase) GetTags(ctx context.Context, challengeID uuid.UUID) ([]*domain.Tag, error) {
-	if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
+func (uc *ChallengeUseCase) GetTags(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Tag, error) {
+	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
+	if err != nil {
 		return nil, fmt.Errorf("ChallengeUseCase - GetTags - ChallengeRepo.GetByID: %w", err)
+	}
+
+	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRequirementsSatisfiedForRead(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo, "ChallengeUseCase - GetTags"); err != nil {
+		return nil, err
 	}
 
 	if uc.deps.TagRepo == nil {
@@ -31,8 +41,9 @@ func (uc *ChallengeUseCase) GetTags(ctx context.Context, challengeID uuid.UUID) 
 }
 
 // GetRequirements returns prerequisite challenges for the given challenge.
-// Uses singleflight to coalesce concurrent requests; hides the challenge (404) when state is Hidden.
-func (uc *ChallengeUseCase) GetRequirements(ctx context.Context, challengeID uuid.UUID) ([]*domain.ChallengeRequirement, error) {
+// Uses singleflight to coalesce the public metadata read, then applies caller-specific
+// requirement visibility checks so locked challenges cannot leak prerequisite metadata.
+func (uc *ChallengeUseCase) GetRequirements(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID, isAdmin bool) ([]*domain.ChallengeRequirement, error) {
 	key := challengeID.String() + ":req:pub"
 
 	v, err, _ := uc.requirementsSf.Do(key, func() (any, error) {
@@ -59,7 +70,46 @@ func (uc *ChallengeUseCase) GetRequirements(ctx context.Context, challengeID uui
 		return nil, fmt.Errorf("ChallengeUseCase - GetRequirements: unexpected type")
 	}
 
+	if !isAdmin {
+		filtered, err := uc.requirementsVisibleToCaller(ctx, requirements, teamID)
+		if err != nil {
+			return nil, fmt.Errorf("ChallengeUseCase - GetRequirements - requirementsVisibleToCaller: %w", err)
+		}
+
+		requirements = filtered
+	}
+
 	return requirements, nil
+}
+
+func (uc *ChallengeUseCase) requirementsVisibleToCaller(ctx context.Context, requirements []*domain.ChallengeRequirement, teamID *uuid.UUID) ([]*domain.ChallengeRequirement, error) {
+	if len(requirements) == 0 {
+		return requirements, nil
+	}
+
+	anonymize := uc.shouldAnonymizePrerequisites(ctx)
+	if teamID == nil || uc.deps.SolveRepo == nil {
+		if anonymize {
+			return []*domain.ChallengeRequirement{}, nil
+		}
+
+		return nil, apperr.ErrChallengeNotFound
+	}
+
+	met, err := requirementsSatisfied(ctx, requirements, *teamID, uc.deps.SolveRepo)
+	if err != nil {
+		return nil, fmt.Errorf("requirementsSatisfied: %w", err)
+	}
+
+	if met {
+		return requirements, nil
+	}
+
+	if anonymize {
+		return []*domain.ChallengeRequirement{}, nil
+	}
+
+	return nil, apperr.ErrChallengeNotFound
 }
 
 // SetRequirements replaces the requirement list for a challenge after validating that the
@@ -81,9 +131,13 @@ func (uc *ChallengeUseCase) SetRequirements(ctx context.Context, challengeID uui
 		}
 	}
 
-	return uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		if _, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID); err != nil {
-			return fmt.Errorf("ChallengeUseCase - SetRequirements - ChallengeRepo.GetByID: %w", err)
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		if err := uc.deps.ChallengeRepo.AcquireRequirementsLock(ctx); err != nil {
+			return fmt.Errorf("ChallengeUseCase - SetRequirements - AcquireRequirementsLock: %w", err)
+		}
+
+		if _, err := uc.deps.ChallengeRepo.GetByIDForUpdate(ctx, challengeID); err != nil {
+			return fmt.Errorf("ChallengeUseCase - SetRequirements - ChallengeRepo.GetByIDForUpdate: %w", err)
 		}
 
 		pairs, err := uc.deps.ChallengeRepo.GetAllRequirementPairs(ctx)
@@ -109,7 +163,16 @@ func (uc *ChallengeUseCase) SetRequirements(ctx context.Context, challengeID uui
 		}
 
 		return nil
+	}); err != nil {
+		return err
+	}
+
+	txctx.AfterCommitOrNow(ctx, func(context.Context) {
+		uc.requirementsSf.Forget(challengeID.String() + ":req:pub")
 	})
+	uc.InvalidateChallengeListCache(ctx)
+
+	return nil
 }
 
 // requirementsContainCycle reports whether the directed graph represented by adj contains

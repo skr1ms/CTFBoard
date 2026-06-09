@@ -50,18 +50,23 @@ func (c staticCompetitionParamUC) GetInt(_ context.Context, key string, defaultV
 }
 
 func newPolicyTestUseCase(deps *userTestDeps, settingsRepo *userMock.MockSettingsRepository, cfg usecase.CompetitionParamUseCase) *UserUseCase {
-	return NewUserUseCase(UserDeps{
+	ucDeps := UserDeps{
 		UserRepo:       deps.userRepo,
 		TeamRepo:       deps.teamRepo,
 		SolveRepo:      deps.solveRepo,
 		TM:             deps.tm,
 		JWTService:     deps.jwtService,
-		SettingsRepo:   settingsRepo,
 		CompParamUC:    cfg,
 		BcryptCost:     bcrypt.MinCost,
 		FieldValidator: nil,
 		FieldValueRepo: nil,
-	})
+	}
+
+	if settingsRepo != nil {
+		ucDeps.SettingsRepo = settingsRepo
+	}
+
+	return NewUserUseCase(ucDeps)
 }
 
 func setupPolicyRegisterTx(d *userTestDeps) {
@@ -79,7 +84,6 @@ func TestUserUseCase_Register_RegistrationVisibilityPrivate(t *testing.T) {
 		ints:    map[string]int{"password_min_length": 8},
 	}
 
-	setupPolicyRegisterTx(d)
 	settingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
 
 	uc := newPolicyTestUseCase(d, settingsRepo, cfg)
@@ -119,7 +123,6 @@ func TestUserUseCase_Register_RegistrationCode(t *testing.T) {
 				ints: map[string]int{"password_min_length": 8},
 			}
 
-			setupPolicyRegisterTx(d)
 			settingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
 
 			uc := newPolicyTestUseCase(d, settingsRepo, cfg)
@@ -150,7 +153,7 @@ func TestUserUseCase_Register_RegistrationCodeValid(t *testing.T) {
 	}
 
 	setupPolicyRegisterTx(d)
-	settingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Once()
+	settingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true}, nil).Twice()
 	d.userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Twice()
 	d.userRepo.EXPECT().GetByUsername(mock.Anything, "codeuser").Return(nil, apperr.ErrUserNotFound).Once()
 	d.userRepo.EXPECT().GetByEmail(mock.Anything, "code@example.com").Return(nil, apperr.ErrUserNotFound).Once()
@@ -180,9 +183,7 @@ func TestUserUseCase_Register_MaxUsersReached(t *testing.T) {
 		ints:    map[string]int{"password_min_length": 8},
 	}
 
-	setupPolicyRegisterTx(d)
 	settingsRepo.EXPECT().Get(mock.Anything).Return(&domain.Settings{RegistrationOpen: true, MaxUsers: 1}, nil).Once()
-	d.userRepo.EXPECT().AcquireAdvisoryLock(mock.Anything, mock.Anything).Return(nil).Once()
 	d.userRepo.EXPECT().CountActiveUsers(mock.Anything).Return(int64(1), nil).Once()
 
 	uc := newPolicyTestUseCase(d, settingsRepo, cfg)

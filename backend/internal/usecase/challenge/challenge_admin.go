@@ -81,9 +81,10 @@ func (uc *ChallengeUseCase) AdminDeleteSolution(ctx context.Context, challengeID
 	return nil
 }
 
-// AdminCreateSolve records a solve on behalf of an admin inside a SERIALIZABLE transaction
-// with row-level advisory locks on the user and team rows. It checks team and user ban
-// status, enforces competition mode constraints (solo/teams/min-size), and optionally
+// AdminCreateSolve records a solve on behalf of an admin inside a transaction
+// with row-level locks on the user, team, solve, and challenge rows. It checks team and user ban
+// status, rejects non-admin users marked as former members of banned teams,
+// enforces competition mode constraints (solo/teams/min-size), and optionally
 // skips the submission-window check when skipCompetitionCheck is true. Before inserting it
 // reads the solve row with FOR UPDATE to provide idempotency: if the solve already exists
 // the transaction returns nil without duplicating it. Dynamic score decay is applied via
@@ -116,6 +117,32 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 			}
 		}
 
+		solvedChallenge, err := uc.deps.ChallengeRepo.GetByIDForUpdate(ctx, challengeID)
+		if err != nil {
+			return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - ChallengeRepo.GetByIDForUpdate: %w", err)
+		}
+
+		var user *domain.User
+
+		if uc.deps.UserRepo != nil {
+			user, err = uc.deps.UserRepo.GetByID(ctx, userID)
+			if err != nil {
+				return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - UserRepo.GetByID: %w", err)
+			}
+
+			if user.TeamID == nil || *user.TeamID != teamID {
+				return apperr.ErrUserNotInTeam
+			}
+
+			if user.IsBanned {
+				return apperr.ErrUserBanned
+			}
+
+			if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
+				return apperr.ErrUserWasInBannedTeam
+			}
+		}
+
 		if uc.deps.CompRepo != nil {
 			comp, err := uc.deps.CompRepo.Get(ctx)
 			if err != nil {
@@ -127,29 +154,9 @@ func (uc *ChallengeUseCase) AdminCreateSolve(ctx context.Context, userID, teamID
 					return apperr.ErrSubmissionNotAllowed
 				}
 
-				if err := guard.ValidateSubmissionEligibility(ctx, nil, team, comp, uc.deps.TeamRepo); err != nil {
+				if err := guard.ValidateSubmissionEligibility(ctx, user, team, comp, uc.deps.TeamRepo); err != nil {
 					return err
 				}
-			}
-		}
-
-		solvedChallenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
-		if err != nil {
-			return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - ChallengeRepo.GetByID: %w", err)
-		}
-
-		if uc.deps.UserRepo != nil {
-			user, err := uc.deps.UserRepo.GetByID(ctx, userID)
-			if err != nil {
-				return fmt.Errorf("ChallengeUseCase - AdminCreateSolve - UserRepo.GetByID: %w", err)
-			}
-
-			if user.TeamID == nil || *user.TeamID != teamID {
-				return apperr.ErrUserNotInTeam
-			}
-
-			if user.IsBanned {
-				return apperr.ErrUserBanned
 			}
 		}
 
@@ -245,8 +252,8 @@ func (uc *ChallengeUseCase) RecalcAllDynamicPoints(ctx context.Context) error {
 	return nil
 }
 
-// AdminDeleteSolve removes a solve record inside a SERIALIZABLE transaction. It reads the
-// solve with FOR UPDATE to lock it, then deletes it and decrements the challenge's
+// AdminDeleteSolve removes a solve record inside a transaction. It reads the
+// solve and challenge with FOR UPDATE to lock them, then deletes the solve and decrements the challenge's
 // solve count. If the challenge uses dynamic scoring (InitialValue > 0 and Decay > 0) it
 // recalculates the current challenge points via submitRecordSolveUpdatePointsIfDecay, then
 // fetches all remaining solves and calls scoring.RecalculatePointsAtSolveRows to recompute
@@ -263,9 +270,9 @@ func (uc *ChallengeUseCase) AdminDeleteSolve(ctx context.Context, teamID, challe
 			return fmt.Errorf("ChallengeUseCase - AdminDeleteSolve - SolveRepo.GetByTeamAndChallengeForUpdate: %w", err)
 		}
 
-		solvedChallenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
+		solvedChallenge, err := uc.deps.ChallengeRepo.GetByIDForUpdate(ctx, challengeID)
 		if err != nil {
-			return fmt.Errorf("ChallengeUseCase - AdminDeleteSolve - ChallengeRepo.GetByID: %w", err)
+			return fmt.Errorf("ChallengeUseCase - AdminDeleteSolve - ChallengeRepo.GetByIDForUpdate: %w", err)
 		}
 
 		if err = uc.deps.SolveRepo.DeleteByTeamAndChallenge(ctx, teamID, challengeID); err != nil {

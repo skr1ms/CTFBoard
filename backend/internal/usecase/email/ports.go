@@ -29,3 +29,7 @@ type TransactionManager interface {
 	Run(ctx context.Context, fn func(context.Context) error) error
 	RunSerializable(ctx context.Context, fn func(context.Context) error) error
 }
+
+type APITokenRevoker interface {
+	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
+}

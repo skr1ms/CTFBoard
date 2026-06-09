@@ -2,15 +2,6 @@ package domain
 
 import "time"
 
-const (
-	// ScoreboardVisiblePublic makes the scoreboard visible to all visitors.
-	ScoreboardVisiblePublic = "public"
-	// ScoreboardVisibleHidden hides the scoreboard from all non-admin users.
-	ScoreboardVisibleHidden = "hidden"
-	// ScoreboardVisibleAdminsOnly restricts scoreboard access to administrators.
-	ScoreboardVisibleAdminsOnly = "admins_only"
-)
-
 // Settings holds application-level configuration managed by admins at runtime,
 // including registration controls, rate limits, email settings, and OAuth toggles.
 type Settings struct {
@@ -26,7 +17,6 @@ type Settings struct {
 	ResetTTLHours                    int       `json:"reset_ttl_hours"`
 	SubmitLimitPerUser               int       `json:"submit_limit_per_user"`
 	SubmitLimitDurationMin           int       `json:"submit_limit_duration_min"`
-	ScoreboardVisible                string    `json:"scoreboard_visible"`
 	RegistrationOpen                 bool      `json:"registration_open"`
 	DefaultPerPage                   int       `json:"default_per_page"`
 	MaxPerPage                       int       `json:"max_per_page"`

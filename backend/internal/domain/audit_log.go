@@ -31,6 +31,8 @@ const (
 	AuditEntityBackup AuditEntityType = "backup"
 	// AuditEntityUser identifies a user entity in audit records.
 	AuditEntityUser AuditEntityType = "user"
+	// AuditEntityStorage identifies an object-storage entity in audit records.
+	AuditEntityStorage AuditEntityType = "storage"
 )
 
 // AuditLog records an administrative action performed on a domain entity.

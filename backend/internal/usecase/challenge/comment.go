@@ -21,6 +21,7 @@ type CommentUseCase struct {
 type CommentDeps struct {
 	CommentRepo   repo.CommentRepository
 	ChallengeRepo repo.ChallengeRepository
+	SolveRepo     repo.SolveRepository
 	UserRepo      repo.UserRepository
 	TeamRepo      repo.TeamRepository
 	TM            repo.TransactionManager
@@ -32,13 +33,17 @@ func NewCommentUseCase(deps CommentDeps) *CommentUseCase {
 	return &CommentUseCase{deps: deps}
 }
 
-func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Comment, error) {
+func (uc *CommentUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Comment, error) {
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("CommentUseCase - GetByChallengeID - ChallengeRepo.GetByID: %w", err)
 	}
 
 	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRequirementsSatisfiedForRead(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo, "CommentUseCase - GetByChallengeID"); err != nil {
 		return nil, err
 	}
 
@@ -56,14 +61,22 @@ func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.U
 		return nil, apperr.ErrCommentContentRequired
 	}
 
+	var teamID *uuid.UUID
+
 	if uc.deps.UserRepo != nil {
 		user, err := uc.deps.UserRepo.GetByID(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("CommentUseCase - Create - UserRepo.GetByID: %w", err)
 		}
 
+		teamID = user.TeamID
+
 		if user.IsBanned {
 			return nil, apperr.ErrUserBanned
+		}
+
+		if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
+			return nil, apperr.ErrUserWasInBannedTeam
 		}
 
 		if uc.deps.TeamRepo != nil && user.TeamID != nil {
@@ -84,6 +97,10 @@ func (uc *CommentUseCase) Create(ctx context.Context, userID, challengeID uuid.U
 	}
 
 	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRequirementsSatisfiedForRead(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo, "CommentUseCase - Create"); err != nil {
 		return nil, err
 	}
 

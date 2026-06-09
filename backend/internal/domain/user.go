@@ -41,6 +41,11 @@ type User struct {
 	AvatarURL       *string    `json:"avatar_url,omitempty"`
 }
 
+// HasLocalPassword reports whether the account can authenticate with a local password.
+func (u *User) HasLocalPassword() bool {
+	return u != nil && u.PasswordHash != "" && u.PasswordHash != OAuthOnlyPasswordSentinel
+}
+
 // SortUsersByID sorts users in-place by their ID in lexicographic order.
 // Used when acquiring row-level locks to ensure a consistent lock order and prevent deadlocks.
 func SortUsersByID(users []*User) {

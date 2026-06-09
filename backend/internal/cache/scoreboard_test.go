@@ -75,6 +75,37 @@ func TestScoreboardCacheService_InvalidateForTeam_GetterNil(t *testing.T) {
 	require.NoError(t, redisMock.ExpectationsWereMet())
 }
 
+func TestScoreboardCacheService_InvalidateForTeam_NilRedisClearsLocalCache(t *testing.T) {
+	t.Parallel()
+
+	svc := NewScoreboardCacheService(nil, nil)
+	calls := 0
+
+	svc.RegisterLocalCache(func() {
+		calls++
+	})
+
+	svc.InvalidateForTeam(context.Background(), uuid.New())
+
+	require.Equal(t, 1, calls)
+}
+
+func TestScoreboardCacheService_InvalidateLiveOnly_NilRedisClearsLocalKeys(t *testing.T) {
+	t.Parallel()
+
+	svc := NewScoreboardCacheService(nil, nil)
+
+	var cleared []string
+
+	svc.RegisterLocalCacheLiveOnly(func(keys []string) {
+		cleared = append(cleared, keys...)
+	})
+
+	svc.InvalidateLiveOnly(context.Background(), uuid.New())
+
+	require.Equal(t, []string{KeyScoreboard}, cleared)
+}
+
 func TestScoreboardCacheService_InvalidateForTeam_WithGetter(t *testing.T) {
 	t.Parallel()
 

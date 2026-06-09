@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -900,23 +900,23 @@ func (_c *MockSolveRepository_GetByUserIDWithDetails_Call) RunAndReturn(run func
 }
 
 // GetFirstBlood provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetFirstBlood(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*repo.FirstBloodEntry, error) {
+func (_mock *MockSolveRepository) GetFirstBlood(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.FirstBloodEntry, error) {
 	ret := _mock.Called(ctx, challengeID, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFirstBlood")
 	}
 
-	var r0 *repo.FirstBloodEntry
+	var r0 *domain.FirstBloodEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) (*repo.FirstBloodEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) (*domain.FirstBloodEntry, error)); ok {
 		return returnFunc(ctx, challengeID, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) *repo.FirstBloodEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *time.Time) *domain.FirstBloodEntry); ok {
 		r0 = returnFunc(ctx, challengeID, freezeTime)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*repo.FirstBloodEntry)
+			r0 = ret.Get(0).(*domain.FirstBloodEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *time.Time) error); ok {
@@ -963,34 +963,34 @@ func (_c *MockSolveRepository_GetFirstBlood_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockSolveRepository_GetFirstBlood_Call) Return(v *repo.FirstBloodEntry, err error) *MockSolveRepository_GetFirstBlood_Call {
-	_c.Call.Return(v, err)
+func (_c *MockSolveRepository_GetFirstBlood_Call) Return(firstBloodEntry *domain.FirstBloodEntry, err error) *MockSolveRepository_GetFirstBlood_Call {
+	_c.Call.Return(firstBloodEntry, err)
 	return _c
 }
 
-func (_c *MockSolveRepository_GetFirstBlood_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*repo.FirstBloodEntry, error)) *MockSolveRepository_GetFirstBlood_Call {
+func (_c *MockSolveRepository_GetFirstBlood_Call) RunAndReturn(run func(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.FirstBloodEntry, error)) *MockSolveRepository_GetFirstBlood_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetScoreboardByBracket provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*repo.ScoreboardEntry, error) {
+func (_mock *MockSolveRepository) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*domain.ScoreboardEntry, error) {
 	ret := _mock.Called(ctx, bracketID, freezeTime)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetScoreboardByBracket")
 	}
 
-	var r0 []*repo.ScoreboardEntry
+	var r0 []*domain.ScoreboardEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *time.Time) ([]*repo.ScoreboardEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *time.Time) ([]*domain.ScoreboardEntry, error)); ok {
 		return returnFunc(ctx, bracketID, freezeTime)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *time.Time) []*repo.ScoreboardEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *uuid.UUID, *time.Time) []*domain.ScoreboardEntry); ok {
 		r0 = returnFunc(ctx, bracketID, freezeTime)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*repo.ScoreboardEntry)
+			r0 = ret.Get(0).([]*domain.ScoreboardEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *uuid.UUID, *time.Time) error); ok {
@@ -1037,12 +1037,12 @@ func (_c *MockSolveRepository_GetScoreboardByBracket_Call) Run(run func(ctx cont
 	return _c
 }
 
-func (_c *MockSolveRepository_GetScoreboardByBracket_Call) Return(vs []*repo.ScoreboardEntry, err error) *MockSolveRepository_GetScoreboardByBracket_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockSolveRepository_GetScoreboardByBracket_Call) Return(scoreboardEntrys []*domain.ScoreboardEntry, err error) *MockSolveRepository_GetScoreboardByBracket_Call {
+	_c.Call.Return(scoreboardEntrys, err)
 	return _c
 }
 
-func (_c *MockSolveRepository_GetScoreboardByBracket_Call) RunAndReturn(run func(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*repo.ScoreboardEntry, error)) *MockSolveRepository_GetScoreboardByBracket_Call {
+func (_c *MockSolveRepository_GetScoreboardByBracket_Call) RunAndReturn(run func(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*domain.ScoreboardEntry, error)) *MockSolveRepository_GetScoreboardByBracket_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1190,23 +1190,23 @@ func (_c *MockSolveRepository_GetSolvedChallengeIDsByTeam_Call) RunAndReturn(run
 }
 
 // GetSolvesForPointsRecalc provides a mock function for the type MockSolveRepository
-func (_mock *MockSolveRepository) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs []uuid.UUID) ([]*repo.SolveForPointsRecalc, error) {
+func (_mock *MockSolveRepository) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs []uuid.UUID) ([]*scoring.SolveForPointsRecalc, error) {
 	ret := _mock.Called(ctx, challengeIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetSolvesForPointsRecalc")
 	}
 
-	var r0 []*repo.SolveForPointsRecalc
+	var r0 []*scoring.SolveForPointsRecalc
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) ([]*repo.SolveForPointsRecalc, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) ([]*scoring.SolveForPointsRecalc, error)); ok {
 		return returnFunc(ctx, challengeIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) []*repo.SolveForPointsRecalc); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) []*scoring.SolveForPointsRecalc); ok {
 		r0 = returnFunc(ctx, challengeIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*repo.SolveForPointsRecalc)
+			r0 = ret.Get(0).([]*scoring.SolveForPointsRecalc)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
@@ -1247,12 +1247,12 @@ func (_c *MockSolveRepository_GetSolvesForPointsRecalc_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *MockSolveRepository_GetSolvesForPointsRecalc_Call) Return(vs []*repo.SolveForPointsRecalc, err error) *MockSolveRepository_GetSolvesForPointsRecalc_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockSolveRepository_GetSolvesForPointsRecalc_Call) Return(solveForPointsRecalcs []*scoring.SolveForPointsRecalc, err error) *MockSolveRepository_GetSolvesForPointsRecalc_Call {
+	_c.Call.Return(solveForPointsRecalcs, err)
 	return _c
 }
 
-func (_c *MockSolveRepository_GetSolvesForPointsRecalc_Call) RunAndReturn(run func(ctx context.Context, challengeIDs []uuid.UUID) ([]*repo.SolveForPointsRecalc, error)) *MockSolveRepository_GetSolvesForPointsRecalc_Call {
+func (_c *MockSolveRepository_GetSolvesForPointsRecalc_Call) RunAndReturn(run func(ctx context.Context, challengeIDs []uuid.UUID) ([]*scoring.SolveForPointsRecalc, error)) *MockSolveRepository_GetSolvesForPointsRecalc_Call {
 	_c.Call.Return(run)
 	return _c
 }

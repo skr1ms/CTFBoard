@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
 
@@ -76,6 +77,27 @@ func TestTagUseCase_GetByID_Error(t *testing.T) {
 	got, err := uc.GetByID(ctx, id)
 
 	assert.Error(t, err)
+	assert.Nil(t, got)
+}
+
+func TestTagUseCase_GetByChallengeID_RequirementsNotMet(t *testing.T) {
+	t.Parallel()
+	d := newChallengeTestDeps(t)
+	ctx := context.Background()
+	challengeID := uuid.New()
+	teamID := uuid.New()
+	prereqID := uuid.New()
+	ch := newTestChallenge(challengeID, "title", "cat", 100, "hash")
+	requirements := []*domain.ChallengeRequirement{{ChallengeID: prereqID, ChallengeTitle: "Prereq"}}
+
+	d.challengeRepo.EXPECT().GetByID(mock.Anything, challengeID).Return(ch, nil)
+	d.challengeRepo.EXPECT().GetRequirementsForEnforcement(mock.Anything, challengeID).Return(requirements, nil)
+	d.solveRepo.EXPECT().GetSolvedChallengeIDsByTeam(mock.Anything, teamID, mock.Anything).Return([]uuid.UUID{}, nil)
+
+	uc := d.createTagUseCase()
+	got, err := uc.GetByChallengeID(ctx, challengeID, &teamID)
+
+	assert.ErrorIs(t, err, apperr.ErrChallengeNotFound)
 	assert.Nil(t, got)
 }
 

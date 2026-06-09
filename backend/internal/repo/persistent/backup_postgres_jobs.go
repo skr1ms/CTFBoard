@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/wahrwelt-kit/go-pgkit/pgutil"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
@@ -108,6 +109,10 @@ func (r *BackupRepo) CreateImportJob(ctx context.Context, job *domain.ImportJob)
 		Options:         options,
 	})
 	if err != nil {
+		if pgutil.IsPgUniqueViolation(err) {
+			return nil, apperr.ErrBackupImportAlreadyRunning
+		}
+
 		return nil, fmt.Errorf("BackupRepo - CreateImportJob: %w", err)
 	}
 

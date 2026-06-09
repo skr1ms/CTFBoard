@@ -370,6 +370,74 @@ func (_c *MockCompetitionParamUseCase_GetByCategory_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetForUpdate provides a mock function for the type MockCompetitionParamUseCase
+func (_mock *MockCompetitionParamUseCase) GetForUpdate(ctx context.Context, key string) (*domain.CompetitionParam, error) {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForUpdate")
+	}
+
+	var r0 *domain.CompetitionParam
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*domain.CompetitionParam, error)); ok {
+		return returnFunc(ctx, key)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *domain.CompetitionParam); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.CompetitionParam)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockCompetitionParamUseCase_GetForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForUpdate'
+type MockCompetitionParamUseCase_GetForUpdate_Call struct {
+	*mock.Call
+}
+
+// GetForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockCompetitionParamUseCase_Expecter) GetForUpdate(ctx interface{}, key interface{}) *MockCompetitionParamUseCase_GetForUpdate_Call {
+	return &MockCompetitionParamUseCase_GetForUpdate_Call{Call: _e.mock.On("GetForUpdate", ctx, key)}
+}
+
+func (_c *MockCompetitionParamUseCase_GetForUpdate_Call) Run(run func(ctx context.Context, key string)) *MockCompetitionParamUseCase_GetForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockCompetitionParamUseCase_GetForUpdate_Call) Return(competitionParam *domain.CompetitionParam, err error) *MockCompetitionParamUseCase_GetForUpdate_Call {
+	_c.Call.Return(competitionParam, err)
+	return _c
+}
+
+func (_c *MockCompetitionParamUseCase_GetForUpdate_Call) RunAndReturn(run func(ctx context.Context, key string) (*domain.CompetitionParam, error)) *MockCompetitionParamUseCase_GetForUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetInt provides a mock function for the type MockCompetitionParamUseCase
 func (_mock *MockCompetitionParamUseCase) GetInt(ctx context.Context, key string, defaultVal int) int {
 	ret := _mock.Called(ctx, key, defaultVal)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -344,8 +345,8 @@ func (_c *MockTeamRepository_CountSearch_Call) RunAndReturn(run func(ctx context
 }
 
 // CountSearchAdmin provides a mock function for the type MockTeamRepository
-func (_mock *MockTeamRepository) CountSearchAdmin(ctx context.Context, search *string) (int64, error) {
-	ret := _mock.Called(ctx, search)
+func (_mock *MockTeamRepository) CountSearchAdmin(ctx context.Context, filter repo.TeamAdminSearchFilter) (int64, error) {
+	ret := _mock.Called(ctx, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountSearchAdmin")
@@ -353,16 +354,16 @@ func (_mock *MockTeamRepository) CountSearchAdmin(ctx context.Context, search *s
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) (int64, error)); ok {
-		return returnFunc(ctx, search)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.TeamAdminSearchFilter) (int64, error)); ok {
+		return returnFunc(ctx, filter)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *string) int64); ok {
-		r0 = returnFunc(ctx, search)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.TeamAdminSearchFilter) int64); ok {
+		r0 = returnFunc(ctx, filter)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *string) error); ok {
-		r1 = returnFunc(ctx, search)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.TeamAdminSearchFilter) error); ok {
+		r1 = returnFunc(ctx, filter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -376,20 +377,20 @@ type MockTeamRepository_CountSearchAdmin_Call struct {
 
 // CountSearchAdmin is a helper method to define mock.On call
 //   - ctx context.Context
-//   - search *string
-func (_e *MockTeamRepository_Expecter) CountSearchAdmin(ctx interface{}, search interface{}) *MockTeamRepository_CountSearchAdmin_Call {
-	return &MockTeamRepository_CountSearchAdmin_Call{Call: _e.mock.On("CountSearchAdmin", ctx, search)}
+//   - filter repo.TeamAdminSearchFilter
+func (_e *MockTeamRepository_Expecter) CountSearchAdmin(ctx interface{}, filter interface{}) *MockTeamRepository_CountSearchAdmin_Call {
+	return &MockTeamRepository_CountSearchAdmin_Call{Call: _e.mock.On("CountSearchAdmin", ctx, filter)}
 }
 
-func (_c *MockTeamRepository_CountSearchAdmin_Call) Run(run func(ctx context.Context, search *string)) *MockTeamRepository_CountSearchAdmin_Call {
+func (_c *MockTeamRepository_CountSearchAdmin_Call) Run(run func(ctx context.Context, filter repo.TeamAdminSearchFilter)) *MockTeamRepository_CountSearchAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 *string
+		var arg1 repo.TeamAdminSearchFilter
 		if args[1] != nil {
-			arg1 = args[1].(*string)
+			arg1 = args[1].(repo.TeamAdminSearchFilter)
 		}
 		run(
 			arg0,
@@ -404,7 +405,7 @@ func (_c *MockTeamRepository_CountSearchAdmin_Call) Return(n int64, err error) *
 	return _c
 }
 
-func (_c *MockTeamRepository_CountSearchAdmin_Call) RunAndReturn(run func(ctx context.Context, search *string) (int64, error)) *MockTeamRepository_CountSearchAdmin_Call {
+func (_c *MockTeamRepository_CountSearchAdmin_Call) RunAndReturn(run func(ctx context.Context, filter repo.TeamAdminSearchFilter) (int64, error)) *MockTeamRepository_CountSearchAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1379,8 +1380,8 @@ func (_c *MockTeamRepository_Search_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // SearchAdmin provides a mock function for the type MockTeamRepository
-func (_mock *MockTeamRepository) SearchAdmin(ctx context.Context, search *string, limit int, offset int) ([]*domain.Team, error) {
-	ret := _mock.Called(ctx, search, limit, offset)
+func (_mock *MockTeamRepository) SearchAdmin(ctx context.Context, filter repo.TeamAdminSearchFilter, limit int, offset int) ([]*domain.Team, error) {
+	ret := _mock.Called(ctx, filter, limit, offset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SearchAdmin")
@@ -1388,18 +1389,18 @@ func (_mock *MockTeamRepository) SearchAdmin(ctx context.Context, search *string
 
 	var r0 []*domain.Team
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) ([]*domain.Team, error)); ok {
-		return returnFunc(ctx, search, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.TeamAdminSearchFilter, int, int) ([]*domain.Team, error)); ok {
+		return returnFunc(ctx, filter, limit, offset)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *string, int, int) []*domain.Team); ok {
-		r0 = returnFunc(ctx, search, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.TeamAdminSearchFilter, int, int) []*domain.Team); ok {
+		r0 = returnFunc(ctx, filter, limit, offset)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*domain.Team)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *string, int, int) error); ok {
-		r1 = returnFunc(ctx, search, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.TeamAdminSearchFilter, int, int) error); ok {
+		r1 = returnFunc(ctx, filter, limit, offset)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1413,22 +1414,22 @@ type MockTeamRepository_SearchAdmin_Call struct {
 
 // SearchAdmin is a helper method to define mock.On call
 //   - ctx context.Context
-//   - search *string
+//   - filter repo.TeamAdminSearchFilter
 //   - limit int
 //   - offset int
-func (_e *MockTeamRepository_Expecter) SearchAdmin(ctx interface{}, search interface{}, limit interface{}, offset interface{}) *MockTeamRepository_SearchAdmin_Call {
-	return &MockTeamRepository_SearchAdmin_Call{Call: _e.mock.On("SearchAdmin", ctx, search, limit, offset)}
+func (_e *MockTeamRepository_Expecter) SearchAdmin(ctx interface{}, filter interface{}, limit interface{}, offset interface{}) *MockTeamRepository_SearchAdmin_Call {
+	return &MockTeamRepository_SearchAdmin_Call{Call: _e.mock.On("SearchAdmin", ctx, filter, limit, offset)}
 }
 
-func (_c *MockTeamRepository_SearchAdmin_Call) Run(run func(ctx context.Context, search *string, limit int, offset int)) *MockTeamRepository_SearchAdmin_Call {
+func (_c *MockTeamRepository_SearchAdmin_Call) Run(run func(ctx context.Context, filter repo.TeamAdminSearchFilter, limit int, offset int)) *MockTeamRepository_SearchAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 *string
+		var arg1 repo.TeamAdminSearchFilter
 		if args[1] != nil {
-			arg1 = args[1].(*string)
+			arg1 = args[1].(repo.TeamAdminSearchFilter)
 		}
 		var arg2 int
 		if args[2] != nil {
@@ -1453,7 +1454,7 @@ func (_c *MockTeamRepository_SearchAdmin_Call) Return(teams []*domain.Team, err 
 	return _c
 }
 
-func (_c *MockTeamRepository_SearchAdmin_Call) RunAndReturn(run func(ctx context.Context, search *string, limit int, offset int) ([]*domain.Team, error)) *MockTeamRepository_SearchAdmin_Call {
+func (_c *MockTeamRepository_SearchAdmin_Call) RunAndReturn(run func(ctx context.Context, filter repo.TeamAdminSearchFilter, limit int, offset int) ([]*domain.Team, error)) *MockTeamRepository_SearchAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }

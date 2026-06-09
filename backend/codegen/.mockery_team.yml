@@ -35,6 +35,13 @@ packages:
           pkgname: "mock"
           structname: "MockAwardRepository"
 
+      RatingRepository:
+        config:
+          dir: "internal/usecase/team/mock"
+          filename: "RatingRepository.go"
+          pkgname: "mock"
+          structname: "MockRatingRepository"
+
       SettingsRepository:
         config:
           dir: "internal/usecase/team/mock"

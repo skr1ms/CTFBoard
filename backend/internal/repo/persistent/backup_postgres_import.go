@@ -143,6 +143,7 @@ func (r *BackupRepo) ImportCompetition(ctx context.Context, comp *domain.Competi
 		Set("allow_team_switch", comp.AllowTeamSwitch).
 		Set("min_team_size", comp.MinTeamSize).
 		Set("max_team_size", comp.MaxTeamSize).
+		Set("keep_scoreboard_frozen_after_end", comp.KeepScoreboardFrozenAfterEnd).
 		Where(squirrel.Eq{"id": 1}).
 		PlaceholderFormat(squirrel.Dollar)
 
@@ -346,7 +347,7 @@ func (r *BackupRepo) ImportSolutions(ctx context.Context, data *domain.BackupDat
 func (r *BackupRepo) ImportRatings(ctx context.Context, data *domain.BackupData) error {
 	return execImportBatches(ctx, r, "ImportRatings", data.Ratings, "ratings", backupRatingImportCols, backupRatingUpsertSuffix,
 		func(q squirrel.InsertBuilder, rating domain.Rating) squirrel.InsertBuilder {
-			return q.Values(rating.ID, rating.ChallengeID, rating.UserID, rating.TeamID, rating.Value, rating.Review, rating.CreatedAt, rating.UpdatedAt)
+			return q.Values(rating.ID, rating.ChallengeID, rating.UserID, rating.TeamID, rating.BannedTeamID, rating.Value, rating.Review, rating.CreatedAt, rating.UpdatedAt)
 		})
 }
 

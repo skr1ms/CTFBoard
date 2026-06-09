@@ -78,6 +78,8 @@ func TestSetupUseCaseCompleteSuccess(t *testing.T) {
 	assert.Equal(t, deps.user.adminUser.ID, deps.compParam.setParam.ActorID)
 	assert.Equal(t, req.ClientIP, deps.compParam.setParam.ClientIP)
 	assert.Equal(t, 1, deps.jwt.calls)
+	assert.Equal(t, 1, deps.tm.calls)
+	assert.Equal(t, 1, deps.compParam.lockCalls)
 }
 
 func TestSetupUseCaseCompleteRejectsFlexibleModeBeforeSideEffects(t *testing.T) {
@@ -155,6 +157,27 @@ func TestSetupUseCaseCompleteSerializesConcurrentCalls(t *testing.T) {
 	assert.Equal(t, 1, alreadyComplete)
 	assert.Equal(t, 1, deps.user.calls)
 	assert.Equal(t, 1, deps.compParam.setCalls)
+}
+
+func TestSetupUseCaseCompleteRollsBackWhenTokenGenerationFails(t *testing.T) {
+	t.Parallel()
+
+	deps := newSetupTestDeps()
+	deps.jwt.err = errors.New("token generation failed")
+	deps.tm.rollback = func() {
+		deps.compParam.mu.Lock()
+		defer deps.compParam.mu.Unlock()
+
+		deps.compParam.setupComplete = false
+	}
+
+	got, err := deps.useCase().Complete(context.Background(), validSetupUseCaseRequest())
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, deps.jwt.err)
+	assert.Nil(t, got)
+	assert.Equal(t, 1, deps.tm.calls)
+	assert.False(t, deps.compParam.setupComplete)
 }
 
 func TestSetupUseCaseCompleteWrapsDependencyErrors(t *testing.T) {

@@ -52,7 +52,7 @@ func (uc *TeamUseCase) Join(ctx context.Context, inviteToken, userID uuid.UUID, 
 // or been rotated, and enforces MaxTeamSize. If the user holds a solo or auto-created
 // team it is cleaned up via handleSoloTeamCleanup (requires confirmReset=true).
 func (uc *TeamUseCase) joinTx(ctx context.Context, inviteToken, userID uuid.UUID, confirmReset bool) (*domain.Team, error) {
-	team, user, err := uc.joinTxPrepare(ctx, inviteToken, userID)
+	team, user, comp, err := uc.joinTxPrepare(ctx, inviteToken, userID)
 	if err != nil {
 		return nil, fmt.Errorf("TeamUseCase - joinTx - joinTxPrepare: %w", err)
 	}
@@ -98,11 +98,6 @@ func (uc *TeamUseCase) joinTx(ctx context.Context, inviteToken, userID uuid.UUID
 		return nil, apperr.ErrInviteExpired
 	}
 
-	comp, err := uc.deps.CompRepo.Get(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - joinTx - CompetitionRepo.Get: %w", err)
-	}
-
 	maxSize := resolveMaxTeamSize(comp, uc.deps.DefaultMaxTeamSize)
 
 	members, err := uc.deps.UserRepo.GetByTeamID(ctx, team.ID)
@@ -135,60 +130,60 @@ func (uc *TeamUseCase) joinTx(ctx context.Context, inviteToken, userID uuid.UUID
 
 // joinTxPrepare loads and validates the team and user before acquiring locks inside the join transaction.
 // Checks invite token validity, competition mode, team capacity, and ban status.
-func (uc *TeamUseCase) joinTxPrepare(ctx context.Context, inviteToken, userID uuid.UUID) (*domain.Team, *domain.User, error) {
-	comp, err := uc.deps.CompRepo.Get(ctx)
+func (uc *TeamUseCase) joinTxPrepare(ctx context.Context, inviteToken, userID uuid.UUID) (*domain.Team, *domain.User, *domain.Competition, error) {
+	comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("TeamUseCase - joinTx - CompetitionRepo.Get: %w", err)
+		return nil, nil, nil, fmt.Errorf("TeamUseCase - joinTx - CompetitionRepo.GetForUpdate: %w", err)
 	}
 
 	if err := guard.ValidateTeamSwitchState(comp); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	if !comp.Mode.AllowsTeams() {
-		return nil, nil, apperr.ErrTeamsNotAllowed
+		return nil, nil, nil, apperr.ErrTeamsNotAllowed
 	}
 
 	if err := uc.deps.UserRepo.Lock(ctx, userID); err != nil {
-		return nil, nil, fmt.Errorf("TeamUseCase - joinTx - UserRepo.Lock: %w", err)
+		return nil, nil, nil, fmt.Errorf("TeamUseCase - joinTx - UserRepo.Lock: %w", err)
 	}
 
 	team, err := uc.deps.TeamRepo.GetByInviteToken(ctx, inviteToken)
 	if err != nil {
-		return nil, nil, fmt.Errorf("TeamUseCase - joinTx - TeamRepo.GetByInviteToken: %w", err)
+		return nil, nil, nil, fmt.Errorf("TeamUseCase - joinTx - TeamRepo.GetByInviteToken: %w", err)
 	}
 
 	if team.IsBanned {
-		return nil, nil, apperr.ErrTeamBanned
+		return nil, nil, nil, apperr.ErrTeamBanned
 	}
 
 	if team.IsSolo {
-		return nil, nil, apperr.ErrTeamNotFound
+		return nil, nil, nil, apperr.ErrTeamNotFound
 	}
 
 	members, err := uc.deps.UserRepo.GetByTeamID(ctx, team.ID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("TeamUseCase - joinTx - UserRepo.GetByTeamID: %w", err)
+		return nil, nil, nil, fmt.Errorf("TeamUseCase - joinTx - UserRepo.GetByTeamID: %w", err)
 	}
 
 	maxSize := resolveMaxTeamSize(comp, uc.deps.DefaultMaxTeamSize)
 
 	if len(members) >= maxSize {
-		return nil, nil, apperr.ErrTeamFull
+		return nil, nil, nil, apperr.ErrTeamFull
 	}
 
 	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("TeamUseCase - joinTx - UserRepo.GetByID: %w", err)
+		return nil, nil, nil, fmt.Errorf("TeamUseCase - joinTx - UserRepo.GetByID: %w", err)
 	}
 
 	if user.IsBanned {
-		return nil, nil, apperr.ErrUserBanned
+		return nil, nil, nil, apperr.ErrUserBanned
 	}
 
 	if user.WasInBannedTeam {
-		return nil, nil, apperr.ErrUserWasInBannedTeam
+		return nil, nil, nil, apperr.ErrUserWasInBannedTeam
 	}
 
-	return team, user, nil
+	return team, user, comp, nil
 }

@@ -8,22 +8,29 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
-func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, page, perPage int) (*usecase.Paginated[*domain.Team], error) {
+func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, banStatus usecase.AdminTeamBanStatus, visibility usecase.AdminTeamVisibility, page, perPage int) (*usecase.Paginated[*domain.Team], error) {
 	var result *usecase.Paginated[*domain.Team]
+
+	filter := repo.TeamAdminSearchFilter{
+		Search:     search,
+		BanStatus:  toRepoTeamBanStatus(banStatus),
+		Visibility: toRepoTeamVisibility(visibility),
+	}
 
 	err := uc.deps.TM.ReadOnly(ctx, func(roCtx context.Context) error {
 		var err error
 
 		result, err = usecase.FetchPage(roCtx, page, perPage,
 			func(ctx context.Context, limit, offset int) ([]*domain.Team, error) {
-				return uc.deps.TeamRepo.SearchAdmin(ctx, search, limit, offset)
+				return uc.deps.TeamRepo.SearchAdmin(ctx, filter, limit, offset)
 			},
 			func(ctx context.Context) (int64, error) {
-				return uc.deps.TeamRepo.CountSearchAdmin(ctx, search)
+				return uc.deps.TeamRepo.CountSearchAdmin(ctx, filter)
 			},
 		)
 		if err != nil {
@@ -37,6 +44,32 @@ func (uc *TeamUseCase) AdminListTeams(ctx context.Context, search *string, page,
 	}
 
 	return result, nil
+}
+
+func toRepoTeamBanStatus(status usecase.AdminTeamBanStatus) repo.TeamAdminBanStatus {
+	switch status {
+	case usecase.AdminTeamBanStatusAll:
+		return repo.TeamAdminBanStatusAll
+	case usecase.AdminTeamBanStatusNotBanned:
+		return repo.TeamAdminBanStatusNotBanned
+	case usecase.AdminTeamBanStatusBanned:
+		return repo.TeamAdminBanStatusBanned
+	default:
+		return repo.TeamAdminBanStatusAll
+	}
+}
+
+func toRepoTeamVisibility(visibility usecase.AdminTeamVisibility) repo.TeamAdminVisibility {
+	switch visibility {
+	case usecase.AdminTeamVisibilityAll:
+		return repo.TeamAdminVisibilityAll
+	case usecase.AdminTeamVisibilityVisible:
+		return repo.TeamAdminVisibilityVisible
+	case usecase.AdminTeamVisibilityHidden:
+		return repo.TeamAdminVisibilityHidden
+	default:
+		return repo.TeamAdminVisibilityAll
+	}
 }
 
 // AdminUpdate modifies team metadata without competition-state restrictions. When a new
@@ -241,9 +274,9 @@ func (uc *TeamUseCase) adminAddMemberTx(ctx context.Context, teamID, userID uuid
 		return fmt.Errorf("TeamUseCase - AdminAddMember - UserRepo.GetByTeamID: %w", err)
 	}
 
-	comp, err := uc.deps.CompRepo.Get(ctx)
+	comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
 	if err != nil {
-		return fmt.Errorf("TeamUseCase - AdminAddMember - CompetitionRepo.Get: %w", err)
+		return fmt.Errorf("TeamUseCase - AdminAddMember - CompetitionRepo.GetForUpdate: %w", err)
 	}
 
 	if !comp.Mode.AllowsTeams() {

@@ -10,30 +10,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	teamMock "github.com/TakuyaYagam1/AstroCTFb/internal/usecase/team/mock"
 )
 
 type awardTestDeps struct {
-	repo    *teamMock.MockAwardRepository
-	tm      *teamMock.MockTransactionManager
-	teamID  uuid.UUID
-	adminID uuid.UUID
+	repo     *teamMock.MockAwardRepository
+	teamRepo *teamMock.MockTeamRepository
+	tm       *teamMock.MockTransactionManager
+	teamID   uuid.UUID
+	adminID  uuid.UUID
 }
 
 func newAwardTestDeps(t *testing.T) *awardTestDeps {
 	t.Helper()
 
 	return &awardTestDeps{
-		repo:    teamMock.NewMockAwardRepository(t),
-		tm:      teamMock.NewMockTransactionManager(t),
-		teamID:  uuid.New(),
-		adminID: uuid.New(),
+		repo:     teamMock.NewMockAwardRepository(t),
+		teamRepo: teamMock.NewMockTeamRepository(t),
+		tm:       teamMock.NewMockTransactionManager(t),
+		teamID:   uuid.New(),
+		adminID:  uuid.New(),
 	}
 }
 
 func (d *awardTestDeps) createUseCase() *AwardUseCase {
 	return NewAwardUseCase(AwardDeps{AwardRepo: d.repo, TM: d.tm})
+}
+
+func (d *awardTestDeps) createUseCaseWithTeamRepo() *AwardUseCase {
+	return NewAwardUseCase(AwardDeps{AwardRepo: d.repo, TeamRepo: d.teamRepo, TM: d.tm})
 }
 
 func newTestAward(teamID uuid.UUID, value int, createdAt time.Time) *domain.Award {
@@ -85,6 +92,40 @@ func TestAwardUseCase_Create(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, award)
 		assert.Contains(t, err.Error(), "db error")
+	})
+
+	t.Run("LocksTeamBeforeCreate", func(t *testing.T) {
+		t.Parallel()
+		d := newAwardTestDeps(t)
+		d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+			return fn(ctx)
+		}).Once()
+		d.teamRepo.EXPECT().Lock(mock.Anything, d.teamID).Return(nil).Once()
+		d.teamRepo.EXPECT().GetByID(mock.Anything, d.teamID).Return(&domain.Team{ID: d.teamID}, nil).Once()
+		d.repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(a *domain.Award) bool {
+			return a.TeamID == d.teamID && a.Value == 25
+		})).Return(nil).Once()
+
+		award, err := d.createUseCaseWithTeamRepo().Create(ctx, d.teamID, 25, "Bonus", d.adminID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, award)
+	})
+
+	t.Run("BannedTeam", func(t *testing.T) {
+		t.Parallel()
+		d := newAwardTestDeps(t)
+		d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+			return fn(ctx)
+		}).Once()
+		d.teamRepo.EXPECT().Lock(mock.Anything, d.teamID).Return(nil).Once()
+		d.teamRepo.EXPECT().GetByID(mock.Anything, d.teamID).Return(&domain.Team{ID: d.teamID, IsBanned: true}, nil).Once()
+
+		award, err := d.createUseCaseWithTeamRepo().Create(ctx, d.teamID, 25, "Bonus", d.adminID)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, apperr.ErrTeamBanned)
+		assert.Nil(t, award)
 	})
 }
 

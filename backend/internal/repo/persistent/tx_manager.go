@@ -14,6 +14,7 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 )
 
 type txKey struct{}
@@ -22,14 +23,18 @@ type isoLevelKey struct{}
 
 // TransactionManager manages database transactions using context propagation.
 type TransactionManager struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
+	beginTx func(ctx context.Context, opts pgx.TxOptions) (pgx.Tx, error)
 }
 
 var _ repo.TransactionManager = (*TransactionManager)(nil)
 
 // NewTransactionManager creates a TransactionManager backed by the given pool.
 func NewTransactionManager(pool *pgxpool.Pool) *TransactionManager {
-	return &TransactionManager{pool: pool}
+	return &TransactionManager{
+		pool:    pool,
+		beginTx: pool.BeginTx,
+	}
 }
 
 // DB exposes the transaction-aware sqlc executor for persistence integration
@@ -76,12 +81,14 @@ func (tm *TransactionManager) ReadOnly(ctx context.Context, fn func(context.Cont
 // finishTx to inspect and potentially replace the return value (e.g. surfacing
 // a Rollback error when fn itself succeeded but commit was never reached).
 func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pgx.TxOptions, fn func(context.Context) error) (retErr error) {
-	tx, err := tm.pool.BeginTx(ctx, opts)
+	tx, err := tm.begin(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("TransactionManager - %s - BeginTx: %w", op, err)
 	}
 
 	var committed bool
+
+	afterCommit := txctx.NewCollector()
 
 	defer func() {
 		p := recover()
@@ -92,7 +99,8 @@ func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pg
 		}
 	}()
 
-	ctxTx := context.WithValue(ctx, txKey{}, tx)
+	ctxTx := txctx.WithCollector(ctx, afterCommit)
+	ctxTx = context.WithValue(ctxTx, txKey{}, tx)
 
 	ctxTx = context.WithValue(ctxTx, isoLevelKey{}, opts.IsoLevel)
 	if err := fn(ctxTx); err != nil {
@@ -105,7 +113,17 @@ func (tm *TransactionManager) runInNewTx(ctx context.Context, op string, opts pg
 
 	committed = true
 
+	afterCommit.Run(ctx)
+
 	return nil
+}
+
+func (tm *TransactionManager) begin(ctx context.Context, opts pgx.TxOptions) (pgx.Tx, error) {
+	if tm.beginTx != nil {
+		return tm.beginTx(ctx, opts)
+	}
+
+	return tm.pool.BeginTx(ctx, opts)
 }
 
 // finishTx is called from the defer inside runInNewTx. If a panic was recovered

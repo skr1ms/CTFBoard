@@ -17,7 +17,7 @@ const (
 )
 
 var backupEraseTables = []string{
-	"submissions", "solves", "awards", "ratings", "hint_unlocks", "files", "hints", "challenge_topics", "challenge_tags", "challenge_requirements", "solutions", "challenges", "topics", "tags", "users", "teams", "notifications", "pages", "comments", "field_values", "fields", "brackets",
+	"submissions", "solves", "awards", "ratings", "hint_unlocks", "files", "hints", "challenge_topics", "challenge_tags", "challenge_requirements", "solutions", "challenges", "topics", "tags", "users", "teams", "comments", "field_values", "fields", "brackets",
 }
 
 // quoteIdentifier returns a PostgreSQL-quoted identifier (double-quote escaped).
@@ -59,7 +59,7 @@ var (
 	backupChallengeReqCols     = []string{"challenge_id", "required_challenge_id"}
 	backupSolutionImportCols   = []string{"id", "challenge_id", "content", "state"}
 	backupCommentImportCols    = []string{"id", "user_id", "challenge_id", "content", "created_at", "updated_at"}
-	backupRatingImportCols     = []string{"id", "challenge_id", "user_id", "team_id", "value", "review", "created_at", "updated_at"}
+	backupRatingImportCols     = []string{"id", "challenge_id", "user_id", "team_id", "banned_team_id", "value", "review", "created_at", "updated_at"}
 	backupFieldImportCols      = []string{"id", "name", "description", "field_type", "entity_type", "required", "is_public", "editable", "options", "order_index", "created_at"}
 	backupFieldValueImportCols = []string{"id", "field_id", "entity_id", "value", "created_at"}
 )
@@ -84,7 +84,7 @@ const (
 	backupBracketUpsertSuffix      = `ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, is_default = EXCLUDED.is_default`
 	backupChallengeReqConflict     = `ON CONFLICT (challenge_id, required_challenge_id) DO NOTHING`
 	backupSolutionUpsertSuffix     = `ON CONFLICT (challenge_id) DO UPDATE SET content = EXCLUDED.content, state = EXCLUDED.state`
-	backupRatingUpsertSuffix       = `ON CONFLICT (team_id, challenge_id) DO UPDATE SET user_id = EXCLUDED.user_id, value = EXCLUDED.value, review = EXCLUDED.review, updated_at = EXCLUDED.updated_at`
+	backupRatingUpsertSuffix       = `ON CONFLICT (team_id, challenge_id) DO UPDATE SET user_id = EXCLUDED.user_id, banned_team_id = EXCLUDED.banned_team_id, value = EXCLUDED.value, review = EXCLUDED.review, updated_at = EXCLUDED.updated_at`
 	backupCommentUpsertSuffix      = `ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, updated_at = EXCLUDED.updated_at`
 	backupFieldUpsertSuffix        = `ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, field_type = EXCLUDED.field_type, entity_type = EXCLUDED.entity_type, required = EXCLUDED.required, is_public = EXCLUDED.is_public, editable = EXCLUDED.editable, options = EXCLUDED.options, order_index = EXCLUDED.order_index`
 	backupFieldValueUpsertSuffix   = `ON CONFLICT (field_id, entity_id) DO UPDATE SET value = EXCLUDED.value`

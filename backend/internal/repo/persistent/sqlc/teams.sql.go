@@ -72,10 +72,26 @@ const countSearchTeamsAdmin = `-- name: CountSearchTeamsAdmin :one
 SELECT COUNT(*)::bigint FROM teams
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
+  AND (
+    $2::text = 'all'
+    OR ($2::text = 'banned' AND is_banned = true)
+    OR ($2::text = 'not_banned' AND is_banned = false)
+  )
+  AND (
+    $3::text = 'all'
+    OR ($3::text = 'hidden' AND is_hidden = true)
+    OR ($3::text = 'visible' AND is_hidden = false)
+  )
 `
 
-func (q *Queries) CountSearchTeamsAdmin(ctx context.Context, search *string) (int64, error) {
-	row := q.db.QueryRow(ctx, countSearchTeamsAdmin, search)
+type CountSearchTeamsAdminParams struct {
+	Search     *string `json:"search"`
+	BanStatus  string  `json:"ban_status"`
+	Visibility string  `json:"visibility"`
+}
+
+func (q *Queries) CountSearchTeamsAdmin(ctx context.Context, arg CountSearchTeamsAdminParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countSearchTeamsAdmin, arg.Search, arg.BanStatus, arg.Visibility)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -539,14 +555,26 @@ SELECT id, name, invite_token, invite_token_expires_at, captain_id, bracket_id, 
 FROM teams
 WHERE deleted_at IS NULL
   AND ($3::text IS NULL OR name ILIKE '%' || $3 || '%')
+  AND (
+    $4::text = 'all'
+    OR ($4::text = 'banned' AND is_banned = true)
+    OR ($4::text = 'not_banned' AND is_banned = false)
+  )
+  AND (
+    $5::text = 'all'
+    OR ($5::text = 'hidden' AND is_hidden = true)
+    OR ($5::text = 'visible' AND is_hidden = false)
+  )
 ORDER BY created_at ASC
 LIMIT $1 OFFSET $2
 `
 
 type SearchTeamsAdminParams struct {
-	Limit  int32   `json:"limit"`
-	Offset int32   `json:"offset"`
-	Search *string `json:"search"`
+	Limit      int32   `json:"limit"`
+	Offset     int32   `json:"offset"`
+	Search     *string `json:"search"`
+	BanStatus  string  `json:"ban_status"`
+	Visibility string  `json:"visibility"`
 }
 
 type SearchTeamsAdminRow struct {
@@ -567,7 +595,13 @@ type SearchTeamsAdminRow struct {
 }
 
 func (q *Queries) SearchTeamsAdmin(ctx context.Context, arg SearchTeamsAdminParams) ([]SearchTeamsAdminRow, error) {
-	rows, err := q.db.Query(ctx, searchTeamsAdmin, arg.Limit, arg.Offset, arg.Search)
+	rows, err := q.db.Query(ctx, searchTeamsAdmin,
+		arg.Limit,
+		arg.Offset,
+		arg.Search,
+		arg.BanStatus,
+		arg.Visibility,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -35,6 +35,24 @@ func (uc *UserUseCase) Register(ctx context.Context, params usecase.UserRegister
 	password := params.Password
 	customFields := params.CustomFields
 
+	var settings *domain.Settings
+
+	if uc.deps.SettingsRepo != nil {
+		var err error
+
+		settings, err = uc.deps.SettingsRepo.Get(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("UserUseCase - Register - SettingsRepo.Get: %w", err)
+		}
+	}
+
+	if err := preflightRegistrationPolicy(ctx, registrationPolicyDeps{
+		UserRepo:    uc.deps.UserRepo,
+		CompParamUC: uc.deps.CompParamUC,
+	}, settings, registrationPolicyLocal, params.RegistrationCode); err != nil {
+		return nil, fmt.Errorf("UserUseCase - Register - preflightRegistrationPolicy: %w", err)
+	}
+
 	if err := validation.ValidateCustomFieldEnvelope(customFields); err != nil {
 		return nil, fmt.Errorf("UserUseCase - Register - ValidateCustomFieldEnvelope: %w", apperr.NewValidationErrorf("%v", err))
 	}
@@ -65,10 +83,10 @@ func (uc *UserUseCase) Register(ctx context.Context, params usecase.UserRegister
 	}
 
 	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		var settings *domain.Settings
+		var txSettings *domain.Settings
 
 		if uc.deps.SettingsRepo != nil {
-			settings, err = uc.deps.SettingsRepo.Get(ctx)
+			txSettings, err = uc.deps.SettingsRepo.Get(ctx)
 			if err != nil {
 				return fmt.Errorf("UserUseCase - Register - SettingsRepo.Get: %w", err)
 			}
@@ -77,7 +95,7 @@ func (uc *UserUseCase) Register(ctx context.Context, params usecase.UserRegister
 		if err := enforceRegistrationPolicy(ctx, registrationPolicyDeps{
 			UserRepo:    uc.deps.UserRepo,
 			CompParamUC: uc.deps.CompParamUC,
-		}, settings, registrationPolicyLocal, params.RegistrationCode); err != nil {
+		}, txSettings, registrationPolicyLocal, params.RegistrationCode); err != nil {
 			return fmt.Errorf("UserUseCase - Register - enforceRegistrationPolicy: %w", err)
 		}
 

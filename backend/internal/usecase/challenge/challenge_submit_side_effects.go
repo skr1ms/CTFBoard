@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
 )
@@ -33,5 +34,7 @@ func (uc *ChallengeUseCase) submitNotifySolve(sc *submitContext, challenge *doma
 		return
 	}
 
-	uc.deps.Broadcaster.NotifySolve(sc.teamID, challenge.Title, challenge.Points, isFirstBlood)
+	txctx.AfterCommitOrNow(sc.ctx, func(context.Context) {
+		uc.deps.Broadcaster.NotifySolve(sc.teamID, challenge.Title, challenge.Points, isFirstBlood)
+	})
 }

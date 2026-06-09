@@ -11,6 +11,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/guard"
 )
 
 // CreateSoloTeam creates a solo wrapper team for userID. Delegates to createSoloTeamTx
@@ -33,6 +34,7 @@ func (uc *TeamUseCase) CreateSoloTeam(ctx context.Context, userID uuid.UUID, con
 	}
 
 	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
 
 	return team, nil
 }
@@ -75,6 +77,7 @@ func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid
 	}
 
 	cacheutil.InvalidateUser(ctx, uc.deps.UserCache, userID)
+	cacheutil.InvalidateScoreboardForTeam(ctx, uc.deps.ScoreboardCache, team.ID)
 
 	return team, nil
 }
@@ -88,19 +91,19 @@ func (uc *TeamUseCase) CreateSoloTeamForNewUser(ctx context.Context, userID uuid
 // invite token is replaced with the team's own ID (making it a stable, never-expiring
 // token), and the user is assigned to the team.
 func (uc *TeamUseCase) createSoloTeamTx(ctx context.Context, userID uuid.UUID, confirmReset, isAutoCreated, skipTeamSwitchCheck bool) (*domain.Team, error) {
-	if skipTeamSwitchCheck {
-		err := uc.requireSoloModeOnly(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - requireSoloModeOnly: %w", err)
-		}
-	} else {
-		if _, err := uc.deps.Guard.RequireTeamSwitchAndSoloMode(ctx); err != nil {
-			return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - Guard.RequireTeamSwitchAndSoloMode: %w", err)
+	comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - CompetitionRepo.GetForUpdate: %w", err)
+	}
+
+	if !skipTeamSwitchCheck {
+		if err := guard.ValidateTeamSwitchState(comp); err != nil {
+			return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - ValidateTeamSwitchState: %w", err)
 		}
 	}
 
-	if _, err := uc.deps.CompRepo.Get(ctx); err != nil {
-		return nil, fmt.Errorf("TeamUseCase - createSoloTeamTx - CompetitionRepo.Get: %w", err)
+	if !comp.Mode.AllowsSolo() {
+		return nil, apperr.ErrSoloModeNotAllowed
 	}
 
 	if err := uc.checkMaxTeams(ctx); err != nil {

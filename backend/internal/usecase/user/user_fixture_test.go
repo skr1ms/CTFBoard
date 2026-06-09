@@ -20,22 +20,24 @@ import (
 )
 
 type userTestDeps struct {
-	userRepo   *userMock.MockUserRepository
-	teamRepo   *userMock.MockTeamRepository
-	solveRepo  *userMock.MockSolveRepository
-	tm         *userMock.MockTransactionManager
-	jwtService *jwtMock.MockService
+	userRepo        *userMock.MockUserRepository
+	teamRepo        *userMock.MockTeamRepository
+	solveRepo       *userMock.MockSolveRepository
+	tm              *userMock.MockTransactionManager
+	jwtService      *jwtMock.MockService
+	apiTokenRevoker *testAPITokenRevoker
 }
 
 func newUserTestDeps(t *testing.T) *userTestDeps {
 	t.Helper()
 
 	return &userTestDeps{
-		userRepo:   userMock.NewMockUserRepository(t),
-		teamRepo:   userMock.NewMockTeamRepository(t),
-		solveRepo:  userMock.NewMockSolveRepository(t),
-		tm:         userMock.NewMockTransactionManager(t),
-		jwtService: jwtMock.NewMockService(t),
+		userRepo:        userMock.NewMockUserRepository(t),
+		teamRepo:        userMock.NewMockTeamRepository(t),
+		solveRepo:       userMock.NewMockSolveRepository(t),
+		tm:              userMock.NewMockTransactionManager(t),
+		jwtService:      jwtMock.NewMockService(t),
+		apiTokenRevoker: &testAPITokenRevoker{},
 	}
 }
 
@@ -43,7 +45,18 @@ func (d *userTestDeps) createUseCase() *UserUseCase {
 	return NewUserUseCase(UserDeps{
 		UserRepo: d.userRepo, TeamRepo: d.teamRepo, SolveRepo: d.solveRepo,
 		TM: d.tm, JWTService: d.jwtService, FieldValidator: nil, FieldValueRepo: nil,
+		APITokenRevoker: d.apiTokenRevoker,
 	})
+}
+
+type testAPITokenRevoker struct {
+	mock.Mock
+}
+
+func (r *testAPITokenRevoker) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
+	args := r.Called(ctx, userID)
+
+	return args.Error(0)
 }
 
 func (d *userTestDeps) setupLoginMocks(t *testing.T, email, password string) {
@@ -217,6 +230,35 @@ func loginTestCases() []loginTestCase {
 				userRepo.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user, nil)
 			},
 			expectedError: true,
+		},
+		{
+			name: "directly banned user can login for ban status", email: "banned@example.com", password: "password123",
+			setupMocks: func(t *testing.T, userRepo *userMock.MockUserRepository, jwtService *jwtMock.MockService) {
+				t.Helper()
+
+				hashedPassword, err := userTestHashPassword("password123")
+				require.NoError(t, err)
+
+				user := &domain.User{ID: uuid.New(), Username: "banned", Email: "banned@example.com", PasswordHash: hashedPassword, Role: domain.RoleUser, IsBanned: true}
+				userRepo.EXPECT().GetByEmail(mock.Anything, "banned@example.com").Return(user, nil)
+				jwtService.EXPECT().GenerateTokenPair(mock.Anything, user.ID, string(domain.RoleUser)).Return(&jwtkit.TokenPair{AccessToken: "token", RefreshToken: "refresh"}, nil)
+				jwtService.EXPECT().ValidateAccessToken(mock.Anything, "token").Return(&jwtkit.CustomClaims{}, nil)
+			},
+			expectedError: false,
+		},
+		{
+			name: "was in banned team user can login for ban status", email: "team_banned@example.com", password: "password123",
+			setupMocks: func(t *testing.T, userRepo *userMock.MockUserRepository, jwtService *jwtMock.MockService) {
+				t.Helper()
+
+				hashedPassword, err := userTestHashPassword("password123")
+				require.NoError(t, err)
+
+				user := &domain.User{ID: uuid.New(), Username: "team_banned", Email: "team_banned@example.com", PasswordHash: hashedPassword, Role: domain.RoleUser, WasInBannedTeam: true}
+				userRepo.EXPECT().GetByEmail(mock.Anything, "team_banned@example.com").Return(user, nil)
+				jwtService.EXPECT().GenerateTokenPair(mock.Anything, user.ID, string(domain.RoleUser)).Return(&jwtkit.TokenPair{AccessToken: "token", RefreshToken: "refresh"}, nil)
+			},
+			expectedError: false,
 		},
 		{
 			name: "GetByEmail returns unexpected error", email: "test@example.com", password: "password123",

@@ -68,7 +68,7 @@ var configRegistry = map[string]ConfigDef{
 	},
 	"score_visibility": {
 		Key: "score_visibility", DefaultValue: "public", ValueType: CompetitionParamTypeString,
-		Category: ConfigCategoryVisibility, Description: "Scoreboard visibility: public, private, hidden, admins",
+		Category: ConfigCategoryVisibility, Description: "Scoreboard visibility: public, private, hidden, admins, admins_only",
 	},
 	"account_visibility": {
 		Key: "account_visibility", DefaultValue: "public", ValueType: CompetitionParamTypeString,

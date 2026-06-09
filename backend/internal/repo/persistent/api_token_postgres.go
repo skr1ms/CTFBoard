@@ -100,9 +100,21 @@ func (r *APITokenRepo) GetByTokenHash(ctx context.Context, tokenHash string) (*d
 }
 
 func (r *APITokenRepo) Delete(ctx context.Context, ID, userID uuid.UUID) error {
-	err := r.Q(ctx).DeleteAPIToken(ctx, sqlc.DeleteAPITokenParams{ID: ID, UserID: userID})
+	n, err := r.Q(ctx).DeleteAPIToken(ctx, sqlc.DeleteAPITokenParams{ID: ID, UserID: userID})
 	if err != nil {
 		return fmt.Errorf("APITokenRepo - Delete: %w", err)
+	}
+
+	if n == 0 {
+		return apperr.ErrAPITokenNotFound
+	}
+
+	return nil
+}
+
+func (r *APITokenRepo) DeleteAllByUserID(ctx context.Context, userID uuid.UUID) error {
+	if err := r.Q(ctx).DeleteAPITokensByUserID(ctx, userID); err != nil {
+		return fmt.Errorf("APITokenRepo - DeleteAllByUserID: %w", err)
 	}
 
 	return nil

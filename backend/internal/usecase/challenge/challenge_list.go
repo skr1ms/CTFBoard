@@ -163,7 +163,8 @@ func (uc *ChallengeUseCase) applyFrozenSolveCounts(ctx context.Context, comp *do
 				Challenge: &chCopy,
 				Solved:    cwt.Solved,
 			},
-			Tags: cwt.Tags,
+			Tags:            cwt.Tags,
+			RequirementsMet: cwt.RequirementsMet,
 		}
 	}
 
@@ -232,6 +233,8 @@ func (uc *ChallengeUseCase) getAllInner(ctx context.Context, teamID, tagID *uuid
 // been solved by the team. Challenges with no requirements are omitted from the result map
 // (callers treat a missing key as "no requirements"). Returns nil when the
 // challenge_prerequisite_anonymize feature flag is off or when no requirements exist.
+// Requirement-loading failures fail closed so a transient repository error cannot
+// expose gated challenge metadata as if the challenge had no prerequisites.
 func (uc *ChallengeUseCase) computeRequirementsMetMap(ctx context.Context, teamID *uuid.UUID, challengeIDs []uuid.UUID) map[uuid.UUID]bool {
 	if uc.deps.CompParamUC == nil {
 		return nil
@@ -241,11 +244,11 @@ func (uc *ChallengeUseCase) computeRequirementsMetMap(ctx context.Context, teamI
 		return nil
 	}
 
-	pairs, err := uc.deps.ChallengeRepo.GetAllRequirementPairs(ctx)
+	pairs, err := uc.getAllRequirementPairsCached(ctx)
 	if err != nil {
 		uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - computeRequirementsMetMap - GetAllRequirementPairs")
 
-		return nil
+		return requirementsUnknownMap(challengeIDs)
 	}
 
 	if len(pairs) == 0 {
@@ -297,7 +300,7 @@ func (uc *ChallengeUseCase) computeRequirementsMetMap(ctx context.Context, teamI
 		if err != nil {
 			uc.deps.Logger.WithError(err).Warn("ChallengeUseCase - computeRequirementsMetMap - GetSolvedChallengeIDsByTeam")
 
-			return nil
+			return requirementsUnmetMap(challengeIDs, reqsByCh)
 		}
 
 		solvedSet = make(map[uuid.UUID]struct{}, len(solvedIDs))
@@ -324,6 +327,53 @@ func (uc *ChallengeUseCase) computeRequirementsMetMap(ctx context.Context, teamI
 		}
 
 		result[id] = met
+	}
+
+	return result
+}
+
+func (uc *ChallengeUseCase) getAllRequirementPairsCached(ctx context.Context) ([]*domain.ChallengeRequirementPair, error) {
+	if uc.deps.ListCache == nil {
+		return uc.deps.ChallengeRepo.GetAllRequirementPairs(ctx)
+	}
+
+	v, err, _ := uc.requirementPairsSF.Do(requirementPairsCacheKey, func() (any, error) {
+		loadCtx, cancel := cacheutil.LoaderContext(ctx)
+		defer cancel()
+
+		return cachekit.GetOrLoad(uc.deps.ListCache, loadCtx, requirementPairsCacheKey, requirementPairsTTL, func(loadCtx context.Context) ([]*domain.ChallengeRequirementPair, error) {
+			return uc.deps.ChallengeRepo.GetAllRequirementPairs(loadCtx)
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	pairs, ok := v.([]*domain.ChallengeRequirementPair)
+	if !ok {
+		return nil, fmt.Errorf("ChallengeUseCase - getAllRequirementPairsCached: unexpected type")
+	}
+
+	return pairs, nil
+}
+
+func requirementsUnknownMap(challengeIDs []uuid.UUID) map[uuid.UUID]bool {
+	result := make(map[uuid.UUID]bool, len(challengeIDs))
+
+	for _, id := range challengeIDs {
+		result[id] = false
+	}
+
+	return result
+}
+
+func requirementsUnmetMap(challengeIDs []uuid.UUID, reqsByCh map[uuid.UUID][]uuid.UUID) map[uuid.UUID]bool {
+	result := make(map[uuid.UUID]bool)
+
+	for _, id := range challengeIDs {
+		if _, ok := reqsByCh[id]; ok {
+			result[id] = false
+		}
 	}
 
 	return result

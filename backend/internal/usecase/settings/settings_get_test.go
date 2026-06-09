@@ -30,7 +30,6 @@ func TestSettingsUseCase_Get_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, settings.AppName, result.AppName)
 	assert.Equal(t, settings.SubmitLimitPerUser, result.SubmitLimitPerUser)
-	assert.Equal(t, settings.ScoreboardVisible, result.ScoreboardVisible)
 	assert.NoError(t, redisClient.ExpectationsWereMet())
 }
 

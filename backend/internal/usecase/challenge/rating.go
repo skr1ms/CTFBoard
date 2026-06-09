@@ -46,6 +46,14 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 		return nil, fmt.Errorf("RatingUseCase - PutRating: RatingRepo not configured")
 	}
 
+	if uc.deps.UserRepo == nil {
+		return nil, fmt.Errorf("RatingUseCase - PutRating: UserRepo not configured")
+	}
+
+	if uc.deps.TeamRepo == nil {
+		return nil, fmt.Errorf("RatingUseCase - PutRating: TeamRepo not configured")
+	}
+
 	ch, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		if errors.Is(err, apperr.ErrChallengeNotFound) {
@@ -59,26 +67,26 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 		return nil, err
 	}
 
-	if uc.deps.UserRepo != nil {
-		user, err := uc.deps.UserRepo.GetByID(ctx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("RatingUseCase - PutRating - UserRepo.GetByID: %w", err)
-		}
-
-		if user.IsBanned {
-			return nil, apperr.ErrUserBanned
-		}
+	user, err := uc.deps.UserRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("RatingUseCase - PutRating - UserRepo.GetByID: %w", err)
 	}
 
-	if uc.deps.TeamRepo != nil {
-		team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
-		if err != nil {
-			return nil, fmt.Errorf("RatingUseCase - PutRating - TeamRepo.GetByID: %w", err)
-		}
+	if user.IsBanned {
+		return nil, apperr.ErrUserBanned
+	}
 
-		if team.IsBanned {
-			return nil, apperr.ErrTeamBanned
-		}
+	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
+		return nil, apperr.ErrUserWasInBannedTeam
+	}
+
+	team, err := uc.deps.TeamRepo.GetByID(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("RatingUseCase - PutRating - TeamRepo.GetByID: %w", err)
+	}
+
+	if team.IsBanned {
+		return nil, apperr.ErrTeamBanned
 	}
 
 	rating := &domain.Rating{
@@ -94,6 +102,36 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 	}
 
 	err = uc.deps.TM.Run(ctx, func(txCtx context.Context) error {
+		if err := uc.deps.UserRepo.Lock(txCtx, userID); err != nil {
+			return fmt.Errorf("RatingUseCase - PutRating - UserRepo.Lock: %w", err)
+		}
+
+		freshUser, err := uc.deps.UserRepo.GetByID(txCtx, userID)
+		if err != nil {
+			return fmt.Errorf("RatingUseCase - PutRating - UserRepo.GetByID (fresh): %w", err)
+		}
+
+		if freshUser.IsBanned {
+			return apperr.ErrUserBanned
+		}
+
+		if freshUser.TeamID == nil || *freshUser.TeamID != teamID {
+			return apperr.ErrUserNotInTeam
+		}
+
+		if err := uc.deps.TeamRepo.Lock(txCtx, teamID); err != nil {
+			return fmt.Errorf("RatingUseCase - PutRating - TeamRepo.Lock: %w", err)
+		}
+
+		freshTeam, err := uc.deps.TeamRepo.GetByID(txCtx, teamID)
+		if err != nil {
+			return fmt.Errorf("RatingUseCase - PutRating - TeamRepo.GetByID (fresh): %w", err)
+		}
+
+		if err := guard.ValidateSubmissionEligibility(txCtx, freshUser, freshTeam, nil, uc.deps.TeamRepo); err != nil {
+			return err
+		}
+
 		if _, err := uc.deps.SolveRepo.GetByTeamAndChallengeForUpdate(txCtx, teamID, challengeID); err != nil {
 			if errors.Is(err, apperr.ErrSolveNotFound) {
 				return apperr.ErrSolveRequiredForRating
@@ -102,8 +140,7 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 			return fmt.Errorf("RatingUseCase - PutRating - SolveRepo.GetByTeamAndChallengeForUpdate: %w", err)
 		}
 
-		err := uc.deps.RatingRepo.Upsert(txCtx, rating)
-		if err != nil {
+		if err := uc.deps.RatingRepo.Upsert(txCtx, rating); err != nil {
 			return fmt.Errorf("RatingUseCase - PutRating - RatingRepo.Upsert: %w", err)
 		}
 
@@ -120,7 +157,7 @@ func (uc *RatingUseCase) PutRating(ctx context.Context, challengeID, userID, tea
 	return rating, nil
 }
 
-func (uc *RatingUseCase) GetRatingsByChallengeID(ctx context.Context, challengeID uuid.UUID) ([]*domain.Rating, error) {
+func (uc *RatingUseCase) GetRatingsByChallengeID(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID) ([]*domain.Rating, error) {
 	if uc.deps.ChallengeRepo == nil {
 		return nil, fmt.Errorf("RatingUseCase - GetRatingsByChallengeID: ChallengeRepo not configured")
 	}
@@ -139,6 +176,10 @@ func (uc *RatingUseCase) GetRatingsByChallengeID(ctx context.Context, challengeI
 	}
 
 	if err := guard.EnsureChallengeVisible(ch); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRequirementsSatisfiedForRead(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo, "RatingUseCase - GetRatingsByChallengeID"); err != nil {
 		return nil, err
 	}
 

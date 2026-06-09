@@ -7,13 +7,15 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
 // ListUsers returns a paginated user list inside a read-only transaction.
 // When field=="ip" the search targets tracked IP addresses; otherwise it
-// performs a standard username/email search.
+// performs a username search. Email search is reserved for AdminListUsers to
+// avoid public account enumeration.
 func (uc *UserUseCase) ListUsers(ctx context.Context, search *string, field string, page, perPage int) (*usecase.Paginated[*domain.User], error) {
 	offset := (page - 1) * perPage
 
@@ -58,6 +60,72 @@ func (uc *UserUseCase) ListUsers(ctx context.Context, search *string, field stri
 	}
 
 	return usecase.NewPaginated(users, total, page, perPage), nil
+}
+
+func (uc *UserUseCase) AdminListUsers(ctx context.Context, search *string, field string, banStatus usecase.AdminUserBanStatus, page, perPage int) (*usecase.Paginated[*domain.User], error) {
+	offset := (page - 1) * perPage
+	repoBanStatus := toRepoUserBanStatus(banStatus)
+
+	var (
+		users []*domain.User
+		total int64
+	)
+
+	err := uc.deps.TM.ReadOnly(ctx, func(roCtx context.Context) error {
+		if field == "ip" && search != nil && *search != "" {
+			var err error
+
+			users, err = uc.deps.UserRepo.SearchAdminByIP(roCtx, *search, repoBanStatus, perPage, offset)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - AdminListUsers - UserRepo.SearchAdminByIP: %w", err)
+			}
+
+			total, err = uc.deps.UserRepo.CountSearchAdminByIP(roCtx, *search, repoBanStatus)
+			if err != nil {
+				return fmt.Errorf("UserUseCase - AdminListUsers - UserRepo.CountSearchAdminByIP: %w", err)
+			}
+
+			return nil
+		}
+
+		filter := repo.UserAdminSearchFilter{Search: search, BanStatus: repoBanStatus}
+
+		var err error
+
+		users, err = uc.deps.UserRepo.SearchAdmin(roCtx, filter, perPage, offset)
+		if err != nil {
+			return fmt.Errorf("UserUseCase - AdminListUsers - UserRepo.SearchAdmin: %w", err)
+		}
+
+		total, err = uc.deps.UserRepo.CountSearchAdmin(roCtx, filter)
+		if err != nil {
+			return fmt.Errorf("UserUseCase - AdminListUsers - UserRepo.CountSearchAdmin: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("UserUseCase - AdminListUsers - TM.ReadOnly: %w", err)
+	}
+
+	return usecase.NewPaginated(users, total, page, perPage), nil
+}
+
+func toRepoUserBanStatus(status usecase.AdminUserBanStatus) repo.UserAdminBanStatus {
+	switch status {
+	case usecase.AdminUserBanStatusAll:
+		return repo.UserAdminBanStatusAll
+	case usecase.AdminUserBanStatusNotBanned:
+		return repo.UserAdminBanStatusNotBanned
+	case usecase.AdminUserBanStatusDirect:
+		return repo.UserAdminBanStatusDirect
+	case usecase.AdminUserBanStatusTeamInherited:
+		return repo.UserAdminBanStatusTeamInherited
+	case usecase.AdminUserBanStatusBlocked:
+		return repo.UserAdminBanStatusBlocked
+	default:
+		return repo.UserAdminBanStatusAll
+	}
 }
 
 func (uc *UserUseCase) GetUserSolves(ctx context.Context, userID uuid.UUID) ([]*domain.SolveWithDetails, error) {

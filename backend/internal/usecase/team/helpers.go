@@ -52,8 +52,8 @@ func (uc *TeamUseCase) lockTeamWithMembers(ctx context.Context, teamID uuid.UUID
 	return membersAfter, nil
 }
 
-// cascadeSoftBan soft-bans all solves, submissions, awards, and hint unlocks for the
-// given team. Used when banning a team to hide their data from the scoreboard.
+// cascadeSoftBan soft-bans all solves, submissions, awards, ratings, and hint unlocks
+// for the given team. Used when banning a team to hide their data from public views.
 func (uc *TeamUseCase) cascadeSoftBan(ctx context.Context, teamID uuid.UUID) error {
 	if err := uc.deps.SolveRepo.SoftBanByTeamID(ctx, teamID); err != nil {
 		return fmt.Errorf("TeamUseCase - cascadeSoftBan - SolveRepo.SoftBanByTeamID: %w", err)
@@ -74,16 +74,16 @@ func (uc *TeamUseCase) cascadeSoftBan(ctx context.Context, teamID uuid.UUID) err
 	}
 
 	if uc.deps.RatingRepo != nil {
-		if err := uc.deps.RatingRepo.DeleteByTeamID(ctx, teamID); err != nil {
-			return fmt.Errorf("TeamUseCase - cascadeSoftBan - RatingRepo.DeleteByTeamID: %w", err)
+		if err := uc.deps.RatingRepo.SoftBanByTeamID(ctx, teamID); err != nil {
+			return fmt.Errorf("TeamUseCase - cascadeSoftBan - RatingRepo.SoftBanByTeamID: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// cascadeRestore restores soft-banned solves, submissions, awards, and hint unlocks for
-// the given team. Used when unbanning a team.
+// cascadeRestore restores soft-banned solves, submissions, awards, ratings, and hint
+// unlocks for the given team. Used when unbanning a team.
 func (uc *TeamUseCase) cascadeRestore(ctx context.Context, teamID uuid.UUID) error {
 	if err := uc.deps.SolveRepo.RestoreByBannedTeamID(ctx, teamID); err != nil {
 		return fmt.Errorf("TeamUseCase - cascadeRestore - SolveRepo.RestoreByBannedTeamID: %w", err)
@@ -103,11 +103,17 @@ func (uc *TeamUseCase) cascadeRestore(ctx context.Context, teamID uuid.UUID) err
 		}
 	}
 
+	if uc.deps.RatingRepo != nil {
+		if err := uc.deps.RatingRepo.RestoreByBannedTeamID(ctx, teamID); err != nil {
+			return fmt.Errorf("TeamUseCase - cascadeRestore - RatingRepo.RestoreByBannedTeamID: %w", err)
+		}
+	}
+
 	return nil
 }
 
-// cascadeDelete hard-deletes all solves, submissions, awards, and hint unlocks for the
-// given team. Used when deleting or disbanding a team.
+// cascadeDelete hard-deletes all solves, submissions, awards, ratings, and hint unlocks
+// for the given team. Used when deleting or disbanding a team.
 func (uc *TeamUseCase) cascadeDelete(ctx context.Context, teamID uuid.UUID) error {
 	if err := uc.deps.SolveRepo.DeleteByTeamID(ctx, teamID); err != nil {
 		return fmt.Errorf("TeamUseCase - cascadeDelete - SolveRepo.DeleteByTeamID: %w", err)
@@ -124,6 +130,12 @@ func (uc *TeamUseCase) cascadeDelete(ctx context.Context, teamID uuid.UUID) erro
 	if uc.deps.HintRepo != nil {
 		if err := uc.deps.HintRepo.DeleteUnlocksByTeamID(ctx, teamID); err != nil {
 			return fmt.Errorf("TeamUseCase - cascadeDelete - HintRepo.DeleteUnlocksByTeamID: %w", err)
+		}
+	}
+
+	if uc.deps.RatingRepo != nil {
+		if err := uc.deps.RatingRepo.DeleteByTeamID(ctx, teamID); err != nil {
+			return fmt.Errorf("TeamUseCase - cascadeDelete - RatingRepo.DeleteByTeamID: %w", err)
 		}
 	}
 

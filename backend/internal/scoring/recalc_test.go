@@ -2,6 +2,7 @@ package scoring
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,25 @@ func TestRecalculatePoints_EmptyMap_ReturnsNil(t *testing.T) {
 	ids, pts := RecalculatePoints(map[uuid.UUID]*domain.Challenge{})
 	assert.Nil(t, ids)
 	assert.Nil(t, pts)
+}
+
+func TestDefaultSolveMapperCopiesSolvedAt(t *testing.T) {
+	t.Parallel()
+
+	solvedAt := time.Date(2026, time.June, 9, 12, 0, 0, 0, time.UTC)
+	row := &SolveForPointsRecalc{
+		ID:           uuid.New(),
+		ChallengeID:  uuid.New(),
+		SolvedAt:     solvedAt,
+		InitialValue: 500,
+		MinValue:     100,
+		Decay:        10,
+	}
+
+	got := DefaultSolveMapper(row)
+
+	require.NotNil(t, got)
+	assert.Equal(t, solvedAt, got.SolvedAt)
 }
 
 func TestRecalculatePoints_StaticChallenge_Skipped(t *testing.T) {

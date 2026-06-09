@@ -60,6 +60,28 @@ func TestTeamUseCase_GetInviteToken_Error_NotCaptain(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestTeamUseCase_GetInviteToken_Error_SoloTeamHidden(t *testing.T) {
+	t.Parallel()
+	d := newTeamTestDeps(t)
+
+	captainID := uuid.New()
+	teamID := uuid.New()
+	user := newTestUser(captainID, &teamID, "solo", "solo@x.com")
+	team := newTestTeam(teamID, "solo", captainID, teamID, true)
+
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(user, nil).Once()
+	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
+
+	uc := d.createUseCase()
+
+	result, err := uc.GetInviteToken(context.Background(), captainID)
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, apperr.ErrTeamNotFound)
+	assert.Nil(t, result)
+}
+
 func TestTeamUseCase_UpdateMyTeam_Success(t *testing.T) {
 	t.Parallel()
 	d := newTeamTestDeps(t)

@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/wahrwelt-kit/go-logkit"
 
@@ -16,6 +17,7 @@ const defaultCSVExportMaxRows = 100_000
 
 type BackupUseCase struct {
 	deps BackupDeps
+	jobs sync.WaitGroup
 }
 
 type BackupDeps struct {
@@ -55,6 +57,10 @@ func NewBackupUseCase(deps BackupDeps) *BackupUseCase {
 	uc.failInterruptedImportJobs(deps.StopContext)
 
 	return uc
+}
+
+func (uc *BackupUseCase) Wait() {
+	uc.jobs.Wait()
 }
 
 func (uc *BackupUseCase) Reset(ctx context.Context, opts domain.AdminResetOptions) error {

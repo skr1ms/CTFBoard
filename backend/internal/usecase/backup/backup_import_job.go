@@ -51,18 +51,21 @@ func (uc *BackupUseCase) StartImportZIPJob(ctx context.Context, r io.Reader, siz
 		Phase:           domain.ImportJobPhaseQueued,
 	}
 
-	if err := uc.deps.Storage.Upload(ctx, stagingLocation, r, size, importStagingContentType); err != nil {
-		return nil, fmt.Errorf("BackupUseCase - StartImportZIPJob - Storage.Upload: %w", err)
-	}
-
 	created, err := uc.deps.BackupRepo.CreateImportJob(ctx, job)
 	if err != nil {
-		uc.deleteStagedImportArchive(ctx, stagingLocation)
-
 		return nil, fmt.Errorf("BackupUseCase - StartImportZIPJob - BackupRepo.CreateImportJob: %w", err)
 	}
 
-	go uc.runImportJob(context.WithoutCancel(ctx), created.ID)
+	if err := uc.deps.Storage.Upload(ctx, stagingLocation, r, size, importStagingContentType); err != nil {
+		uc.failImportJob(ctx, created.ID, err.Error())
+		uc.deleteStagedImportArchive(ctx, stagingLocation)
+
+		return nil, fmt.Errorf("BackupUseCase - StartImportZIPJob - Storage.Upload: %w", err)
+	}
+
+	uc.jobs.Go(func() {
+		uc.runImportJob(uc.importJobContext(ctx), created.ID)
+	})
 
 	return created, nil
 }
@@ -80,6 +83,10 @@ func (uc *BackupUseCase) runImportJob(ctx context.Context, jobID uuid.UUID) {
 
 	job, err := uc.deps.BackupRepo.MarkImportJobRunning(ctx, jobID, domain.ImportJobPhaseValidating)
 	if err != nil {
+		if ctx.Err() != nil {
+			uc.failImportJob(ctx, jobID, "import interrupted by backend shutdown")
+		}
+
 		uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"job_id": jobID}).Error("BackupUseCase - runImportJob - MarkImportJobRunning")
 
 		return
@@ -87,7 +94,7 @@ func (uc *BackupUseCase) runImportJob(ctx context.Context, jobID uuid.UUID) {
 
 	tmp, size, err := uc.downloadStagedImportArchive(ctx, job.StagingLocation)
 	if err != nil {
-		uc.failImportJob(ctx, jobID, err.Error())
+		uc.failImportJob(ctx, jobID, uc.importJobErrorMessage(ctx, err))
 		uc.deleteStagedImportArchive(ctx, job.StagingLocation)
 
 		return
@@ -104,21 +111,44 @@ func (uc *BackupUseCase) runImportJob(ctx context.Context, jobID uuid.UUID) {
 		}
 	})
 	if err != nil {
-		uc.failImportJob(ctx, jobID, err.Error())
+		uc.failImportJob(ctx, jobID, uc.importJobErrorMessage(ctx, err))
 		uc.deleteStagedImportArchive(ctx, job.StagingLocation)
 
 		return
 	}
 
-	if err := uc.deps.BackupRepo.UpdateImportJobPhase(ctx, jobID, domain.ImportJobPhaseCleanup); err != nil {
+	terminalCtx, terminalCancel := uc.importJobTerminalContext(ctx)
+	defer terminalCancel()
+
+	if err := uc.deps.BackupRepo.UpdateImportJobPhase(terminalCtx, jobID, domain.ImportJobPhaseCleanup); err != nil {
 		uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"job_id": jobID}).Warn("BackupUseCase - runImportJob - cleanup phase")
 	}
 
 	uc.deleteStagedImportArchive(ctx, job.StagingLocation)
 
-	if err := uc.deps.BackupRepo.CompleteImportJob(ctx, jobID, result); err != nil {
+	if err := uc.deps.BackupRepo.CompleteImportJob(terminalCtx, jobID, result); err != nil {
 		uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"job_id": jobID}).Error("BackupUseCase - runImportJob - CompleteImportJob")
 	}
+}
+
+func (uc *BackupUseCase) importJobContext(ctx context.Context) context.Context {
+	if uc.deps.StopContext != nil {
+		return uc.deps.StopContext
+	}
+
+	return context.WithoutCancel(ctx)
+}
+
+func (uc *BackupUseCase) importJobTerminalContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), importJobCleanupTimeout)
+}
+
+func (uc *BackupUseCase) importJobErrorMessage(ctx context.Context, err error) string {
+	if ctx.Err() != nil {
+		return "import interrupted by backend shutdown: " + err.Error()
+	}
+
+	return err.Error()
 }
 
 func (uc *BackupUseCase) downloadStagedImportArchive(ctx context.Context, stagingLocation string) (*os.File, int64, error) {

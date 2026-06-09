@@ -12,8 +12,9 @@ import (
 )
 
 // loginExistingOAuthUser refreshes the stored OAuth tokens for an already-linked
-// account, then loads the user, checks ban status (IsBanned and WasInBannedTeam),
-// and issues a new JWT token pair.
+// account, then loads the user and issues a JWT token pair. Directly banned
+// users and former members of banned teams may still receive tokens for /auth/me
+// and appeal state. Protected CTF actions remain blocked elsewhere.
 func (uc *OAuthUseCase) loginExistingOAuthUser(
 	ctx context.Context,
 	oauthAcc *domain.OAuthAccount,
@@ -36,24 +37,11 @@ func (uc *OAuthUseCase) loginExistingOAuthUser(
 		return nil, fmt.Errorf("OAuthUseCase - loginExistingOAuthUser - GetByID: %w", err)
 	}
 
-	if user.IsBanned {
-		return nil, apperr.ErrInvalidCredentials
-	}
-
-	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
-		return nil, apperr.ErrInvalidCredentials
-	}
-
 	if err := uc.deps.OAuthRepo.Upsert(ctx, oauthAcc); err != nil {
 		return nil, fmt.Errorf("OAuthUseCase - loginExistingOAuthUser - Upsert: %w", err)
 	}
 
-	pair, err := uc.deps.JWTService.GenerateTokenPair(ctx, user.ID, string(user.Role))
-	if err != nil {
-		return nil, fmt.Errorf("OAuthUseCase - loginExistingOAuthUser - GenerateTokenPair: %w", err)
-	}
-
-	return tokenPairFromJWT(pair), nil
+	return issueUserTokenPair(ctx, uc.deps.JWTService, user, "OAuthUseCase - loginExistingOAuthUser")
 }
 
 // linkOAuthToExistingUser attaches an OAuth provider to an existing account (same email). Returns JWT for that user.
@@ -64,14 +52,6 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 	token *OAuthProviderToken,
 	provider string,
 ) (*usecase.TokenPair, error) {
-	if existingUser.IsBanned {
-		return nil, apperr.ErrInvalidCredentials
-	}
-
-	if existingUser.WasInBannedTeam && existingUser.Role != domain.RoleAdmin {
-		return nil, apperr.ErrInvalidCredentials
-	}
-
 	oauthAcc := &domain.OAuthAccount{
 		UserID:         existingUser.ID,
 		Provider:       provider,
@@ -106,12 +86,7 @@ func (uc *OAuthUseCase) linkOAuthToExistingUser(
 		return nil, fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - Transaction: %w", err)
 	}
 
-	pair, err := uc.deps.JWTService.GenerateTokenPair(ctx, existingUser.ID, string(existingUser.Role))
-	if err != nil {
-		return nil, fmt.Errorf("OAuthUseCase - linkOAuthToExistingUser - GenerateTokenPair: %w", err)
-	}
-
-	return tokenPairFromJWT(pair), nil
+	return issueUserTokenPair(ctx, uc.deps.JWTService, existingUser, "OAuthUseCase - linkOAuthToExistingUser")
 }
 
 // registerNewOAuthUser creates a brand-new user account from the OAuth provider
@@ -128,6 +103,18 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 	token *OAuthProviderToken,
 	provider string,
 ) (*usecase.TokenPair, error) {
+	settings, err := uc.deps.SettingsRepo.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("OAuthUseCase - registerNewOAuthUser - SettingsRepo.Get: %w", err)
+	}
+
+	if err := preflightRegistrationPolicy(ctx, registrationPolicyDeps{
+		UserRepo:    uc.deps.UserRepo,
+		CompParamUC: uc.deps.CompParamUC,
+	}, settings, registrationPolicyOAuth, ""); err != nil {
+		return nil, fmt.Errorf("OAuthUseCase - registerNewOAuthUser - preflightRegistrationPolicy: %w", err)
+	}
+
 	user := &domain.User{
 		Email:        profile.Email,
 		PasswordHash: domain.OAuthOnlyPasswordSentinel,
@@ -148,8 +135,8 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 		oauthAcc.ExpiresAt = &token.ExpiresAt
 	}
 
-	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		settings, err := uc.deps.SettingsRepo.Get(ctx)
+	err = uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		txSettings, err := uc.deps.SettingsRepo.Get(ctx)
 		if err != nil {
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - SettingsRepo.Get: %w", err)
 		}
@@ -157,7 +144,7 @@ func (uc *OAuthUseCase) registerNewOAuthUser(
 		if err := enforceRegistrationPolicy(ctx, registrationPolicyDeps{
 			UserRepo:    uc.deps.UserRepo,
 			CompParamUC: uc.deps.CompParamUC,
-		}, settings, registrationPolicyOAuth, ""); err != nil {
+		}, txSettings, registrationPolicyOAuth, ""); err != nil {
 			return fmt.Errorf("OAuthUseCase - registerNewOAuthUser - enforceRegistrationPolicy: %w", err)
 		}
 

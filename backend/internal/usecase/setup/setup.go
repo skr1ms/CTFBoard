@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/wahrwelt-kit/go-jwtkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
@@ -17,9 +18,21 @@ import (
 type SetupDeps struct {
 	UserUC      usecase.UserUseCase
 	CompUC      usecase.CompetitionUseCase
-	CompParamUC usecase.CompetitionParamUseCase
+	CompParamUC setupCompetitionParamUseCase
 	SettingsUC  usecase.SettingsUseCase
+	TM          setupTransactionManager
 	JWTService  jwtkit.Service
+}
+
+type setupTransactionManager interface {
+	Run(ctx context.Context, fn func(context.Context) error) error
+}
+
+type setupCompetitionParamUseCase interface {
+	GetBool(ctx context.Context, key string, defaultVal bool) bool
+	GetForUpdate(ctx context.Context, key string) (*domain.CompetitionParam, error)
+	Set(ctx context.Context, params usecase.CompetitionParamSetParams) error
+	SetBatch(ctx context.Context, params []*domain.CompetitionParam, actorID uuid.UUID, clientIP string) error
 }
 
 // SetupUseCase orchestrates the first-run setup wizard completion.
@@ -65,52 +78,71 @@ func (uc *SetupUseCase) Complete(ctx context.Context, req *usecase.SetupRequest)
 		return nil, err
 	}
 
-	adminUser, err := uc.deps.UserUC.AdminCreate(ctx, req.AdminUsername, req.AdminEmail, req.AdminPassword, "admin")
-	if err != nil {
-		return nil, fmt.Errorf("SetupUseCase - Complete - AdminCreate: %w", err)
+	var result *usecase.SetupResult
+
+	if err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
+		setupComplete, err := uc.deps.CompParamUC.GetForUpdate(ctx, "setup_complete")
+		if err != nil {
+			return fmt.Errorf("SetupUseCase - Complete - GetForUpdate setup_complete: %w", err)
+		}
+
+		if setupComplete.Value == "true" {
+			return apperr.ErrSetupAlreadyComplete
+		}
+
+		adminUser, err := uc.deps.UserUC.AdminCreate(ctx, req.AdminUsername, req.AdminEmail, req.AdminPassword, "admin")
+		if err != nil {
+			return fmt.Errorf("SetupUseCase - Complete - AdminCreate: %w", err)
+		}
+
+		if err := uc.applyCompetition(ctx, req, adminUser); err != nil {
+			return err
+		}
+
+		if err := uc.applyConfigs(ctx, req, adminUser); err != nil {
+			return err
+		}
+
+		if err := uc.applySettings(ctx, req, adminUser); err != nil {
+			return err
+		}
+
+		tokenPair, err := uc.deps.JWTService.GenerateTokenPair(ctx, adminUser.ID, string(adminUser.Role))
+		if err != nil {
+			return fmt.Errorf("SetupUseCase - Complete - GenerateTokenPair: %w", err)
+		}
+
+		if err := uc.deps.CompParamUC.Set(
+			ctx,
+			usecase.CompetitionParamSetParams{
+				Key:         "setup_complete",
+				Value:       "true",
+				Description: "initial setup wizard completed",
+				ValueType:   domain.CompetitionParamTypeBool,
+				Category:    domain.ConfigCategoryGeneral,
+				ActorID:     adminUser.ID,
+				ClientIP:    req.ClientIP,
+			},
+		); err != nil {
+			return fmt.Errorf("SetupUseCase - Complete - Set setup_complete: %w", err)
+		}
+
+		result = &usecase.SetupResult{
+			TokenPair: &usecase.TokenPair{
+				AccessToken:      tokenPair.AccessToken,
+				RefreshToken:     tokenPair.RefreshToken,
+				AccessExpiresAt:  tokenPair.AccessExpiresAt,
+				RefreshExpiresAt: tokenPair.RefreshExpiresAt,
+			},
+			User: adminUser,
+		}
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("SetupUseCase - Complete - TM.Run: %w", err)
 	}
 
-	if err := uc.applyCompetition(ctx, req, adminUser); err != nil {
-		return nil, err
-	}
-
-	if err := uc.applyConfigs(ctx, req, adminUser); err != nil {
-		return nil, err
-	}
-
-	if err := uc.applySettings(ctx, req, adminUser); err != nil {
-		return nil, err
-	}
-
-	if err := uc.deps.CompParamUC.Set(
-		ctx,
-		usecase.CompetitionParamSetParams{
-			Key:         "setup_complete",
-			Value:       "true",
-			Description: "initial setup wizard completed",
-			ValueType:   domain.CompetitionParamTypeBool,
-			Category:    domain.ConfigCategoryGeneral,
-			ActorID:     adminUser.ID,
-			ClientIP:    req.ClientIP,
-		},
-	); err != nil {
-		return nil, fmt.Errorf("SetupUseCase - Complete - Set setup_complete: %w", err)
-	}
-
-	tokenPair, err := uc.deps.JWTService.GenerateTokenPair(ctx, adminUser.ID, string(adminUser.Role))
-	if err != nil {
-		return nil, fmt.Errorf("SetupUseCase - Complete - GenerateTokenPair: %w", err)
-	}
-
-	return &usecase.SetupResult{
-		TokenPair: &usecase.TokenPair{
-			AccessToken:      tokenPair.AccessToken,
-			RefreshToken:     tokenPair.RefreshToken,
-			AccessExpiresAt:  tokenPair.AccessExpiresAt,
-			RefreshExpiresAt: tokenPair.RefreshExpiresAt,
-		},
-		User: adminUser,
-	}, nil
+	return result, nil
 }
 
 func (uc *SetupUseCase) applyCompetition(ctx context.Context, req *usecase.SetupRequest, adminUser *domain.User) error {

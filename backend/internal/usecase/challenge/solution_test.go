@@ -13,7 +13,6 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -51,7 +50,7 @@ func TestAdminUpsertSolution_Success(t *testing.T) {
 	content := "## Solution\nThis is the writeup."
 
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: content, State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: content, State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(nil, apperr.ErrChallengeNotFound)
@@ -73,8 +72,8 @@ func TestAdminUpsertSolution_PreservesExistingStateWhenOmitted(t *testing.T) {
 
 	challengeID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	existing := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "old", State: domain.SolutionStateHidden, Files: []*domain.File{}}
-	updated := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "new", State: domain.SolutionStateHidden, Files: []*domain.File{}}
+	existing := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "old", State: domain.SolutionStateHidden, Files: []*domain.File{}}
+	updated := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "new", State: domain.SolutionStateHidden, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(existing, nil)
@@ -129,7 +128,7 @@ func TestAdminUpsertSolution_EmptyContent(t *testing.T) {
 
 	challengeID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "", State: domain.SolutionStateHidden, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "", State: domain.SolutionStateHidden, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("UpsertSolution", mock.Anything, challengeID, "", domain.SolutionStateHidden).Return(solution, nil)
@@ -224,7 +223,7 @@ func TestListSolutions_Success(t *testing.T) {
 	cid1 := uuid.New()
 	cid2 := uuid.New()
 
-	entries := []*repo.ChallengeSolutionEntry{
+	entries := []*domain.ChallengeSolutionEntry{
 		{ChallengeID: cid1, ChallengeTitle: "Web 1", ChallengeCategory: "web", Content: "## WS1", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}},
 		{ChallengeID: cid2, ChallengeTitle: "Pwn 1", ChallengeCategory: "pwn", Content: "## PS1", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}},
 	}
@@ -249,7 +248,7 @@ func TestListSolutions_Empty(t *testing.T) {
 	teamID := uuid.New()
 
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
-	d.challengeRepo.On("ListSolutions", mock.Anything).Return([]*repo.ChallengeSolutionEntry{}, nil)
+	d.challengeRepo.On("ListSolutions", mock.Anything).Return([]*domain.ChallengeSolutionEntry{}, nil)
 
 	result, err := uc.ListSolutions(context.Background(), &teamID, false)
 
@@ -283,7 +282,7 @@ func TestListSolutions_FiltersInaccessibleStates(t *testing.T) {
 	unsolvedID := uuid.New()
 	hiddenID := uuid.New()
 
-	entries := []*repo.ChallengeSolutionEntry{
+	entries := []*domain.ChallengeSolutionEntry{
 		{ChallengeID: solvedID, ChallengeTitle: "Solved", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}},
 		{ChallengeID: unsolvedID, ChallengeTitle: "Unsolved", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}},
 		{ChallengeID: hiddenID, ChallengeTitle: "Hidden", State: domain.SolutionStateHidden, Files: []*domain.File{}},
@@ -310,7 +309,7 @@ func TestListSolutions_AfterEvent(t *testing.T) {
 	start := now.Add(-2 * time.Hour)
 	end := now.Add(-1 * time.Hour)
 
-	entries := []*repo.ChallengeSolutionEntry{
+	entries := []*domain.ChallengeSolutionEntry{
 		{ChallengeID: challengeID, ChallengeTitle: "After event", State: domain.SolutionStateAfterEvent, Files: []*domain.File{}},
 	}
 
@@ -330,7 +329,7 @@ func TestListSolutions_WriteupsDisabled(t *testing.T) {
 	uc, _ := d.createChallengeUseCase()
 	uc.deps.SettingsRepo = &solutionTestSettingsRepo{settings: &domain.Settings{WriteupEnabled: false}}
 
-	d.challengeRepo.On("ListSolutions", mock.Anything).Return([]*repo.ChallengeSolutionEntry{
+	d.challengeRepo.On("ListSolutions", mock.Anything).Return([]*domain.ChallengeSolutionEntry{
 		{ChallengeID: uuid.New(), State: domain.SolutionStateAfterEvent},
 	}, nil)
 
@@ -351,7 +350,7 @@ func TestGetSolution_Success(t *testing.T) {
 
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
 	solve := &domain.Solve{ID: uuid.New(), TeamID: teamID, ChallengeID: challengeID}
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
 
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
@@ -389,7 +388,7 @@ func TestGetSolution_NoTeamID_Forbidden(t *testing.T) {
 
 	challengeID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(solution, nil)
@@ -409,7 +408,7 @@ func TestGetSolution_NotSolved_Forbidden(t *testing.T) {
 	challengeID := uuid.New()
 	teamID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateSolvedOnly, Files: []*domain.File{}}
 
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
@@ -449,7 +448,7 @@ func TestGetSolution_HiddenDeniedEvenWhenSolved(t *testing.T) {
 	challengeID := uuid.New()
 	teamID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateHidden, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateHidden, Files: []*domain.File{}}
 
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
@@ -472,7 +471,7 @@ func TestGetSolution_AfterEventBeforeEndDenied(t *testing.T) {
 	start := now.Add(-1 * time.Hour)
 	end := now.Add(1 * time.Hour)
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAfterEvent, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAfterEvent, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(solution, nil)
@@ -495,7 +494,7 @@ func TestGetSolution_AfterEventAfterEndAllowed(t *testing.T) {
 	start := now.Add(-2 * time.Hour)
 	end := now.Add(-1 * time.Hour)
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAfterEvent, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAfterEvent, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(solution, nil)
@@ -516,7 +515,7 @@ func TestGetSolution_WriteupsDisabledDenied(t *testing.T) {
 
 	challengeID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAfterEvent, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAfterEvent, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(solution, nil)
@@ -537,7 +536,7 @@ func TestGetSolution_AdminBypassesStateAndWriteupSetting(t *testing.T) {
 	challengeID := uuid.New()
 	challenge := newTestChallenge(challengeID, "Web Chall", "web", 100, "hash")
 	challenge.State = domain.ChallengeStateHidden
-	solution := &repo.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAdminOnly, Files: []*domain.File{}}
+	solution := &domain.ChallengeSolution{ChallengeID: challengeID, Content: "## Solution", State: domain.SolutionStateAdminOnly, Files: []*domain.File{}}
 
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
 	d.challengeRepo.On("GetSolution", mock.Anything, challengeID).Return(solution, nil)

@@ -66,6 +66,40 @@ SELECT COUNT(*)::bigint
 FROM users
 WHERE (sqlc.narg('search')::text IS NULL OR username ILIKE '%' || sqlc.narg('search') || '%');
 
+-- name: SearchUsersAdmin :many
+SELECT id, team_id, username, email, password_hash, role, is_verified, verified_at, is_banned, banned_at, banned_reason, was_in_banned_team, avatar_url, created_at
+FROM users
+WHERE (
+    sqlc.narg('search')::text IS NULL
+    OR username ILIKE '%' || sqlc.narg('search') || '%'
+    OR email ILIKE '%' || sqlc.narg('search') || '%'
+  )
+  AND (
+    sqlc.arg('ban_status')::text = 'all'
+    OR (sqlc.arg('ban_status')::text = 'direct' AND is_banned = true)
+    OR (sqlc.arg('ban_status')::text = 'team_inherited' AND is_banned = false AND was_in_banned_team = true AND role <> 'admin')
+    OR (sqlc.arg('ban_status')::text = 'blocked' AND (is_banned = true OR (was_in_banned_team = true AND role <> 'admin')))
+    OR (sqlc.arg('ban_status')::text = 'not_banned' AND is_banned = false AND NOT (was_in_banned_team = true AND role <> 'admin'))
+  )
+ORDER BY created_at ASC
+LIMIT $1 OFFSET $2;
+
+-- name: CountSearchUsersAdmin :one
+SELECT COUNT(*)::bigint
+FROM users
+WHERE (
+    sqlc.narg('search')::text IS NULL
+    OR username ILIKE '%' || sqlc.narg('search') || '%'
+    OR email ILIKE '%' || sqlc.narg('search') || '%'
+  )
+  AND (
+    sqlc.arg('ban_status')::text = 'all'
+    OR (sqlc.arg('ban_status')::text = 'direct' AND is_banned = true)
+    OR (sqlc.arg('ban_status')::text = 'team_inherited' AND is_banned = false AND was_in_banned_team = true AND role <> 'admin')
+    OR (sqlc.arg('ban_status')::text = 'blocked' AND (is_banned = true OR (was_in_banned_team = true AND role <> 'admin')))
+    OR (sqlc.arg('ban_status')::text = 'not_banned' AND is_banned = false AND NOT (was_in_banned_team = true AND role <> 'admin'))
+  );
+
 -- name: UpdateUserAdmin :execrows
 UPDATE users SET
     username = COALESCE(sqlc.narg('username'), username),
@@ -98,6 +132,34 @@ SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
 INNER JOIN tracking t ON t.user_id = u.id
 WHERE t.ip = $1;
+
+-- name: SearchUsersAdminByIP :many
+SELECT DISTINCT u.id, u.team_id, u.username, u.email, u.password_hash, u.role, u.is_verified, u.verified_at, u.is_banned, u.banned_at, u.banned_reason, u.was_in_banned_team, u.avatar_url, u.created_at
+FROM users u
+INNER JOIN tracking t ON t.user_id = u.id
+WHERE t.ip = $1
+  AND (
+    sqlc.arg('ban_status')::text = 'all'
+    OR (sqlc.arg('ban_status')::text = 'direct' AND u.is_banned = true)
+    OR (sqlc.arg('ban_status')::text = 'team_inherited' AND u.is_banned = false AND u.was_in_banned_team = true AND u.role <> 'admin')
+    OR (sqlc.arg('ban_status')::text = 'blocked' AND (u.is_banned = true OR (u.was_in_banned_team = true AND u.role <> 'admin')))
+    OR (sqlc.arg('ban_status')::text = 'not_banned' AND u.is_banned = false AND NOT (u.was_in_banned_team = true AND u.role <> 'admin'))
+  )
+ORDER BY u.created_at ASC
+LIMIT $2 OFFSET $3;
+
+-- name: CountSearchUsersAdminByIP :one
+SELECT COUNT(DISTINCT u.id)::bigint
+FROM users u
+INNER JOIN tracking t ON t.user_id = u.id
+WHERE t.ip = $1
+  AND (
+    sqlc.arg('ban_status')::text = 'all'
+    OR (sqlc.arg('ban_status')::text = 'direct' AND u.is_banned = true)
+    OR (sqlc.arg('ban_status')::text = 'team_inherited' AND u.is_banned = false AND u.was_in_banned_team = true AND u.role <> 'admin')
+    OR (sqlc.arg('ban_status')::text = 'blocked' AND (u.is_banned = true OR (u.was_in_banned_team = true AND u.role <> 'admin')))
+    OR (sqlc.arg('ban_status')::text = 'not_banned' AND u.is_banned = false AND NOT (u.was_in_banned_team = true AND u.role <> 'admin'))
+  );
 
 -- name: CountActiveUsers :one
 SELECT COUNT(*)::bigint

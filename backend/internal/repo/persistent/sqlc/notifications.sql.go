@@ -129,13 +129,16 @@ func (q *Queries) CreateUserNotification(ctx context.Context, arg CreateUserNoti
 	return i, err
 }
 
-const deleteNotification = `-- name: DeleteNotification :exec
+const deleteNotification = `-- name: DeleteNotification :execrows
 DELETE FROM notifications WHERE id = $1
 `
 
-func (q *Queries) DeleteNotification(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteNotification, id)
-	return err
+func (q *Queries) DeleteNotification(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteNotification, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteUserNotification = `-- name: DeleteUserNotification :exec

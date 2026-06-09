@@ -25,9 +25,9 @@ func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 		return nil, err
 	}
 
-	reqs, err := uc.deps.ChallengeRepo.GetRequirements(ctx, challengeID)
+	reqs, err := uc.deps.ChallengeRepo.GetRequirementsForEnforcement(ctx, challengeID)
 	if err != nil {
-		return nil, fmt.Errorf("HintUseCase - GetByChallengeID - GetRequirements: %w", err)
+		return nil, fmt.Errorf("HintUseCase - GetByChallengeID - GetRequirementsForEnforcement: %w", err)
 	}
 
 	if len(reqs) > 0 {
@@ -35,9 +35,9 @@ func (uc *HintUseCase) GetByChallengeID(ctx context.Context, challengeID uuid.UU
 			return nil, apperr.ErrChallengeNotFound
 		}
 
-		met, err := requirementsMet(ctx, challengeID, *teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo)
+		met, err := requirementsSatisfied(ctx, reqs, *teamID, uc.deps.SolveRepo)
 		if err != nil {
-			return nil, fmt.Errorf("HintUseCase - GetByChallengeID - requirementsMet: %w", err)
+			return nil, fmt.Errorf("HintUseCase - GetByChallengeID - requirementsSatisfied: %w", err)
 		}
 
 		if !met {

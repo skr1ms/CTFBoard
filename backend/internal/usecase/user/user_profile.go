@@ -230,10 +230,10 @@ func (uc *UserUseCase) profileCheckUniqueness(ctx context.Context, currentUserna
 // Inside a transaction the user row is locked, uniqueness is rechecked against
 // the latest state to prevent races, and the profile is updated; an email change
 // additionally marks the account as unverified. After the transaction commits a
-// verification email is sent on a best-effort basis, and a password change
-// triggers revocation of all existing JWTs except the current session so that
-// other devices are signed out.
-func (uc *UserUseCase) UpdateProfile(ctx context.Context, params usecase.UserProfileUpdateParams) (*usecase.UserMe, error) {
+// verification email is sent on a best-effort basis. A password change revokes
+// existing JWTs and returns a fresh token pair so the client does not keep a
+// now-invalid session.
+func (uc *UserUseCase) UpdateProfile(ctx context.Context, params usecase.UserProfileUpdateParams) (*usecase.UserProfileUpdateResult, error) {
 	userID := params.UserID
 	username := params.Username
 	email := params.Email
@@ -261,7 +261,7 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, params usecase.UserPro
 		return nil, fmt.Errorf("UserUseCase - UpdateProfile - UserRepo.GetByID: %w", err)
 	}
 
-	if (newPassword != nil || email != nil) && current.PasswordHash != "" {
+	if (newPassword != nil || email != nil) && current.HasLocalPassword() {
 		if currentPassword == nil {
 			return nil, apperr.ErrInvalidCredentials
 		}
@@ -312,6 +312,12 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, params usecase.UserPro
 			return fmt.Errorf("UserUseCase - UpdateProfile - UserRepo.UpdateProfile: %w", err)
 		}
 
+		if passwordHash != nil && uc.deps.APITokenRevoker != nil {
+			if err := uc.deps.APITokenRevoker.RevokeAllForUser(ctx, userID); err != nil {
+				return fmt.Errorf("UserUseCase - UpdateProfile - APITokenRevoker.RevokeAllForUser: %w", err)
+			}
+		}
+
 		if params.CustomFields != nil && uc.deps.FieldValueRepo != nil {
 			if err := uc.deps.FieldValueRepo.UpsertValues(ctx, userID, customFields); err != nil {
 				return fmt.Errorf("UserUseCase - UpdateProfile - FieldValueRepo.UpsertValues: %w", err)
@@ -341,17 +347,26 @@ func (uc *UserUseCase) UpdateProfile(ctx context.Context, params usecase.UserPro
 		_ = uc.deps.EmailSender.SendVerificationEmail(ctx, me.User)
 	}
 
+	var tokenPair *usecase.TokenPair
+
 	if newPassword != nil {
 		postCtx, postCancel := ctxutil.PostCommitContext(ctx)
 		defer postCancel()
 
-		err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID)
-		if err != nil {
-			uc.deps.Logger.WithError(err).Error("UserUseCase - UpdateProfile - RevokeAllForUser")
+		if uc.deps.JWTService != nil {
+			err := uc.deps.JWTService.RevokeAllForUser(postCtx, userID)
+			if err != nil {
+				uc.deps.Logger.WithError(err).Error("UserUseCase - UpdateProfile - RevokeAllForUser")
+			}
+
+			tokenPair, err = issueUserTokenPairAfterRevocation(postCtx, uc.deps.JWTService, me.User, "UserUseCase - UpdateProfile")
+			if err != nil {
+				return nil, fmt.Errorf("UserUseCase - UpdateProfile - issueUserTokenPair: %w", err)
+			}
 		}
 	}
 
-	return me, nil
+	return &usecase.UserProfileUpdateResult{Me: me, TokenPair: tokenPair}, nil
 }
 
 func (uc *UserUseCase) validateProfileCustomFields(ctx context.Context, raw usecase.CustomFieldValues) (map[string]string, error) {

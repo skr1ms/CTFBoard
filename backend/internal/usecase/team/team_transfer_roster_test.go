@@ -38,7 +38,8 @@ func TestTeamUseCase_TransferCaptain_Success(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, mock.Anything).Return(nil).Times(2)
 	d.userRepo.EXPECT().GetByID(mock.Anything, captainID).Return(captain, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
@@ -78,7 +79,8 @@ func TestTeamUseCase_TransferCaptain_NotCaptain_Error(t *testing.T) {
 	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 		return fn(ctx)
 	}).Once()
-	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Times(2)
+	d.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
+	d.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{Mode: "teams_only", AllowTeamSwitch: true}, nil).Once()
 	d.userRepo.EXPECT().Lock(mock.Anything, mock.Anything).Return(nil).Times(2)
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
@@ -106,7 +108,7 @@ func TestTeamUseCase_RosterFrozen_BlocksAllOperations(t *testing.T) {
 			deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 				return fn(ctx)
 			}).Once()
-			deps.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{AllowTeamSwitch: false}, nil).Once()
+			deps.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{AllowTeamSwitch: false}, nil).Once()
 		}, func(uc *TeamUseCase) error {
 			_, err := uc.Create(context.Background(), "test_team", uuid.New(), false, false)
 
@@ -121,7 +123,7 @@ func TestTeamUseCase_RosterFrozen_BlocksAllOperations(t *testing.T) {
 			deps.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
 				return fn(ctx)
 			}).Once()
-			deps.compRepo.EXPECT().Get(mock.Anything).Return(&domain.Competition{AllowTeamSwitch: false}, nil).Once()
+			deps.compRepo.EXPECT().GetForUpdate(mock.Anything).Return(&domain.Competition{AllowTeamSwitch: false}, nil).Once()
 		}, func(uc *TeamUseCase) error {
 			_, err := uc.CreateSoloTeam(context.Background(), uuid.New(), false)
 

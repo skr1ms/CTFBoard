@@ -9,13 +9,12 @@ import (
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 )
 
 // GetSolution fetches the solution text for a challenge and its associated
 // writeup files in two sequential queries, then assembles a ChallengeSolution.
-func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.ChallengeSolution, error) {
+func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*domain.ChallengeSolution, error) {
 	row, err := GetOrNotFound(func() (sqlc.Solution, error) { return r.Q(ctx).GetSolutionByChallengeID(ctx, ID) },
 		apperr.ErrChallengeNotFound, "ChallengeRepo - GetSolution")
 	if err != nil {
@@ -44,7 +43,7 @@ func (r *ChallengeRepo) GetSolution(ctx context.Context, ID uuid.UUID) (*repo.Ch
 		})
 	}
 
-	return &repo.ChallengeSolution{
+	return &domain.ChallengeSolution{
 		ChallengeID: row.ChallengeID,
 		Content:     row.Content,
 		State:       domain.SolutionStateOrDefault(row.State),
@@ -75,14 +74,14 @@ func (r *ChallengeRepo) GetAllSolutions(ctx context.Context) ([]*domain.Solution
 // their associated writeup files. It first fetches solution rows, collects the
 // challenge IDs, then batches a second query for writeup files and merges them
 // into a challengeID->files map before assembling the final entries.
-func (r *ChallengeRepo) ListSolutions(ctx context.Context) ([]*repo.ChallengeSolutionEntry, error) {
+func (r *ChallengeRepo) ListSolutions(ctx context.Context) ([]*domain.ChallengeSolutionEntry, error) {
 	rows, err := r.Q(ctx).GetCandidateSolutions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - ListSolutions: %w", err)
 	}
 
 	if len(rows) == 0 {
-		return []*repo.ChallengeSolutionEntry{}, nil
+		return []*domain.ChallengeSolutionEntry{}, nil
 	}
 
 	ids := make([]uuid.UUID, len(rows))
@@ -113,14 +112,14 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context) ([]*repo.ChallengeSol
 		})
 	}
 
-	out := make([]*repo.ChallengeSolutionEntry, len(rows))
+	out := make([]*domain.ChallengeSolutionEntry, len(rows))
 	for i, row := range rows {
 		ef := fileMap[row.ChallengeID]
 		if ef == nil {
 			ef = []*domain.File{}
 		}
 
-		out[i] = &repo.ChallengeSolutionEntry{
+		out[i] = &domain.ChallengeSolutionEntry{
 			ChallengeID:       row.ChallengeID,
 			ChallengeTitle:    row.ChallengeTitle,
 			ChallengeCategory: row.ChallengeCategory,
@@ -135,7 +134,7 @@ func (r *ChallengeRepo) ListSolutions(ctx context.Context) ([]*repo.ChallengeSol
 
 // UpsertSolution inserts or updates the solution text for a challenge, then
 // fetches the current writeup files to return the full ChallengeSolution.
-func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content, state string) (*repo.ChallengeSolution, error) {
+func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUID, content, state string) (*domain.ChallengeSolution, error) {
 	row, err := r.Q(ctx).UpsertSolution(ctx, sqlc.UpsertSolutionParams{
 		ChallengeID: challengeID,
 		Content:     content,
@@ -167,7 +166,7 @@ func (r *ChallengeRepo) UpsertSolution(ctx context.Context, challengeID uuid.UUI
 		})
 	}
 
-	return &repo.ChallengeSolution{
+	return &domain.ChallengeSolution{
 		ChallengeID: row.ChallengeID,
 		Content:     row.Content,
 		State:       domain.SolutionStateOrDefault(row.State),

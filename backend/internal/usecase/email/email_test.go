@@ -19,34 +19,47 @@ import (
 )
 
 type emailTestDeps struct {
-	userRepo  *emailMock.MockUserRepository
-	tokenRepo *emailMock.MockVerificationTokenRepository
-	mailer    *emailMock.MockMailer
-	tm        *emailMock.MockTransactionManager
+	userRepo        *emailMock.MockUserRepository
+	tokenRepo       *emailMock.MockVerificationTokenRepository
+	mailer          *emailMock.MockMailer
+	tm              *emailMock.MockTransactionManager
+	apiTokenRevoker *emailTestAPITokenRevoker
 }
 
 func newEmailTestDeps(t *testing.T) *emailTestDeps {
 	t.Helper()
 
 	return &emailTestDeps{
-		userRepo:  emailMock.NewMockUserRepository(t),
-		tokenRepo: emailMock.NewMockVerificationTokenRepository(t),
-		mailer:    emailMock.NewMockMailer(t),
-		tm:        emailMock.NewMockTransactionManager(t),
+		userRepo:        emailMock.NewMockUserRepository(t),
+		tokenRepo:       emailMock.NewMockVerificationTokenRepository(t),
+		mailer:          emailMock.NewMockMailer(t),
+		tm:              emailMock.NewMockTransactionManager(t),
+		apiTokenRevoker: &emailTestAPITokenRevoker{},
 	}
 }
 
 func (d *emailTestDeps) createUseCase() *EmailUseCase {
 	return NewEmailUseCase(EmailDeps{
-		UserRepo:    d.userRepo,
-		TokenRepo:   d.tokenRepo,
-		Mailer:      d.mailer,
-		TM:          d.tm,
-		VerifyTTL:   24 * time.Hour,
-		ResetTTL:    1 * time.Hour,
-		FrontendURL: "http://localhost:3000",
-		Enabled:     true,
+		UserRepo:        d.userRepo,
+		TokenRepo:       d.tokenRepo,
+		Mailer:          d.mailer,
+		TM:              d.tm,
+		VerifyTTL:       24 * time.Hour,
+		ResetTTL:        1 * time.Hour,
+		FrontendURL:     "http://localhost:3000",
+		Enabled:         true,
+		APITokenRevoker: d.apiTokenRevoker,
 	})
+}
+
+type emailTestAPITokenRevoker struct {
+	mock.Mock
+}
+
+func (r *emailTestAPITokenRevoker) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
+	args := r.Called(ctx, userID)
+
+	return args.Error(0)
 }
 
 func (d *emailTestDeps) setupTxRun() {
@@ -196,10 +209,30 @@ func TestEmailUseCase_ResetPassword_Success(t *testing.T) {
 	d.userRepo.On("UpdatePassword", mock.Anything, tokenentity.UserID, mock.MatchedBy(func(pwd string) bool {
 		return len(pwd) > 0
 	})).Return(nil)
+	d.apiTokenRevoker.On("RevokeAllForUser", mock.Anything, tokenentity.UserID).Return(nil)
 	d.tokenRepo.On("DeleteByUserAndType", mock.Anything, tokenentity.UserID, domain.TokenTypePasswordReset).Return(nil)
 
 	err := d.createUseCase().ResetPassword(context.Background(), rawToken, "new-password")
 	assert.NoError(t, err)
+}
+
+func TestEmailUseCase_ResetPassword_APITokenRevokeError(t *testing.T) {
+	t.Parallel()
+	d := newEmailTestDeps(t)
+
+	rawToken := "resetTOKEN123"
+	hashedToken := hashTestToken(rawToken)
+	tokenentity := newTestVerificationToken(uuid.New(), hashedToken, domain.TokenTypePasswordReset)
+
+	d.tokenRepo.On("GetByToken", mock.Anything, hashedToken).Return(tokenentity, nil)
+	d.setupTxRun()
+	d.userRepo.On("UpdatePassword", mock.Anything, tokenentity.UserID, mock.Anything).Return(nil)
+	d.apiTokenRevoker.On("RevokeAllForUser", mock.Anything, tokenentity.UserID).Return(assert.AnError)
+
+	err := d.createUseCase().ResetPassword(context.Background(), rawToken, "new-password")
+
+	assert.ErrorIs(t, err, assert.AnError)
+	d.tokenRepo.AssertNotCalled(t, "DeleteByUserAndType", mock.Anything, tokenentity.UserID, domain.TokenTypePasswordReset)
 }
 
 func TestEmailUseCase_ResetPasswordRateLimitKey(t *testing.T) {
@@ -218,11 +251,12 @@ func TestEmailUseCase_ResetPassword_TokenInvalid(t *testing.T) {
 	t.Parallel()
 	d := newEmailTestDeps(t)
 
-	d.setupTxRun()
 	d.tokenRepo.On("GetByToken", mock.Anything, mock.Anything).Return(nil, apperr.ErrTokenNotFound)
 
 	err := d.createUseCase().ResetPassword(context.Background(), "invalid-token", "new-password")
 	assert.ErrorIs(t, err, apperr.ErrTokenNotFound)
+	d.tm.AssertNotCalled(t, "RunSerializable", mock.Anything, mock.Anything)
+	d.userRepo.AssertNotCalled(t, "UpdatePassword", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestEmailUseCase_ResendVerification_Success(t *testing.T) {

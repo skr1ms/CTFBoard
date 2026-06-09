@@ -10,6 +10,7 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
@@ -32,18 +33,20 @@ func cloneStringPtr(v *string) *string {
 // so cleanup can finish after a successful DB update. A deferred recover prevents
 // a storage panic from crashing the server; errors are only logged.
 func (uc *AvatarUseCase) goDeleteOldAvatar(ctx context.Context, fullPath, thumbPath string) {
-	uc.wg.Go(func() {
-		defer func() {
-			if r := recover(); r != nil {
-				uc.deps.Logger.Error("AvatarUseCase - goDeleteOldAvatar panic", logkit.Fields{"recover": fmt.Sprint(r)})
-			}
-		}()
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		uc.wg.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					uc.deps.Logger.Error("AvatarUseCase - goDeleteOldAvatar panic", logkit.Fields{"recover": fmt.Sprint(r)})
+				}
+			}()
 
-		deleteCtx, cancel := uc.sideEffectCtx(ctx)
-		defer cancel()
+			deleteCtx, cancel := uc.sideEffectCtx(ctx)
+			defer cancel()
 
-		uc.deleteFromStorage(deleteCtx, fullPath)
-		uc.deleteFromStorage(deleteCtx, thumbPath)
+			uc.deleteFromStorage(deleteCtx, fullPath)
+			uc.deleteFromStorage(deleteCtx, thumbPath)
+		})
 	})
 }
 
@@ -121,16 +124,18 @@ func (uc *AvatarUseCase) deleteFromStorage(ctx context.Context, path string) {
 }
 
 func (uc *AvatarUseCase) invalidateCache(ctx context.Context, userID, teamID *uuid.UUID) {
-	ctx, cancel := uc.sideEffectCtx(ctx)
-	defer cancel()
+	txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+		ctx, cancel := uc.sideEffectCtx(ctx)
+		defer cancel()
 
-	if userID != nil {
-		_ = uc.deps.Cache.Del(ctx, cacheutil.KeyAvatarUser(userID.String()))
-	}
+		if userID != nil {
+			_ = uc.deps.Cache.Del(ctx, cacheutil.KeyAvatarUser(userID.String()))
+		}
 
-	if teamID != nil {
-		_ = uc.deps.Cache.Del(ctx, cacheutil.KeyAvatarTeam(teamID.String()))
-	}
+		if teamID != nil {
+			_ = uc.deps.Cache.Del(ctx, cacheutil.KeyAvatarTeam(teamID.String()))
+		}
+	})
 }
 
 func (uc *AvatarUseCase) updateUserAvatarURL(ctx context.Context, userID uuid.UUID, path string, validate func(*domain.User) error) (*string, error) {

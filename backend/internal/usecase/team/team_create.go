@@ -18,12 +18,16 @@ import (
 // transaction via createTx; cache entries for the captain and the scoreboard are
 // invalidated after a successful commit.
 func (uc *TeamUseCase) Create(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error) {
+	if isSolo {
+		return nil, apperr.ErrSoloModeNotAllowed
+	}
+
 	var team *domain.Team
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
 		var errCreate error
 
-		team, errCreate = uc.createTx(ctx, name, captainID, isSolo, confirmReset)
+		team, errCreate = uc.createTx(ctx, name, captainID, confirmReset)
 		if errCreate != nil {
 			return fmt.Errorf("TeamUseCase - Create - createTx: %w", errCreate)
 		}
@@ -70,17 +74,17 @@ func (uc *TeamUseCase) checkMaxTeams(ctx context.Context) error {
 }
 
 // createTx runs the full team-creation sequence inside an existing transaction
-// It checks that the competition is in a state that allows team operations and that
-// the requested mode (teams/solo) is permitted, then acquires an advisory lock before
-// counting active teams to enforce the MaxTeams limit without TOCTOU races. After
+// It checks that the competition is in a state that allows team operations, then
+// acquires an advisory lock before counting active teams to enforce the MaxTeams
+// limit without TOCTOU races. After
 // locking the captain's user row it validates name uniqueness. If the captain is
 // already a member of a solo or auto-created team, handleSoloTeamCleanup is called
 // to wipe that team's data (requires confirmReset=true). Finally it persists the new
 // team, assigns the captain, and writes an audit log entry.
-func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid.UUID, isSolo, confirmReset bool) (*domain.Team, error) {
-	comp, err := uc.deps.CompRepo.Get(ctx)
+func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid.UUID, confirmReset bool) (*domain.Team, error) {
+	comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("TeamUseCase - createTx - CompetitionRepo.Get: %w", err)
+		return nil, fmt.Errorf("TeamUseCase - createTx - CompetitionRepo.GetForUpdate: %w", err)
 	}
 
 	if err := guard.ValidateTeamSwitchState(comp); err != nil {
@@ -89,10 +93,6 @@ func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid
 
 	if !comp.Mode.AllowsTeams() {
 		return nil, apperr.ErrTeamsNotAllowed
-	}
-
-	if isSolo && !comp.Mode.AllowsSolo() {
-		return nil, apperr.ErrSoloModeNotAllowed
 	}
 
 	if err := uc.checkMaxTeams(ctx); err != nil {
@@ -132,7 +132,7 @@ func (uc *TeamUseCase) createTx(ctx context.Context, name string, captainID uuid
 		Name:                 name,
 		InviteToken:          uuid.New(),
 		CaptainID:            captainID,
-		IsSolo:               isSolo,
+		IsSolo:               false,
 		InviteTokenExpiresAt: &expiresAt,
 	}
 	if err := uc.deps.TeamRepo.Create(ctx, team); err != nil {

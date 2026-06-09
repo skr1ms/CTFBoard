@@ -13,6 +13,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
 )
 
 type SolveRepo struct {
@@ -38,8 +39,8 @@ func toDomainSolve(s sqlc.Solve) *domain.Solve {
 	}
 }
 
-func toScoreboardEntry(row sqlc.GetScoreboardByBracketRow) *repo.ScoreboardEntry {
-	return &repo.ScoreboardEntry{
+func toScoreboardEntry(row sqlc.GetScoreboardByBracketRow) *domain.ScoreboardEntry {
+	return &domain.ScoreboardEntry{
 		TeamID:   row.TeamID,
 		TeamName: row.TeamName,
 		Points:   int(row.Points),
@@ -47,8 +48,8 @@ func toScoreboardEntry(row sqlc.GetScoreboardByBracketRow) *repo.ScoreboardEntry
 	}
 }
 
-func toFirstBloodEntry(row sqlc.GetFirstBloodRow) *repo.FirstBloodEntry {
-	return &repo.FirstBloodEntry{
+func toFirstBloodEntry(row sqlc.GetFirstBloodRow) *domain.FirstBloodEntry {
+	return &domain.FirstBloodEntry{
 		UserID:   row.UserID,
 		Username: row.Username,
 		TeamID:   row.TeamID,
@@ -108,7 +109,7 @@ func (r *SolveRepo) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domai
 	return out, nil
 }
 
-func (r *SolveRepo) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*repo.ScoreboardEntry, error) {
+func (r *SolveRepo) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.UUID, freezeTime *time.Time) ([]*domain.ScoreboardEntry, error) {
 	rows, err := r.Q(ctx).GetScoreboardByBracket(ctx, sqlc.GetScoreboardByBracketParams{
 		BracketID:  bracketID,
 		FreezeTime: pgutil.TimeToTimestamptz(freezeTime),
@@ -117,7 +118,7 @@ func (r *SolveRepo) GetScoreboardByBracket(ctx context.Context, bracketID *uuid.
 		return nil, fmt.Errorf("SolveRepo - GetScoreboardByBracket: %w", err)
 	}
 
-	out := make([]*repo.ScoreboardEntry, 0, len(rows))
+	out := make([]*domain.ScoreboardEntry, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, toScoreboardEntry(row))
 	}
@@ -137,7 +138,7 @@ func (r *SolveRepo) GetTeamScore(ctx context.Context, teamID uuid.UUID) (int, er
 	return int(total), nil
 }
 
-func (r *SolveRepo) GetFirstBlood(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*repo.FirstBloodEntry, error) {
+func (r *SolveRepo) GetFirstBlood(ctx context.Context, challengeID uuid.UUID, freezeTime *time.Time) (*domain.FirstBloodEntry, error) {
 	row, err := GetOrNotFound(func() (sqlc.GetFirstBloodRow, error) {
 		return r.Q(ctx).GetFirstBlood(ctx, sqlc.GetFirstBloodParams{ChallengeID: challengeID, FreezeTime: pgutil.TimeToTimestamptz(freezeTime)})
 	}, apperr.ErrSolveNotFound, "SolveRepo - GetFirstBlood")
@@ -268,7 +269,7 @@ func (r *SolveRepo) GetByTeamIDWithDetails(ctx context.Context, teamID uuid.UUID
 	return out, nil
 }
 
-// Create inserts a new solve record. A unique violation on (user_id, challenge_id) is mapped
+// Create inserts a new solve record. A unique violation on (team_id, challenge_id) is mapped
 // to ErrAlreadySolved so callers can handle duplicate solves without inspecting pgx internals.
 func (r *SolveRepo) Create(ctx context.Context, s *domain.Solve) error {
 	s.ID = uuid.New()
@@ -365,7 +366,7 @@ func (r *SolveRepo) RestoreByBannedUserID(ctx context.Context, userID uuid.UUID)
 	return nil
 }
 
-func (r *SolveRepo) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs []uuid.UUID) ([]*repo.SolveForPointsRecalc, error) {
+func (r *SolveRepo) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs []uuid.UUID) ([]*scoring.SolveForPointsRecalc, error) {
 	if len(challengeIDs) == 0 {
 		return nil, nil
 	}
@@ -375,9 +376,9 @@ func (r *SolveRepo) GetSolvesForPointsRecalc(ctx context.Context, challengeIDs [
 		return nil, fmt.Errorf("SolveRepo - GetSolvesForPointsRecalc: %w", err)
 	}
 
-	out := make([]*repo.SolveForPointsRecalc, 0, len(rows))
+	out := make([]*scoring.SolveForPointsRecalc, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &repo.SolveForPointsRecalc{
+		out = append(out, &scoring.SolveForPointsRecalc{
 			ID:           row.ID,
 			ChallengeID:  row.ChallengeID,
 			SolvedAt:     pgutil.PtrTimeToTime(pgutil.TimestamptzToTime(row.SolvedAt)),

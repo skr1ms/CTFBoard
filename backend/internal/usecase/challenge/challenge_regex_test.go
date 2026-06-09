@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 )
 
 func TestChallengeUseCase_Create_Regex_Success(t *testing.T) {
@@ -177,7 +176,7 @@ func TestChallengeUseCase_SubmitFlag_Regex_Success(t *testing.T) {
 	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.crypto.On("Decrypt", encryptedRegex).Return(regexPattern, nil)
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		ctx, ok := args.Get(0).(context.Context)
@@ -220,7 +219,7 @@ func TestChallengeUseCase_SubmitFlag_Regex_DecryptionError(t *testing.T) {
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(team, nil)
 	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.crypto.On("Decrypt", encryptedRegex).Return("", errors.New("decryption failed"))
 
 	valid, err := uc.SubmitFlag(context.Background(), submitFlagParams(challengeID, flag, userID, &teamID))
@@ -255,7 +254,7 @@ func TestChallengeUseCase_SubmitFlag_CaseInsensitive_Success(t *testing.T) {
 	d.compRepo.On("Get", mock.Anything).Return(newActiveCompetition(), nil)
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(challenge, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*repo.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 
 	d.tm.On("Run", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		ctx, ok := args.Get(0).(context.Context)

@@ -22,7 +22,7 @@ func (r *SubmissionRepo) Create(ctx context.Context, sub *domain.Submission) err
 
 	subType := sub.Type
 	if subType == "" {
-		subType = domain.SubmissionTypeIncorrect
+		subType = domain.SubmissionTypeFromCorrect(sub.IsCorrect)
 	}
 
 	err := r.Q(ctx).CreateSubmission(ctx, sqlc.CreateSubmissionParams{

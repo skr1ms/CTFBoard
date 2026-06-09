@@ -15,7 +15,7 @@ const (
 	ChallengeStateVisible = "visible"
 	// ChallengeStateHidden marks a challenge as invisible to participants.
 	ChallengeStateHidden = "hidden"
-	// ChallengeStateLocked marks a challenge as visible but not solvable until prerequisites are met.
+	// ChallengeStateLocked marks a challenge as visible to participants but blocked from submissions.
 	ChallengeStateLocked = "locked"
 )
 

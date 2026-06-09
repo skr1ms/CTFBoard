@@ -47,6 +47,11 @@ type PersonalNotificationSender interface {
 	CreatePersonal(ctx context.Context, params usecase.NotificationCreatePersonalParams) (*domain.UserNotification, error)
 }
 
+// APITokenRevoker revokes long-lived API tokens after credential resets.
+type APITokenRevoker interface {
+	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
+}
+
 type UserUseCase struct {
 	deps      UserDeps
 	bcryptSem chan struct{}      // limits concurrent bcrypt to avoid CPU saturation
@@ -74,6 +79,7 @@ type UserDeps struct {
 	FieldValueRepo             repo.FieldValueRepository
 	SettingsRepo               repo.SettingsRepository
 	EmailSender                EmailVerificationSender
+	APITokenRevoker            APITokenRevoker
 	FailedLogin                FailedLoginTracker
 	CompRepo                   repo.CompetitionRepository
 	SoloTeamCreator            SoloTeamCreator

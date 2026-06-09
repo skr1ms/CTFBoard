@@ -48,6 +48,19 @@ func TestImageProcessor_Process_InvalidMagicBytes(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestImageProcessor_Process_CorruptAllowedMagicReturnsValidationError(t *testing.T) {
+	cfg := domain.GetDefaultAvatarConfig()
+	processor := NewImageProcessor(cfg)
+
+	corruptPNG := []byte{0x89, 0x50, 0x4E, 0x47, 0x00, 0x00, 0x00, 0x00}
+
+	result, err := processor.Process(bytes.NewReader(corruptPNG))
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid image file")
+}
+
 func TestImageProcessor_Process_TooSmall(t *testing.T) {
 	cfg := domain.GetDefaultAvatarConfig()
 	processor := NewImageProcessor(cfg)

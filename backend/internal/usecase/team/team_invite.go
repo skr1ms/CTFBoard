@@ -216,6 +216,10 @@ func (uc *TeamUseCase) GetInviteToken(ctx context.Context, captainID uuid.UUID) 
 		return nil, fmt.Errorf("TeamUseCase - GetInviteToken - TeamRepo.GetByID: %w", err)
 	}
 
+	if team.IsSolo {
+		return nil, apperr.ErrTeamNotFound
+	}
+
 	if team.CaptainID != captainID {
 		return nil, apperr.ErrNotCaptain
 	}

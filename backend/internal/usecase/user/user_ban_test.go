@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 )
@@ -32,6 +33,35 @@ func TestUserUseCase_BanUser_Success_NoSoloTeam(t *testing.T) {
 	err := uc.BanUser(context.Background(), userID, "reason", actorID)
 
 	assert.NoError(t, err)
+}
+
+func TestUserUseCase_BanUsers_DedupesAndReportsAffected(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	firstID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	secondID := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	actorID := uuid.New()
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+
+	for _, userID := range []uuid.UUID{firstID, secondID} {
+		user := &domain.User{ID: userID, Role: domain.RoleUser}
+		d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+		d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+		d.userRepo.EXPECT().Ban(mock.Anything, userID, "reason").Return(nil).Once()
+		d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*domain.SolveWithDetails{}, nil).Once()
+		d.jwtService.EXPECT().RevokeAllForUser(mock.Anything, userID).Return(nil).Once()
+	}
+
+	uc := d.createUseCase()
+	result, err := uc.BanUsers(context.Background(), []uuid.UUID{secondID, firstID, secondID}, "reason", actorID)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, 2, result.AffectedCount)
 }
 
 func TestUserUseCase_BanUser_Success_HidesSoloTeamInTx(t *testing.T) {
@@ -62,6 +92,89 @@ func TestUserUseCase_BanUser_Success_HidesSoloTeamInTx(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestUserUseCase_UnbanUsers_RejectsInheritedTeamBan(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	userID := uuid.New()
+	actorID := uuid.New()
+	user := &domain.User{ID: userID, Role: domain.RoleUser, WasInBannedTeam: true}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+
+	uc := d.createUseCase()
+	result, err := uc.UnbanUsers(context.Background(), []uuid.UUID{userID}, actorID)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorContains(t, err, "team-inherited ban must be cleared by unbanning the team")
+}
+
+func TestUserUseCase_UnbanUser_RejectsInheritedTeamBan(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	userID := uuid.New()
+	actorID := uuid.New()
+	user := &domain.User{ID: userID, Role: domain.RoleUser, WasInBannedTeam: true}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+
+	uc := d.createUseCase()
+	err := uc.UnbanUser(context.Background(), userID, actorID)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "team-inherited ban must be cleared by unbanning the team")
+}
+
+func TestUserUseCase_RestoreAppealedUserBanTx_RejectsInheritedTeamBan(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	userID := uuid.New()
+	user := &domain.User{ID: userID, Role: domain.RoleUser, WasInBannedTeam: true}
+
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+
+	uc := d.createUseCase()
+	teamIDs, err := uc.restoreAppealedUserBanTx(context.Background(), userID)
+
+	require.Error(t, err)
+	assert.Nil(t, teamIDs)
+	assert.ErrorContains(t, err, "team-inherited ban must be cleared by unbanning the team")
+}
+
+func TestUserUseCase_UnbanUser_DirectBanDoesNotClearInheritedTeamBan(t *testing.T) {
+	t.Parallel()
+	d := newUserTestDeps(t)
+
+	userID := uuid.New()
+	actorID := uuid.New()
+	user := &domain.User{ID: userID, Role: domain.RoleUser, IsBanned: true, WasInBannedTeam: true}
+
+	d.tm.EXPECT().Run(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, fn func(context.Context) error) error {
+		return fn(ctx)
+	}).Once()
+	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
+	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
+	d.userRepo.EXPECT().Unban(mock.Anything, userID).Return(nil).Once()
+	d.solveRepo.EXPECT().GetByUserIDWithDetails(mock.Anything, userID).Return([]*domain.SolveWithDetails{}, nil).Once()
+
+	uc := d.createUseCase()
+	err := uc.UnbanUser(context.Background(), userID, actorID)
+
+	assert.NoError(t, err)
+}
+
 func TestUserUseCase_UnbanUser_Success_ShowsSoloTeamInTx(t *testing.T) {
 	t.Parallel()
 	d := newUserTestDeps(t)
@@ -78,7 +191,7 @@ func TestUserUseCase_UnbanUser_Success_ShowsSoloTeamInTx(t *testing.T) {
 	d.userRepo.EXPECT().Lock(mock.Anything, userID).Return(nil).Once()
 	d.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil).Once()
 	d.userRepo.EXPECT().Unban(mock.Anything, userID).Return(nil).Once()
-	d.userRepo.EXPECT().SetWasInBannedTeamByIDs(mock.Anything, []uuid.UUID{userID}, false).Return(nil).Once()
+	d.teamRepo.EXPECT().Lock(mock.Anything, teamID).Return(nil).Once()
 	d.teamRepo.EXPECT().GetByID(mock.Anything, teamID).Return(team, nil).Once()
 	d.teamRepo.EXPECT().SetHidden(mock.Anything, teamID, false).Return(nil).Once()
 

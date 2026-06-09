@@ -16,6 +16,7 @@ import (
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/scoring"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/computil"
@@ -139,11 +140,13 @@ func (uc *SolveUseCase) Create(ctx context.Context, solve *domain.Solve) error {
 	}
 
 	if uc.deps.Broadcaster != nil && solvedChallenge != nil {
-		comp := computil.Cached(ctx, uc.deps.CompetitionUC, uc.deps.CompetitionRepo)
+		txctx.AfterCommitOrNow(ctx, func(ctx context.Context) {
+			comp := computil.Cached(ctx, uc.deps.CompetitionUC, uc.deps.CompetitionRepo)
 
-		if comp == nil || !comp.IsFreezeActive() {
-			uc.deps.Broadcaster.NotifySolve(solve.TeamID, solvedChallenge.Title, solvedChallenge.Points, isFirstBlood)
-		}
+			if comp == nil || !comp.IsFreezeActive() {
+				uc.deps.Broadcaster.NotifySolve(solve.TeamID, solvedChallenge.Title, solvedChallenge.Points, isFirstBlood)
+			}
+		})
 	}
 
 	return nil
@@ -223,13 +226,13 @@ func (uc *SolveUseCase) solveCreateResolveTeamID(ctx context.Context, solve *dom
 	return nil
 }
 
-// solveCreateUpsert loads the challenge, verifies it is not hidden, and calls
+// solveCreateUpsert locks the challenge row, verifies it is not hidden, and calls
 // RecordSolveInTx which upserts the solve row and recalculates dynamic scoring.
 // Returns the challenge and whether this is the first solve (first blood).
 func (uc *SolveUseCase) solveCreateUpsert(ctx context.Context, solve *domain.Solve) (*domain.Challenge, bool, error) {
-	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, solve.ChallengeID)
+	challenge, err := uc.deps.ChallengeRepo.GetByIDForUpdate(ctx, solve.ChallengeID)
 	if err != nil {
-		return nil, false, fmt.Errorf("SolveUseCase - Create - ChallengeRepo.GetByID: %w", err)
+		return nil, false, fmt.Errorf("SolveUseCase - Create - ChallengeRepo.GetByIDForUpdate: %w", err)
 	}
 
 	if err := guard.EnsureChallengeVisible(challenge); err != nil {
@@ -352,13 +355,17 @@ func (uc *SolveUseCase) ClearLocalScoreCacheLiveOnly(keys []string) {
 	}
 }
 
-func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeID uuid.UUID, forceLive bool) (*domain.FirstBloodEntry, error) {
+func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID, forceLive bool) (*domain.FirstBloodEntry, error) {
 	challenge, err := uc.deps.ChallengeRepo.GetByID(ctx, challengeID)
 	if err != nil {
 		return nil, fmt.Errorf("SolveUseCase - GetFirstBlood - ChallengeRepo.GetByID: %w", err)
 	}
 
 	if err := guard.EnsureChallengeVisible(challenge); err != nil {
+		return nil, err
+	}
+
+	if err := ensureChallengeRequirementsSatisfiedForRead(ctx, challengeID, teamID, uc.deps.ChallengeRepo, uc.deps.SolveRepo, "SolveUseCase - GetFirstBlood"); err != nil {
 		return nil, err
 	}
 
@@ -376,4 +383,42 @@ func (uc *SolveUseCase) GetFirstBlood(ctx context.Context, challengeID uuid.UUID
 	}
 
 	return entry, nil
+}
+
+func ensureChallengeRequirementsSatisfiedForRead(ctx context.Context, challengeID uuid.UUID, teamID *uuid.UUID, challengeRepo repo.ChallengeRepository, solveRepo repo.SolveRepository, op string) error {
+	requirements, err := challengeRepo.GetRequirementsForEnforcement(ctx, challengeID)
+	if err != nil {
+		return fmt.Errorf("%s - GetRequirementsForEnforcement: %w", op, err)
+	}
+
+	if len(requirements) == 0 {
+		return nil
+	}
+
+	if teamID == nil || solveRepo == nil {
+		return apperr.ErrChallengeNotFound
+	}
+
+	requirementIDs := make([]uuid.UUID, 0, len(requirements))
+	for _, req := range requirements {
+		requirementIDs = append(requirementIDs, req.ChallengeID)
+	}
+
+	solvedIDs, err := solveRepo.GetSolvedChallengeIDsByTeam(ctx, *teamID, requirementIDs)
+	if err != nil {
+		return fmt.Errorf("%s - GetSolvedChallengeIDsByTeam: %w", op, err)
+	}
+
+	solvedSet := make(map[uuid.UUID]struct{}, len(solvedIDs))
+	for _, id := range solvedIDs {
+		solvedSet[id] = struct{}{}
+	}
+
+	for _, req := range requirements {
+		if _, ok := solvedSet[req.ChallengeID]; !ok {
+			return apperr.ErrChallengeNotFound
+		}
+	}
+
+	return nil
 }

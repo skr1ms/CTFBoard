@@ -24,9 +24,9 @@ func (uc *TeamUseCase) DisbandTeam(ctx context.Context, captainID uuid.UUID) err
 	var memberIDs []uuid.UUID
 
 	err := uc.deps.TM.Run(ctx, func(ctx context.Context) error {
-		comp, err := uc.deps.CompRepo.Get(ctx)
+		comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
 		if err != nil {
-			return fmt.Errorf("TeamUseCase - DisbandTeam - CompetitionRepo.Get: %w", err)
+			return fmt.Errorf("TeamUseCase - DisbandTeam - CompetitionRepo.GetForUpdate: %w", err)
 		}
 
 		if err := guard.ValidateTeamSwitchState(comp); err != nil {

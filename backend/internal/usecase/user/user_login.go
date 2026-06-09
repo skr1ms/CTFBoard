@@ -8,7 +8,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -16,8 +15,11 @@ import (
 // checks whether the address is locked out due to previous failed attempts, and
 // looks up the user. When the user is not found it still executes a dummy bcrypt
 // comparison under the CPU semaphore so that the response time does not leak
-// whether the address exists (timing-attack mitigation). Ban status and an
-// OAuth-only sentinel password are checked before the real hash comparison
+// whether the address exists (timing-attack mitigation). Users marked
+// Directly banned users and former members of banned teams can still log in so
+// the frontend can fetch /auth/me and render ban/appeal state. Protected CTF
+// actions remain blocked by middleware and usecase guards.
+// An OAuth-only sentinel password is checked before the real hash comparison.
 // On success the failed-login counter is cleared and a JWT token pair is issued.
 func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*usecase.TokenPair, error) {
 	email = normalizeEmail(email)
@@ -51,13 +53,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*usec
 		return nil, fmt.Errorf("UserUseCase - Login - UserRepo.GetByEmail: %w", err)
 	}
 
-	if user.WasInBannedTeam && user.Role != domain.RoleAdmin {
-		uc.recordFailedLogin(ctx, email)
-
-		return nil, apperr.ErrInvalidCredentials
-	}
-
-	if user.PasswordHash == "" || user.PasswordHash == domain.OAuthOnlyPasswordSentinel {
+	if !user.HasLocalPassword() {
 		uc.recordFailedLogin(ctx, email)
 
 		return nil, apperr.ErrInvalidCredentials
@@ -76,12 +72,7 @@ func (uc *UserUseCase) Login(ctx context.Context, email, password string) (*usec
 
 	uc.clearFailedLogin(ctx, email)
 
-	tokenPair, err := uc.deps.JWTService.GenerateTokenPair(ctx, user.ID, string(user.Role))
-	if err != nil {
-		return nil, fmt.Errorf("UserUseCase - Login - JWTService.GenerateTokenPair: %w", err)
-	}
-
-	return tokenPairFromJWT(tokenPair), nil
+	return issueUserTokenPair(ctx, uc.deps.JWTService, user, "UserUseCase - Login")
 }
 
 func (uc *UserUseCase) recordFailedLogin(ctx context.Context, email string) {

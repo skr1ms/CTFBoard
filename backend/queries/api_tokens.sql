@@ -13,8 +13,11 @@ SELECT id, user_id, token_hash, description, expires_at, last_used_at, created_a
 FROM api_tokens
 WHERE token_hash = $1;
 
--- name: DeleteAPIToken :exec
+-- name: DeleteAPIToken :execrows
 DELETE FROM api_tokens WHERE id = $1 AND user_id = $2;
+
+-- name: DeleteAPITokensByUserID :exec
+DELETE FROM api_tokens WHERE user_id = $1;
 
 -- name: UpdateAPITokenLastUsed :exec
 UPDATE api_tokens SET last_used_at = $2 WHERE id = $1;

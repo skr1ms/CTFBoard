@@ -13,21 +13,6 @@ import (
 // =============================================================================
 
 type (
-	// ChallengeFlags is an alias for domain.ChallengeFlags kept for repo-internal use.
-	ChallengeFlags = domain.ChallengeFlags
-
-	// ChallengeRequirement is an alias for domain.ChallengeRequirement.
-	ChallengeRequirement = domain.ChallengeRequirement
-
-	// ChallengeSolution is an alias for domain.ChallengeSolution.
-	ChallengeSolution = domain.ChallengeSolution
-
-	// ChallengeSolutionEntry is an alias for domain.ChallengeSolutionEntry.
-	ChallengeSolutionEntry = domain.ChallengeSolutionEntry
-
-	// ChallengeWithSolved is an alias for domain.ChallengeWithSolved.
-	ChallengeWithSolved = domain.ChallengeWithSolved
-
 	// ChallengeRepository provides persistence operations for challenges, flags, requirements, and solutions.
 	ChallengeRepository interface {
 		Create(ctx context.Context, c *domain.Challenge) error
@@ -35,8 +20,8 @@ type (
 		GetByID(ctx context.Context, ID uuid.UUID) (*domain.Challenge, error)
 		GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*domain.Challenge, error)
 		GetByIDForUpdate(ctx context.Context, ID uuid.UUID) (*domain.Challenge, error)
-		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*ChallengeWithSolved, error)
-		GetAllForBackup(ctx context.Context) ([]*ChallengeWithSolved, error)
+		GetAll(ctx context.Context, teamID, tagID *uuid.UUID) ([]*domain.ChallengeWithSolved, error)
+		GetAllForBackup(ctx context.Context) ([]*domain.ChallengeWithSolved, error)
 		Delete(ctx context.Context, ID uuid.UUID) error
 		IncrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error)
 		DecrementSolveCount(ctx context.Context, ID uuid.UUID) (int, error)
@@ -47,13 +32,15 @@ type (
 		UpdatePoints(ctx context.Context, ID uuid.UUID, points int) error
 		SetTags(ctx context.Context, challengeID uuid.UUID, tagIDs []uuid.UUID) error
 		SetRequirements(ctx context.Context, challengeID uuid.UUID, requirementIDs []uuid.UUID) error
-		GetFlags(ctx context.Context, ID uuid.UUID) (*ChallengeFlags, error)
-		GetRequirements(ctx context.Context, ID uuid.UUID) ([]*ChallengeRequirement, error)
+		GetFlags(ctx context.Context, ID uuid.UUID) (*domain.ChallengeFlags, error)
+		GetRequirements(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error)
+		GetRequirementsForEnforcement(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error)
 		GetAllRequirementPairs(ctx context.Context) ([]*domain.ChallengeRequirementPair, error)
-		GetSolution(ctx context.Context, ID uuid.UUID) (*ChallengeSolution, error)
+		AcquireRequirementsLock(ctx context.Context) error
+		GetSolution(ctx context.Context, ID uuid.UUID) (*domain.ChallengeSolution, error)
 		GetAllSolutions(ctx context.Context) ([]*domain.SolutionBackup, error)
-		ListSolutions(ctx context.Context) ([]*ChallengeSolutionEntry, error)
-		UpsertSolution(ctx context.Context, challengeID uuid.UUID, content, state string) (*ChallengeSolution, error)
+		ListSolutions(ctx context.Context) ([]*domain.ChallengeSolutionEntry, error)
+		UpsertSolution(ctx context.Context, challengeID uuid.UUID, content, state string) (*domain.ChallengeSolution, error)
 		DeleteSolution(ctx context.Context, challengeID uuid.UUID) error
 		GetMissingChallengesByTeamID(ctx context.Context, teamID uuid.UUID) ([]*domain.Challenge, error)
 		GetMissingChallengesByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Challenge, error)
@@ -177,5 +164,7 @@ type (
 		GetByTeamAndChallenge(ctx context.Context, teamID, challengeID uuid.UUID) (*domain.Rating, error)
 		GetAll(ctx context.Context) ([]*domain.Rating, error)
 		DeleteByTeamID(ctx context.Context, teamID uuid.UUID) error
+		SoftBanByTeamID(ctx context.Context, teamID uuid.UUID) error
+		RestoreByBannedTeamID(ctx context.Context, teamID uuid.UUID) error
 	}
 )

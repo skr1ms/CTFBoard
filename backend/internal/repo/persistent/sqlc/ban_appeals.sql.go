@@ -224,7 +224,7 @@ func (q *Queries) ListBanAppealsByDecision(ctx context.Context, arg ListBanAppea
 const updateBanAppeal = `-- name: UpdateBanAppeal :execrows
 UPDATE ban_appeals
 SET decision = $2, admin_response = $3, reviewed_at = $4
-WHERE id = $1
+WHERE id = $1 AND decision = 'pending'
 `
 
 type UpdateBanAppealParams struct {

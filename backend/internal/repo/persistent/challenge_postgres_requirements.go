@@ -8,19 +8,38 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
-	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/repo/persistent/sqlc"
 )
 
-func (r *ChallengeRepo) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*repo.ChallengeRequirement, error) {
+const challengeRequirementsGraphLockKey int64 = 0x415354524f435452
+
+func (r *ChallengeRepo) GetRequirements(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error) {
 	rows, err := r.Q(ctx).GetChallengeRequirements(ctx, ID)
 	if err != nil {
 		return nil, fmt.Errorf("ChallengeRepo - GetRequirements: %w", err)
 	}
 
-	out := make([]*repo.ChallengeRequirement, len(rows))
+	out := make([]*domain.ChallengeRequirement, len(rows))
 	for i, row := range rows {
-		out[i] = &repo.ChallengeRequirement{
+		out[i] = &domain.ChallengeRequirement{
+			ChallengeID:    row.ID,
+			ChallengeTitle: row.Title,
+			Category:       lo.EmptyableToPtr(row.Category),
+		}
+	}
+
+	return out, nil
+}
+
+func (r *ChallengeRepo) GetRequirementsForEnforcement(ctx context.Context, ID uuid.UUID) ([]*domain.ChallengeRequirement, error) {
+	rows, err := r.Q(ctx).GetChallengeRequirementsForEnforcement(ctx, ID)
+	if err != nil {
+		return nil, fmt.Errorf("ChallengeRepo - GetRequirementsForEnforcement: %w", err)
+	}
+
+	out := make([]*domain.ChallengeRequirement, len(rows))
+	for i, row := range rows {
+		out[i] = &domain.ChallengeRequirement{
 			ChallengeID:    row.ID,
 			ChallengeTitle: row.Title,
 			Category:       lo.EmptyableToPtr(row.Category),
@@ -45,6 +64,10 @@ func (r *ChallengeRepo) GetAllRequirementPairs(ctx context.Context) ([]*domain.C
 	}
 
 	return out, nil
+}
+
+func (r *ChallengeRepo) AcquireRequirementsLock(ctx context.Context) error {
+	return r.AcquireAdvisoryLock(ctx, challengeRequirementsGraphLockKey)
 }
 
 // SetRequirements replaces the full prerequisite set for a challenge atomically:

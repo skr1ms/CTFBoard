@@ -9,6 +9,7 @@ import (
 	"github.com/wahrwelt-kit/go-logkit"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/txctx"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase/cacheutil"
 )
 
@@ -22,8 +23,13 @@ func (uc *CompetitionParamUseCase) invalidateLocal() {
 	uc.sf.Forget(loadAllKey)
 }
 
-// invalidate clears local cache, deletes Redis cache, and publishes invalidation message; concurrent Get/GetAll use stale local cache.
+// invalidate defers cache invalidation until the outer transaction commits.
 func (uc *CompetitionParamUseCase) invalidate(ctx context.Context) {
+	txctx.AfterCommitOrNow(ctx, uc.invalidateNow)
+}
+
+// invalidateNow clears local cache, deletes Redis cache, and publishes invalidation message; concurrent Get/GetAll use stale local cache.
+func (uc *CompetitionParamUseCase) invalidateNow(ctx context.Context) {
 	uc.invalidateLocal()
 
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), invalidateTimeout)

@@ -57,3 +57,33 @@ func TestValidateFileMagic(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateChallengeUploadFilenameAllowsCTFArtifacts(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		filename string
+		want     bool
+	}{
+		{name: "elf filename", filename: "chall.elf", want: true},
+		{name: "script filename", filename: "solve.sh", want: true},
+		{name: "pdf filename", filename: "writeup.pdf", want: true},
+		{name: "double extension", filename: "source.php.txt", want: true},
+		{name: "empty filename", filename: " ", want: false},
+		{name: "nul byte", filename: "task\x00.txt", want: false},
+		{name: "dotdot segment", filename: "task..txt", want: false},
+		{name: "slash", filename: "dir/task.txt", want: false},
+		{name: "backslash", filename: `dir\task.txt`, want: false},
+		{name: "newline", filename: "task\n.txt", want: false},
+		{name: "delete control", filename: "task\x7f.txt", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, ValidateChallengeUploadFilename(tt.filename))
+		})
+	}
+}

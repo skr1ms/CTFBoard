@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/TakuyaYagam1/AstroCTFb/internal/apperr"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/TakuyaYagam1/AstroCTFb/internal/usecase"
 )
 
@@ -15,17 +19,21 @@ type StoragePort interface {
 }
 
 type UseCase struct {
-	storage StoragePort
+	storage  StoragePort
+	auditLog repo.AuditLogRepository
 }
 
 type Deps struct {
-	Storage StoragePort
+	Storage  StoragePort
+	AuditLog repo.AuditLogRepository
 }
 
 var _ usecase.StorageAdminUseCase = (*UseCase)(nil)
 
+const storageAuditEntityID = "object"
+
 func NewUseCase(deps Deps) *UseCase {
-	return &UseCase{storage: deps.Storage}
+	return &UseCase{storage: deps.Storage, auditLog: deps.AuditLog}
 }
 
 func (uc *UseCase) List(ctx context.Context, prefix string) ([]string, error) {
@@ -41,13 +49,36 @@ func (uc *UseCase) List(ctx context.Context, prefix string) ([]string, error) {
 	return paths, nil
 }
 
-func (uc *UseCase) Delete(ctx context.Context, path string) error {
-	if err := validatePath(path); err != nil {
+func (uc *UseCase) Delete(ctx context.Context, params usecase.StorageAdminDeleteParams) error {
+	if err := validatePath(params.Path); err != nil {
 		return fmt.Errorf("StorageAdminUseCase - Delete - validatePath: %w", err)
 	}
 
-	if err := uc.storage.Delete(ctx, path); err != nil {
+	if params.ActorID == uuid.Nil {
+		return apperr.NewValidationErrorf("actor_id is required")
+	}
+
+	if uc.auditLog == nil {
+		return fmt.Errorf("StorageAdminUseCase - Delete - AuditLogRepo not configured")
+	}
+
+	if err := uc.storage.Delete(ctx, params.Path); err != nil {
 		return fmt.Errorf("StorageAdminUseCase - Delete - Storage.Delete: %w", err)
+	}
+
+	auditLog := &domain.AuditLog{
+		UserID:     &params.ActorID,
+		Action:     domain.AuditActionDelete,
+		EntityType: domain.AuditEntityStorage,
+		EntityID:   storageAuditEntityID,
+		IP:         params.ClientIP,
+		Details: map[string]any{
+			"message": "storage object deleted",
+			"path":    params.Path,
+		},
+	}
+	if err := uc.auditLog.Create(ctx, auditLog); err != nil {
+		return fmt.Errorf("StorageAdminUseCase - Delete - AuditLogRepo.Create: %w", err)
 	}
 
 	return nil

@@ -231,6 +231,7 @@ func DefaultSolveMapper(r *SolveForPointsRecalc) *SolveRowForPointsRecalc {
 	return &SolveRowForPointsRecalc{
 		ID:           r.ID,
 		ChallengeID:  r.ChallengeID,
+		SolvedAt:     r.SolvedAt,
 		InitialValue: r.InitialValue,
 		MinValue:     r.MinValue,
 		Decay:        r.Decay,

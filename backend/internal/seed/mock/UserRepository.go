@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/TakuyaYagam1/AstroCTFb/internal/domain"
+	"github.com/TakuyaYagam1/AstroCTFb/internal/repo"
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -338,6 +339,144 @@ func (_c *MockUserRepository_CountSearch_Call) Return(n int64, err error) *MockU
 }
 
 func (_c *MockUserRepository_CountSearch_Call) RunAndReturn(run func(ctx context.Context, search *string) (int64, error)) *MockUserRepository_CountSearch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountSearchAdmin provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) CountSearchAdmin(ctx context.Context, filter repo.UserAdminSearchFilter) (int64, error) {
+	ret := _mock.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountSearchAdmin")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.UserAdminSearchFilter) (int64, error)); ok {
+		return returnFunc(ctx, filter)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.UserAdminSearchFilter) int64); ok {
+		r0 = returnFunc(ctx, filter)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.UserAdminSearchFilter) error); ok {
+		r1 = returnFunc(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_CountSearchAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountSearchAdmin'
+type MockUserRepository_CountSearchAdmin_Call struct {
+	*mock.Call
+}
+
+// CountSearchAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter repo.UserAdminSearchFilter
+func (_e *MockUserRepository_Expecter) CountSearchAdmin(ctx interface{}, filter interface{}) *MockUserRepository_CountSearchAdmin_Call {
+	return &MockUserRepository_CountSearchAdmin_Call{Call: _e.mock.On("CountSearchAdmin", ctx, filter)}
+}
+
+func (_c *MockUserRepository_CountSearchAdmin_Call) Run(run func(ctx context.Context, filter repo.UserAdminSearchFilter)) *MockUserRepository_CountSearchAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repo.UserAdminSearchFilter
+		if args[1] != nil {
+			arg1 = args[1].(repo.UserAdminSearchFilter)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearchAdmin_Call) Return(n int64, err error) *MockUserRepository_CountSearchAdmin_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearchAdmin_Call) RunAndReturn(run func(ctx context.Context, filter repo.UserAdminSearchFilter) (int64, error)) *MockUserRepository_CountSearchAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CountSearchAdminByIP provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) CountSearchAdminByIP(ctx context.Context, ip string, banStatus repo.UserAdminBanStatus) (int64, error) {
+	ret := _mock.Called(ctx, ip, banStatus)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountSearchAdminByIP")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repo.UserAdminBanStatus) (int64, error)); ok {
+		return returnFunc(ctx, ip, banStatus)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repo.UserAdminBanStatus) int64); ok {
+		r0 = returnFunc(ctx, ip, banStatus)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, repo.UserAdminBanStatus) error); ok {
+		r1 = returnFunc(ctx, ip, banStatus)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_CountSearchAdminByIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountSearchAdminByIP'
+type MockUserRepository_CountSearchAdminByIP_Call struct {
+	*mock.Call
+}
+
+// CountSearchAdminByIP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ip string
+//   - banStatus repo.UserAdminBanStatus
+func (_e *MockUserRepository_Expecter) CountSearchAdminByIP(ctx interface{}, ip interface{}, banStatus interface{}) *MockUserRepository_CountSearchAdminByIP_Call {
+	return &MockUserRepository_CountSearchAdminByIP_Call{Call: _e.mock.On("CountSearchAdminByIP", ctx, ip, banStatus)}
+}
+
+func (_c *MockUserRepository_CountSearchAdminByIP_Call) Run(run func(ctx context.Context, ip string, banStatus repo.UserAdminBanStatus)) *MockUserRepository_CountSearchAdminByIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 repo.UserAdminBanStatus
+		if args[2] != nil {
+			arg2 = args[2].(repo.UserAdminBanStatus)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearchAdminByIP_Call) Return(n int64, err error) *MockUserRepository_CountSearchAdminByIP_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockUserRepository_CountSearchAdminByIP_Call) RunAndReturn(run func(ctx context.Context, ip string, banStatus repo.UserAdminBanStatus) (int64, error)) *MockUserRepository_CountSearchAdminByIP_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1255,6 +1394,172 @@ func (_c *MockUserRepository_Search_Call) Return(users []*domain.User, err error
 }
 
 func (_c *MockUserRepository_Search_Call) RunAndReturn(run func(ctx context.Context, search *string, limit int, offset int) ([]*domain.User, error)) *MockUserRepository_Search_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SearchAdmin provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) SearchAdmin(ctx context.Context, filter repo.UserAdminSearchFilter, limit int, offset int) ([]*domain.User, error) {
+	ret := _mock.Called(ctx, filter, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchAdmin")
+	}
+
+	var r0 []*domain.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.UserAdminSearchFilter, int, int) ([]*domain.User, error)); ok {
+		return returnFunc(ctx, filter, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repo.UserAdminSearchFilter, int, int) []*domain.User); ok {
+		r0 = returnFunc(ctx, filter, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*domain.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repo.UserAdminSearchFilter, int, int) error); ok {
+		r1 = returnFunc(ctx, filter, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_SearchAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SearchAdmin'
+type MockUserRepository_SearchAdmin_Call struct {
+	*mock.Call
+}
+
+// SearchAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter repo.UserAdminSearchFilter
+//   - limit int
+//   - offset int
+func (_e *MockUserRepository_Expecter) SearchAdmin(ctx interface{}, filter interface{}, limit interface{}, offset interface{}) *MockUserRepository_SearchAdmin_Call {
+	return &MockUserRepository_SearchAdmin_Call{Call: _e.mock.On("SearchAdmin", ctx, filter, limit, offset)}
+}
+
+func (_c *MockUserRepository_SearchAdmin_Call) Run(run func(ctx context.Context, filter repo.UserAdminSearchFilter, limit int, offset int)) *MockUserRepository_SearchAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repo.UserAdminSearchFilter
+		if args[1] != nil {
+			arg1 = args[1].(repo.UserAdminSearchFilter)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SearchAdmin_Call) Return(users []*domain.User, err error) *MockUserRepository_SearchAdmin_Call {
+	_c.Call.Return(users, err)
+	return _c
+}
+
+func (_c *MockUserRepository_SearchAdmin_Call) RunAndReturn(run func(ctx context.Context, filter repo.UserAdminSearchFilter, limit int, offset int) ([]*domain.User, error)) *MockUserRepository_SearchAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SearchAdminByIP provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) SearchAdminByIP(ctx context.Context, ip string, banStatus repo.UserAdminBanStatus, limit int, offset int) ([]*domain.User, error) {
+	ret := _mock.Called(ctx, ip, banStatus, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchAdminByIP")
+	}
+
+	var r0 []*domain.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repo.UserAdminBanStatus, int, int) ([]*domain.User, error)); ok {
+		return returnFunc(ctx, ip, banStatus, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repo.UserAdminBanStatus, int, int) []*domain.User); ok {
+		r0 = returnFunc(ctx, ip, banStatus, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*domain.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, repo.UserAdminBanStatus, int, int) error); ok {
+		r1 = returnFunc(ctx, ip, banStatus, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_SearchAdminByIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SearchAdminByIP'
+type MockUserRepository_SearchAdminByIP_Call struct {
+	*mock.Call
+}
+
+// SearchAdminByIP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ip string
+//   - banStatus repo.UserAdminBanStatus
+//   - limit int
+//   - offset int
+func (_e *MockUserRepository_Expecter) SearchAdminByIP(ctx interface{}, ip interface{}, banStatus interface{}, limit interface{}, offset interface{}) *MockUserRepository_SearchAdminByIP_Call {
+	return &MockUserRepository_SearchAdminByIP_Call{Call: _e.mock.On("SearchAdminByIP", ctx, ip, banStatus, limit, offset)}
+}
+
+func (_c *MockUserRepository_SearchAdminByIP_Call) Run(run func(ctx context.Context, ip string, banStatus repo.UserAdminBanStatus, limit int, offset int)) *MockUserRepository_SearchAdminByIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 repo.UserAdminBanStatus
+		if args[2] != nil {
+			arg2 = args[2].(repo.UserAdminBanStatus)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_SearchAdminByIP_Call) Return(users []*domain.User, err error) *MockUserRepository_SearchAdminByIP_Call {
+	_c.Call.Return(users, err)
+	return _c
+}
+
+func (_c *MockUserRepository_SearchAdminByIP_Call) RunAndReturn(run func(ctx context.Context, ip string, banStatus repo.UserAdminBanStatus, limit int, offset int) ([]*domain.User, error)) *MockUserRepository_SearchAdminByIP_Call {
 	_c.Call.Return(run)
 	return _c
 }

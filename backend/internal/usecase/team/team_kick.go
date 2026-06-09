@@ -47,9 +47,9 @@ func (uc *TeamUseCase) KickMember(ctx context.Context, captainID, targetUserID u
 // acquires locks via kickMemberPrepare, validates constraints, then executes the kick.
 // Returns the team ID so the caller can perform targeted cache invalidation.
 func (uc *TeamUseCase) kickMemberTx(ctx context.Context, captainID, targetUserID uuid.UUID) (uuid.UUID, error) {
-	comp, err := uc.deps.CompRepo.Get(ctx)
+	comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("TeamUseCase - kickMemberTx - CompRepo.Get: %w", err)
+		return uuid.Nil, fmt.Errorf("TeamUseCase - kickMemberTx - CompRepo.GetForUpdate: %w", err)
 	}
 
 	if err := guard.ValidateTeamSwitchState(comp); err != nil {

@@ -47,9 +47,9 @@ func (uc *TeamUseCase) TransferCaptain(ctx context.Context, captainID, newCaptai
 
 // transferCaptainTx executes the captaincy transfer inside a transaction after acquiring per-user locks.
 func (uc *TeamUseCase) transferCaptainTx(ctx context.Context, captainID, newCaptainID uuid.UUID) (uuid.UUID, error) {
-	comp, err := uc.deps.CompRepo.Get(ctx)
+	comp, err := uc.deps.CompRepo.GetForUpdate(ctx)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("TeamUseCase - transferCaptainTx - CompetitionRepo.Get: %w", err)
+		return uuid.Nil, fmt.Errorf("TeamUseCase - transferCaptainTx - CompetitionRepo.GetForUpdate: %w", err)
 	}
 
 	if err := guard.ValidateTeamSwitchState(comp); err != nil {

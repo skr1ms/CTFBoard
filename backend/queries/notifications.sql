@@ -28,7 +28,7 @@ UPDATE notifications
 SET title = $2, content = $3, type = $4, is_pinned = $5
 WHERE id = $1;
 
--- name: DeleteNotification :exec
+-- name: DeleteNotification :execrows
 DELETE FROM notifications WHERE id = $1;
 
 -- name: CreateUserNotification :one

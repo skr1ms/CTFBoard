@@ -32,7 +32,7 @@ func TestHintUseCase_UnlockHint_Success(t *testing.T) {
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
 	d.userRepo.On("GetByID", mock.Anything, userID).Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
 	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
@@ -73,7 +73,7 @@ func TestHintUseCase_UnlockHint_FreeHint(t *testing.T) {
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
 	d.userRepo.On("GetByID", mock.Anything, userID).Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
 	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
@@ -137,7 +137,6 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	t.Parallel()
 	d := newChallengeTestDeps(t)
 	uc, _ := d.createHintUseCase()
-	d.expectUnlockHintDB()
 
 	userID := uuid.New()
 	teamID := uuid.New()
@@ -152,25 +151,23 @@ func TestHintUseCase_UnlockHint_AlreadyUnlocked(t *testing.T) {
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
 	d.userRepo.On("GetByID", mock.Anything, userID).Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
 	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
 	d.teamRepo.On("GetByID", mock.Anything, teamID).Return(&domain.Team{ID: teamID, IsBanned: false}, nil)
 	d.solveRepo.On("GetByTeamAndChallenge", mock.Anything, teamID, challengeID).Return(nil, apperr.ErrSolveNotFound)
 	d.hintRepo.On("GetByChallengeID", mock.Anything, challengeID).Return([]*domain.Hint{hint}, nil)
-	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{}, nil)
-	d.solveRepo.On("GetTeamScore", mock.Anything, teamID).Return(200, nil)
-	d.awardRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.Award) bool {
-		return a.TeamID == teamID && a.Value == -50
-	})).Return(nil)
-	d.hintRepo.On("CreateUnlock", mock.Anything, teamID, hintID).Return(apperr.ErrHintAlreadyUnlocked)
+	d.hintRepo.On("GetUnlockedHintIDs", mock.Anything, teamID, challengeID).Return([]uuid.UUID{hintID}, nil)
 
 	unlocked, err := uc.UnlockHint(context.Background(), userID, teamID, challengeID, hintID)
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, apperr.ErrHintAlreadyUnlocked)
 	assert.Nil(t, unlocked)
+	d.solveRepo.AssertNotCalled(t, "GetTeamScore", mock.Anything, mock.Anything)
+	d.awardRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	d.hintRepo.AssertNotCalled(t, "CreateUnlock", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
@@ -192,7 +189,7 @@ func TestHintUseCase_UnlockHint_InsufficientPoints(t *testing.T) {
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
 	d.userRepo.On("GetByID", mock.Anything, userID).Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: false}, nil)
 	d.teamRepo.On("Lock", mock.Anything, teamID).Return(nil)
@@ -227,7 +224,7 @@ func TestHintUseCase_UnlockHint_BannedUser(t *testing.T) {
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
 	d.userRepo.On("GetByID", mock.Anything, userID).Return(&domain.User{ID: userID, TeamID: &teamID, IsBanned: true}, nil)
 
@@ -258,7 +255,7 @@ func TestHintUseCase_UnlockHint_UserNotInTeam(t *testing.T) {
 	d.compRepo.On("GetForUpdate", mock.Anything).Return(newActiveCompetition(), nil)
 	d.hintRepo.On("GetByIDForUpdate", mock.Anything, hintID).Return(hint, nil)
 	d.challengeRepo.On("GetByID", mock.Anything, challengeID).Return(&domain.Challenge{ID: challengeID, State: domain.ChallengeStateVisible}, nil)
-	d.challengeRepo.On("GetRequirements", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
+	d.challengeRepo.On("GetRequirementsForEnforcement", mock.Anything, challengeID).Return([]*domain.ChallengeRequirement{}, nil)
 	d.userRepo.On("Lock", mock.Anything, userID).Return(nil)
 	d.userRepo.On("GetByID", mock.Anything, userID).Return(&domain.User{ID: userID, TeamID: &otherTeamID, IsBanned: false}, nil)
 

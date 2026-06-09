@@ -107,12 +107,16 @@ func (uc *BackupUseCase) exportZIPWorker(ctx context.Context, pw *io.PipeWriter,
 			return
 		}
 
-		skipped := uc.streamFilesToZip(ctx, zw, data.Files)
+		if err := uc.streamFilesToZip(ctx, zw, data.Files); err != nil {
+			pw.CloseWithError(err)
+
+			return
+		}
+
 		uc.deps.Logger.Info("BackupUseCase - ExportZIP - completed", logkit.Fields{
 			"challenges": len(data.Challenges),
 			"teams":      len(data.Teams),
 			"files":      len(data.Files),
-			"skipped":    skipped,
 		})
 	} else {
 		uc.deps.Logger.Info("BackupUseCase - ExportZIP - completed", logkit.Fields{
@@ -147,62 +151,42 @@ func (uc *BackupUseCase) writeBackupJSON(zw *zip.Writer, data *domain.BackupData
 
 // streamFilesToZip downloads each file from object storage and writes it into
 // the ZIP archive under the canonical backup file path for its type. Files are
-// processed sequentially; when a download or copy fails the file is skipped, a
-// warning is logged, and the skip counter is incremented. Context cancellation
-// stops the loop early. The total number of skipped files is returned so the
-// caller can surface it in the completion log entry.
-func (uc *BackupUseCase) streamFilesToZip(ctx context.Context, zw *zip.Writer, files []domain.File) int {
-	var skipped int
-
+// processed sequentially. Any path, storage, or copy error fails the streaming
+// export through the io.Pipe so operators do not receive an apparently complete
+// archive with silently missing payloads.
+func (uc *BackupUseCase) streamFilesToZip(ctx context.Context, zw *zip.Writer, files []domain.File) error {
 	for _, file := range files {
-		if ctx.Err() != nil {
-			break
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 
 		path, err := backupFileZIPPath(file)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"file": file.Filename, "type": file.Type}).Warn("BackupUseCase - streamFilesToZip - path")
-
-			skipped++
-
-			continue
+			return fmt.Errorf("BackupUseCase - streamFilesToZip - path %s: %w", file.Filename, err)
 		}
 
 		f, err := zw.Create(path)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"file": file.Filename}).Warn("BackupUseCase - streamFilesToZip - create")
-
-			skipped++
-
-			continue
+			return fmt.Errorf("BackupUseCase - streamFilesToZip - create %s: %w", file.Filename, err)
 		}
 
 		rc, err := uc.deps.Storage.Download(ctx, file.Location)
 		if err != nil {
-			uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"file": file.Filename, "location": file.Location}).Warn("BackupUseCase - streamFilesToZip - download")
-
-			skipped++
-
-			continue
+			return fmt.Errorf("BackupUseCase - streamFilesToZip - download %s: %w", file.Location, err)
 		}
 
-		func() {
+		if err := func() error {
 			defer func() { _ = rc.Close() }()
 
 			if _, err := io.Copy(f, rc); err != nil {
-				uc.deps.Logger.WithError(err).WithFields(logkit.Fields{"file": file.Filename}).Warn("BackupUseCase - streamFilesToZip - copy")
-
-				skipped++
+				return fmt.Errorf("BackupUseCase - streamFilesToZip - copy %s: %w", file.Filename, err)
 			}
-		}()
+
+			return nil
+		}(); err != nil {
+			return err
+		}
 	}
 
-	if skipped > 0 {
-		uc.deps.Logger.Warn("BackupUseCase - streamFilesToZip - completed with skipped files", logkit.Fields{
-			"total":   len(files),
-			"skipped": skipped,
-		})
-	}
-
-	return skipped
+	return nil
 }
