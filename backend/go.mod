@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/chai2010/webp v1.4.0
-	github.com/coder/websocket v1.8.14
+	github.com/coder/websocket v1.8.15
 	github.com/disintegration/imaging v1.6.2
 	github.com/getkin/kin-openapi v0.137.0
 	github.com/go-chi/chi/v5 v5.2.5
