@@ -75,7 +75,7 @@ jobs:
     needs: [gitleaks, yamllint, hadolint, dotenv-linter]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -91,7 +91,7 @@ jobs:
     needs: [gitleaks, yamllint, hadolint, dotenv-linter]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -108,7 +108,7 @@ jobs:
     needs: [gitleaks, yamllint, hadolint, dotenv-linter]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -127,7 +127,7 @@ jobs:
     needs: [gitleaks, yamllint, hadolint, dotenv-linter]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -169,7 +169,7 @@ jobs:
     needs: [check-dependencies, golangci-lint, codegen-verify, backend-build]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -202,7 +202,7 @@ jobs:
     needs: [test]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
@@ -266,7 +266,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: backend/go.sum
