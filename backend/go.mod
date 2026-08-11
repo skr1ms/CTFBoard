@@ -29,7 +29,7 @@ require (
 	github.com/oklog/run v1.2.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.18.0
-	github.com/resend/resend-go/v3 v3.6.0
+	github.com/resend/resend-go/v3 v3.12.0
 	github.com/samber/lo v1.53.0
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.11.1
