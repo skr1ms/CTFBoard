@@ -41,7 +41,7 @@ require (
 	github.com/wahrwelt-kit/go-cachekit v0.5.0
 	github.com/wahrwelt-kit/go-httpkit v0.5.1
 	github.com/wahrwelt-kit/go-jwtkit v0.4.1
-	github.com/wahrwelt-kit/go-logkit v0.4.1
+	github.com/wahrwelt-kit/go-logkit v0.6.0
 	github.com/wahrwelt-kit/go-pgkit v1.3.1
 	github.com/wahrwelt-kit/go-wskit v0.3.0
 	golang.org/x/crypto v0.50.0
@@ -117,7 +117,7 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.9.2 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mdelapenya/tlscert v0.2.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
@@ -143,6 +143,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pressly/goose/v3 v3.27.1 // indirect
@@ -178,7 +179,7 @@ require (
 	golang.org/x/image v0.39.0 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
